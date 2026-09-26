@@ -47,7 +47,7 @@ Enigma-64/
 │   ├── __init__.py                [OK] exporta el contrato público
 │   ├── registros.py               [OK] Integrante 2: banco de registros
 │   ├── alu.py                     [OK] Integrante 2: ALU de 64 bits
-│   ├── memoria.py                 [--] Integrante 1: RAM y buses
+│   ├── memoria.py                 [OK] Integrante 1: RAM y buses
 │   ├── cpu.py                     [--] Integrante 3: FSM y prebúsqueda
 │   ├── cargador.py                [--] Integrante 4
 │   ├── mmio.py                    [--] Integrante 6: controlador de pantalla
@@ -58,6 +58,7 @@ Enigma-64/
 │       └── visor_ram.py           [--] Integrante 6
 └── tests/
     ├── test_registros_alu.py      [OK] Integrante 2: 38 pruebas
+    ├── test_memoria.py            [OK] Integrante 1: 22 pruebas
     └── test_algoritmos.py         [--] Integrante 7
 ```
 
@@ -83,6 +84,71 @@ python main.py
 # Equivalente, lanzando el módulo directamente
 python -m enigma64.gui.panel_registros
 ```
+
+---
+
+# Módulo implementado: RAM & Buses (Integrante 1)
+
+## Qué incluye
+
+**`enigma64/memoria.py`** — Controlador de memoria física y subsistema de buses de 64 bits (código 100% en inglés con comentarios explicativos en español).
+
+- **Paginación por software bajo demanda (Sparse Memory):** No instancia un arreglo real de 4 GiB en memoria del host. Implementa un diccionario (`dict`) donde la clave es el índice del bloque de 4 KiB (`PAGE_SIZE = 4096` bytes) y el valor es un `bytearray`.
+- **Lectura limpia sin reservas innecesarias:** Si se lee una dirección de un bloque no existente en el diccionario, retorna ceros sin instanciar la página.
+- **Escritura bajo demanda:** Al escribir en una dirección no asignada, crea e inicializa el bloque en ceros automáticamente y luego escribe los datos.
+- **Validación lógica de 64 bits:** Comprueba que los bits superiores `A[63:32]` sean exactamente `0x00000000`. Si hay algún bit activo (dirección mayor a 4 GiB físicos o negativa), la memoria aborta la operación y retorna la señal `"ADDR_FAULT"`.
+- **Enrutamiento a MMIO (Memory-Mapped I/O):** Inspecciona los bits `A[31:24]`. Si este segmento equivale a `0xFF` (direcciones `0xFF000000` a `0xFFFFFFFF`), la memoria no accede a las celdas de RAM y retorna el estado `"MMIO"` para delegar el control al bus de periféricos (pantalla, teclado, temporizadores).
+- **Formato Big-Endian:** Toda lectura y escritura en los bloques interpreta y serializa los datos en formato Big-Endian usando `int.from_bytes()` e `int.to_bytes()`.
+- **Control estricto de alineación natural:** Para accesos a datos, verifica que la dirección solicitada sea múltiplo exacto del tamaño (`address % size_bytes == 0`). De lo contrario, aborta la operación y retorna el estado `"MISALIGNED"`.
+- **Cruce transparente entre bloques:** Permite lecturas y escrituras continuas que atraviesan los límites entre páginas consecutivas (crucial para instrucciones de longitud variable de 1 a 5 bytes).
+- **Protocolo de retorno de buses:** Simula el bus de datos y control retornando una tupla `(data, status)`.
+
+## API pública
+
+```python
+from enigma64 import (
+    RAMMemory,
+    PAGE_SIZE,
+    STATUS_READY,
+    STATUS_ADDR_FAULT,
+    STATUS_MMIO,
+    STATUS_MISALIGNED,
+)
+
+ram = RAMMemory(page_size=4096)
+```
+
+### Métodos y Propiedades
+
+| Método / Propiedad | Tipo | Descripción |
+|---|---|---|
+| `mem_read(address, size_bytes, check_alignment=True)` | `(int \| None, str)` | Lee 1, 2, 4 u 8 bytes en formato Big-Endian. Retorna `(valor, status)`. |
+| `mem_write(address, data, size_bytes, check_alignment=True)` | `(None, str)` | Escribe 1, 2, 4 u 8 bytes en Big-Endian. Retorna `(None, status)`. |
+| `reset()` | `None` | Vacía el diccionario de páginas liberando la memoria al estado de reset. |
+| `.allocated_blocks` | `List[int]` | Lista ordenada de los índices de páginas actualmente residentes en memoria. |
+| `.allocated_bytes` | `int` | Memoria real consumida en bytes por las páginas activas. |
+| `.page_size` | `int` | Tamaño de bloque configurado (4096 bytes por defecto). |
+
+### Señales del Bus de Control (`status`)
+
+| Señal | Significado arquitectónico | Acción esperada de la CPU / Buses |
+|---|---|---|
+| `"READY"` | Operación completada con éxito en la RAM física | El ciclo continúa normalmente; en lectura `data` contiene el valor. |
+| `"MISALIGNED"` | Dirección no alineada al tamaño del dato | La CPU enciende la bandera `M` (bit 4 del SR) y genera excepción si aplica. |
+| `"MMIO"` | Dirección ubicada en `0xFF000000` - `0xFFFFFFFF` | La solicitud se desvía al bus de controladores de periféricos (Integrante 6). |
+| `"ADDR_FAULT"` | Dirección mayor a 4 GiB (`A[63:32] != 0`) o negativa | La CPU aborta la instrucción y dispara un fallo de protección de memoria. |
+
+Excepciones: `InvalidAccessSizeError` (si `size_bytes` no pertenece a `{1, 2, 4, 8}`).
+
+## Decisiones de diseño tomadas
+
+| Punto | Decisión | Razón |
+|---|---|---|
+| Tamaño de bloque | 4 KiB (`4096` bytes) | Estándar de la arquitectura y compromiso ideal entre granularidad de asignación y velocidad de consulta en Python. |
+| Prioridad de decodificación | Rango 64 bits → MMIO → Alineación → Acceso RAM | Sigue fielmente la cascada de decodificación de hardware antes de energizar las líneas de celdas de RAM. |
+| Parámetro `check_alignment` | Opcional, por defecto `True` | El ISA tiene instrucciones de longitud variable (1 a 5 bytes) que pueden iniciar en direcciones arbitrarias; la CPU puede pasar `check_alignment=False` en la fase FETCH. |
+| Manejo de lecturas vacías | Retorna `0` y no muta `self.pages` | Cumple el principio de Sparse Memory: la memoria no inicializada se lee como ceros sin inflar el uso de RAM del emulador. |
+| Máscara en escritura | `data & ((1 << (size_bytes * 8)) - 1)` | Si la CPU pasa un registro de 64 bits para una escritura de 1 o 2 bytes (`STB`, etc.), se aíslan limpiamente los bits menos significativos. |
 
 ---
 
@@ -194,13 +260,13 @@ cableado a cero y por definición no es de propósito general. Son cuatro: R1 a 
 ## Nivel 1 — El paquete se importa
 
 ```bash
-python -c "from enigma64 import ALU, BancoRegistros; print('OK')"
+python -c "from enigma64 import ALU, BancoRegistros, MemoriaRAM; print('OK')"
 ```
 
 Si falla aquí el problema es de ubicación de archivos, no de código:
 
 - `No module named 'enigma64'` → no estás en la raíz del repositorio.
-- `No module named 'enigma64.alu'` → falta algún `.py` dentro del paquete.
+- `No module named 'enigma64.memoria'` o `enigma64.alu` → falta algún `.py` dentro del paquete.
 - `attempted relative import` → falta un `__init__.py`.
 
 ## Nivel 2 — Suite de pruebas unitarias
@@ -209,25 +275,39 @@ Si falla aquí el problema es de ubicación de archivos, no de código:
 python -m unittest discover -s tests -v
 ```
 
-Debe terminar en `Ran 38 tests ... OK`. Cobertura:
+Debe terminar en `Ran 60 tests ... OK`. Cobertura:
 
-| Grupo | Qué verifica |
-|---|---|
-| `PruebasBancoRegistros` | R0 cableado a cero, valores de reset, enmascarado a 64 bits, códigos reservados, avance del PC con longitud variable, posiciones de bits del SR, observadores de la GUI |
-| `PruebasAritmetica` | Acarreo sin signo, desbordamiento con signo, préstamo en la resta, multiplicación de 64 bits bajos, división truncada hacia cero, división por cero |
-| `PruebasLogicaYDesplazamientos` | AND/OR/XOR/NOT, construcción de `0x00200000` y `0xC0000000`, acarreo en desplazamientos, `ASR` frente a `SHR` en negativos, casos límite n = 0 y n ≥ 64 |
-| `PruebasCMP` | Que no escriba el destino; banderas del trazado de Euclides |
-| `PruebasIntegracion` | Reproduce los bucles del factorial y de Euclides del documento |
+| Módulo | Grupo | Qué verifica |
+|---|---|---|
+| **RAM & Buses** | `TestRAMPaging` | Lectura limpia en ceros sin instanciación, asignación bajo demanda, múltiples accesos por página, liberación completa con `reset()` |
+| **RAM & Buses** | `TestBigEndianAndBlockCrossing` | Ordenamiento Big-Endian en 1, 2, 4 y 8 bytes, verificación byte a byte en páginas físicas, cruce continuo entre límites de bloques (4 y 8 bytes) |
+| **RAM & Buses** | `TestAlignmentControl` | Control estricto de alineación natural en 2, 4 y 8 bytes (`MISALIGNED`), deshabilitación de chequeo para fetch de instrucciones variables |
+| **RAM & Buses** | `TestMMIORouting` | Detección de `A[31:24] == 0xFF` (`MMIO`), ausencia de instanciación en RAM, detección de transferencias que invaden el espacio MMIO |
+| **RAM & Buses** | `Test64BitAddressValidation` | Rechazo con `ADDR_FAULT` de direcciones mayores a 4 GiB (`A[63:32] != 0`) y direcciones negativas |
+| **RAM & Buses** | `TestExceptionsAndConfiguration` | Lanzamiento de `InvalidAccessSizeError` ante tamaños no soportados y validación de potencias de 2 en el constructor |
+| **Registros & ALU** | `PruebasBancoRegistros` | R0 cableado a cero, valores de reset, enmascarado a 64 bits, códigos reservados, avance del PC con longitud variable, posiciones de bits del SR, observadores de la GUI |
+| **Registros & ALU** | `PruebasAritmetica` | Acarreo sin signo, desbordamiento con signo, préstamo en la resta, multiplicación de 64 bits bajos, división truncada hacia cero, división por cero |
+| **Registros & ALU** | `PruebasLogicaYDesplazamientos` | AND/OR/XOR/NOT, construcción de `0x00200000` y `0xC0000000`, acarreo en desplazamientos, `ASR` frente a `SHR` en negativos, casos límite n = 0 y n ≥ 64 |
+| **Registros & ALU** | `PruebasCMP` | Que no escriba el destino; banderas del trazado de Euclides |
+| **Registros & ALU** | `PruebasIntegracion` | Reproduce los bucles del factorial y de Euclides del documento |
+
+Para correr solo las pruebas de memoria:
+
+```bash
+python -m unittest tests.test_memoria -v
+```
 
 Para correr solo un grupo:
 
 ```bash
+python -m unittest tests.test_memoria.TestBigEndianAndBlockCrossing -v
 python -m unittest tests.test_registros_alu.PruebasAritmetica -v
 ```
 
 Para correr una sola prueba:
 
 ```bash
+python -m unittest tests.test_memoria.TestAlignmentControl.test_misaligned_four_byte_access -v
 python -m unittest tests.test_registros_alu.PruebasAritmetica.test_division_trunca_hacia_cero -v
 ```
 
@@ -310,14 +390,42 @@ Lo que la CPU debe aportar y hoy no existe:
 
 ## Contrato con el Integrante 1 (RAM & Buses)
 
-El módulo de Registros & ALU **no** accede a memoria, así que no hay acoplamiento directo.
-Los puntos de contacto son tres:
+El subsistema de memoria expone el contrato principal de buses mediante `MemoriaRAM`:
 
-- El PC apunta a **bytes**, no a palabras. El MAR se carga con `banco.pc` tal cual.
-- El SP arranca en `0x00000000EFFFFFFF` (constante `SP_RESET`), dentro de la región de
-  Pila del mapa de memoria. Las operaciones de pila lo mueven de 8 en 8 bytes.
-- La validación de rango `A[63:32] == 0` vive en la unidad de memoria, no aquí. El banco
-  almacena cualquier patrón de 64 bits sin juzgarlo.
+```python
+from enigma64 import RAMMemory, STATUS_READY, STATUS_MISALIGNED, STATUS_MMIO, STATUS_ADDR_FAULT
+
+ram = RAMMemory()
+
+# --- FSM Fase FETCH ---
+# Lectura de la instrucción apuntada por PC (puede desalinearse al ser longitud variable)
+opcode_byte, status = ram.mem_read(banco.pc, size_bytes=1, check_alignment=False)
+# Si la instrucción requiere bytes adicionales (inmediatos de 16, 32 o 64 bits):
+inmediato, status = ram.mem_read(banco.pc + 1, size_bytes=4, check_alignment=False)
+
+# --- FSM Fase MEMORY (LOAD / STORE) ---
+# LOAD R1, [R2] -> MAR = banco.leer(R2)
+dato_leido, status = ram.mem_read(mar, size_bytes=8)
+if status == STATUS_READY:
+    mdr = dato_leido
+elif status == STATUS_MISALIGNED:
+    banco.escribir_bandera("M", 1)  # La CPU activa la bandera M en el SR
+elif status == STATUS_MMIO:
+    # Desviar al bus de periféricos (pantalla/teclado de Integrante 6)
+    pass
+elif status == STATUS_FALLO_DIR:
+    # Disparar excepción por dirección > 4 GiB
+    pass
+
+# STORE [R2], R1 -> MAR = banco.leer(R2), MDR = banco.leer(R1)
+_, status = ram.mem_write(mar, mdr, size_bytes=8)
+```
+
+Puntos clave de integración:
+- El PC y los punteros apuntan a **bytes**, no a palabras. El MAR se carga con la dirección de 64 bits tal cual.
+- El SP arranca en `0x00000000EFFFFFFF` (constante `SP_RESET`), dentro de la región de Pila del mapa de memoria. Las operaciones `PUSH`/`POP` decrementan/incrementan de 8 en 8 bytes.
+- La validación de rango `A[63:32] == 0` y el desvío a `MMIO` viven exclusivamente en `MemoriaRAM`.
+- Si `mem_read` o `mem_write` retornan `STATUS_MISALIGNED`, la Unidad de Control (FSM) es quien debe escribir la bandera `M` en el SR llamando a `banco.escribir_bandera("M", 1)`.
 
 ## Contrato con el Integrante 5 (GUI Principal)
 

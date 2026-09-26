@@ -1,21 +1,19 @@
 """
 Enigma-64 - Noctua Systems
-Modulo del Integrante 2: Banco de registros y ALU.
+Modulos integrados:
+  * Integrante 1: RAM & Buses (RAMMemory)
+  * Integrante 2: Banco de registros y ALU (ALU, BancoRegistros)
 
 Contrato publico para consumir integrantes:
 
-    from enigma64 import ALU, BancoRegistros
+    from enigma64 import ALU, BancoRegistros, RAMMemory
 
     banco = BancoRegistros()
     alu = ALU()
+    ram = RAMMemory()
 
-    # fase EXECUTE de la FSM
-    res = alu.ejecutar("ADD", banco.leer(0x3), banco.leer(0x2))
-    banco.aplicar_banderas(res.banderas, res.afectadas)
-
-    # fase WRITE-BACK
-    if res.escribe_destino:
-        banco.escribir(0x5, res.valor)
+    # Acceso a memoria desde FSM
+    dato, estado = ram.mem_read(banco.pc, size_bytes=4)
 """
 
 from .alu import (
@@ -25,6 +23,17 @@ from .alu import (
     OperacionInvalida,
     ResultadoALU,
     TABLA_OPERACIONES,
+)
+from .memoria import (
+    MMIO_BASE,
+    PAGE_SIZE,
+    STATUS_ADDR_FAULT,
+    STATUS_MISALIGNED,
+    STATUS_MMIO,
+    STATUS_READY,
+    VALID_SIZES,
+    InvalidAccessSizeError,
+    RAMMemory,
 )
 from .registros import (
     BITS,
@@ -46,6 +55,17 @@ from .registros import (
 )
 
 __all__ = [
+    # Integrante 1 - RAM & Buses
+    "RAMMemory",
+    "InvalidAccessSizeError",
+    "STATUS_READY",
+    "STATUS_ADDR_FAULT",
+    "STATUS_MMIO",
+    "STATUS_MISALIGNED",
+    "PAGE_SIZE",
+    "VALID_SIZES",
+    "MMIO_BASE",
+    # Integrante 2 - ALU & Registros
     "ALU",
     "BancoRegistros",
     "ResultadoALU",
