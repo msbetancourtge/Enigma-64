@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="660" viewBox="0 0 760 660">
+  <title>Enigma-64 - Panel de memoria RAM</title>
+  <rect x="0" y="0" width="760" height="660" fill="#0B0E14"/>
+  <rect x="0" y="0" width="760" height="58" fill="#0B0E14"/>
+  <line x1="0" y1="58" x2="760" y2="58" stroke="#263041" stroke-width="1"/>
+  <polygon points="34.0,8.439999999999998 48.341380686670306,16.72 48.341380686670306,33.28 34.0,41.56 19.658619313329694,33.28000000000001 19.658619313329694,16.72" fill="none" stroke="#F2B138" stroke-width="2"/>
+  <polygon points="34.0,13.076799999999999 44.32579409440262,19.0384 44.325794094402625,30.961599999999997 34.0,36.9232 23.674205905597383,30.961600000000004 23.674205905597383,19.0384" fill="none" stroke="#8A6520" stroke-width="1"/>
+  <circle cx="28.42" cy="23.38" r="4.140000000000001" fill="#F2B138"/>
+  <circle cx="28.42" cy="23.38" r="1.7388000000000001" fill="#0B0E14"/>
+  <circle cx="39.58" cy="23.38" r="4.140000000000001" fill="#F2B138"/>
+  <circle cx="39.58" cy="23.38" r="1.7388000000000001" fill="#0B0E14"/>
+  <polygon points="34.0,26.439999999999998 32.128,30.04 35.872,30.04" fill="#3FC9D6"/>
+  <text x="62" y="26" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="14" font-weight="600">Memoria RAM y buses</text>
+  <text x="62" y="43" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">python -m enigma64.ui.paneles.panel_memoria</text>
+  <rect x="602" y="19" width="142" height="21" fill="#4FD07A" rx="10.5" opacity="0.16"/>
+  <rect x="602" y="19" width="142" height="21" fill="none" rx="10.5" stroke="#4FD07A" stroke-width="1" opacity="0.45"/>
+  <text x="673.0" y="33.0" fill="#4FD07A" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600" text-anchor="middle">MODULO INDEPENDIENTE</text>
+  <rect x="14" y="72" width="732" height="574" fill="#171E2B" rx="8" stroke="#263041" stroke-width="1"/>
+  <rect x="28" y="86" width="3" height="16" fill="#3FC9D6" rx="1.5"/>
+  <text x="39" y="99" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="12.5" font-weight="600">Memoria RAM y buses</text>
+  <text x="39" y="113" fill="#8494AC" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="9.5">Integrante 1  ·  enigma64.memoria</text>
+  <line x1="28" y1="124" x2="732" y2="124" stroke="#1B2231" stroke-width="1"/>
+  <text x="30" y="147" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">DIRECCION</text>
+  <rect x="30" y="152" width="210" height="28" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="39" y="170.0" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="11">0x00200000</text>
+  <text x="254" y="147" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">TAMANO DE ACCESO</text>
+  <rect x="254" y="152" width="110" height="28" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="263" y="170.0" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="11">8 bytes</text>
+  <text x="378" y="147" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">VALOR A ESCRIBIR</text>
+  <rect x="378" y="152" width="200" height="28" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="387" y="170.0" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="11">0x454E494700000001</text>
+  <rect x="592" y="152" width="138" height="30" fill="#1E2636" rx="5" stroke="#263041" stroke-width="1"/>
+  <text x="661.0" y="171.0" fill="#8494AC" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="10" font-weight="600" text-anchor="middle">Ir a la direccion</text>
+  <rect x="30" y="202" width="100" height="30" fill="#1E2636" rx="5" stroke="#263041" stroke-width="1"/>
+  <text x="80.0" y="221.0" fill="#8494AC" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="10" font-weight="600" text-anchor="middle">Leer</text>
+  <rect x="138" y="202" width="100" height="30" fill="#8A6520" rx="5" stroke="#263041" stroke-width="1"/>
+  <text x="188.0" y="221.0" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="10" font-weight="600" text-anchor="middle">Escribir</text>
+  <rect x="246" y="202" width="100" height="30" fill="#1E2636" rx="5" stroke="#263041" stroke-width="1"/>
+  <text x="296.0" y="221.0" fill="#8494AC" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="10" font-weight="600" text-anchor="middle">Reiniciar</text>
+  <rect x="360" y="206" width="15" height="15" fill="#0B0E14" rx="3" stroke="#F2B138" stroke-width="1"/>
+  <text x="366" y="218" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" font-weight="600">✓</text>
+  <text x="383" y="218" fill="#8494AC" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="9.5">Verificar alineacion natural</text>
+  <line x1="30" y1="244" x2="730" y2="244" stroke="#1B2231" stroke-width="1"/>
+  <text x="30" y="266" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">SENAL DEL BUS DE CONTROL</text>
+  <circle cx="36" cy="288" r="8" fill="#4FD07A" opacity="0.26"/>
+  <circle cx="36" cy="288" r="5" fill="#4FD07A"/>
+  <text x="48" y="292" fill="#4FD07A" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600">READY</text>
+  <circle cx="212" cy="288" r="5" fill="#FFB454" stroke="#263041" stroke-width="1" opacity="0.18"/>
+  <text x="224" y="292" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600">MISALIGNED</text>
+  <circle cx="388" cy="288" r="5" fill="#A98BF5" stroke="#263041" stroke-width="1" opacity="0.18"/>
+  <text x="400" y="292" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600">MMIO</text>
+  <circle cx="564" cy="288" r="5" fill="#FF5C6C" stroke="#263041" stroke-width="1" opacity="0.18"/>
+  <text x="576" y="292" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600">ADDR_FAULT</text>
+  <rect x="30" y="312" width="700" height="262" fill="#0B0E14" rx="5" stroke="#263041" stroke-width="1"/>
+  <text x="41" y="329" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="8" font-weight="600">DIRECCION</text>
+  <text x="110" y="329" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="8" font-weight="600">00 01 02 03  04 05 06 07  08 09 0A 0B  0C 0D 0E 0F</text>
+  <text x="632" y="329" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="8" font-weight="600">ASCII</text>
+  <line x1="40" y1="335" x2="720" y2="335" stroke="#1B2231" stroke-width="1"/>
+  <rect x="36" y="341" width="688" height="16" fill="#22314A" rx="3"/>
+  <text x="41" y="352" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x00200000</text>
+  <text x="110" y="352" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">45 4E 49 47  00 00 00 01  00 00 00 00  00 20 00 00</text>
+  <text x="632" y="352" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">ENIG........ ...</text>
+  <text x="41" y="369" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x00200010</text>
+  <text x="110" y="369" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">00 00 00 00  00 20 00 00  00 00 00 20  00 00 00 00</text>
+  <text x="632" y="369" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">..... ..... ....</text>
+  <text x="41" y="386" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x00200020</text>
+  <text x="110" y="386" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">10 12 00 14  23 30 00 11  41 00 1A 4C  00 00 00 00</text>
+  <text x="632" y="386" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">....#0..A..L....</text>
+  <text x="41" y="403" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x00200030</text>
+  <text x="110" y="403" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00</text>
+  <text x="632" y="403" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">................</text>
+  <text x="41" y="420" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x00200040</text>
+  <text x="110" y="420" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">45 4E 49 47  00 00 00 01  00 00 00 00  00 20 00 00</text>
+  <text x="632" y="420" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">ENIG........ ...</text>
+  <text x="41" y="437" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x00200050</text>
+  <text x="110" y="437" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">00 00 00 00  00 20 00 00  00 00 00 20  00 00 00 00</text>
+  <text x="632" y="437" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">..... ..... ....</text>
+  <text x="41" y="454" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x00200060</text>
+  <text x="110" y="454" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">10 12 00 14  23 30 00 11  41 00 1A 4C  00 00 00 00</text>
+  <text x="632" y="454" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">....#0..A..L....</text>
+  <text x="41" y="471" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x00200070</text>
+  <text x="110" y="471" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00</text>
+  <text x="632" y="471" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">................</text>
+  <text x="41" y="488" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x00200080</text>
+  <text x="110" y="488" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">45 4E 49 47  00 00 00 01  00 00 00 00  00 20 00 00</text>
+  <text x="632" y="488" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">ENIG........ ...</text>
+  <text x="41" y="505" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x00200090</text>
+  <text x="110" y="505" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">00 00 00 00  00 20 00 00  00 00 00 20  00 00 00 00</text>
+  <text x="632" y="505" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">..... ..... ....</text>
+  <text x="41" y="522" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x002000A0</text>
+  <text x="110" y="522" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">10 12 00 14  23 30 00 11  41 00 1A 4C  00 00 00 00</text>
+  <text x="632" y="522" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">....#0..A..L....</text>
+  <text x="41" y="539" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x002000B0</text>
+  <text x="110" y="539" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">00 00 00 00  00 00 00 00  00 00 00 00  00 00 00 00</text>
+  <text x="632" y="539" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">................</text>
+  <text x="41" y="556" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x002000C0</text>
+  <text x="110" y="556" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">45 4E 49 47  00 00 00 01  00 00 00 00  00 20 00 00</text>
+  <text x="632" y="556" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">ENIG........ ...</text>
+  <text x="41" y="573" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0x002000D0</text>
+  <text x="110" y="573" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">00 00 00 00  00 20 00 00  00 00 00 20  00 00 00 00</text>
+  <text x="632" y="573" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">..... ..... ....</text>
+  <text x="30" y="594" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">PAGINAS ASIGNADAS</text>
+  <text x="30" y="612" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="12" font-weight="600">3</text>
+  <text x="208" y="594" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">MEMORIA RESERVADA</text>
+  <text x="208" y="612" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="12" font-weight="600">12 KiB</text>
+  <text x="386" y="594" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">TAMANO DE PAGINA</text>
+  <text x="386" y="612" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="12" font-weight="600">4 KiB</text>
+  <text x="564" y="594" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">REGION ACTUAL</text>
+  <text x="564" y="612" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="12" font-weight="600">Programas y datos</text>
+</svg>
