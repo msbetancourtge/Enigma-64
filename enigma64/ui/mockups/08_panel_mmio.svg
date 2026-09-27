@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="640" viewBox="0 0 880 640">
+  <title>Enigma-64 - I/O mapeada en memoria</title>
+  <rect x="0" y="0" width="880" height="640" fill="#0B0E14"/>
+  <rect x="0" y="0" width="880" height="58" fill="#0B0E14"/>
+  <line x1="0" y1="58" x2="880" y2="58" stroke="#263041" stroke-width="1"/>
+  <polygon points="34.0,8.439999999999998 48.341380686670306,16.72 48.341380686670306,33.28 34.0,41.56 19.658619313329694,33.28000000000001 19.658619313329694,16.72" fill="none" stroke="#F2B138" stroke-width="2"/>
+  <polygon points="34.0,13.076799999999999 44.32579409440262,19.0384 44.325794094402625,30.961599999999997 34.0,36.9232 23.674205905597383,30.961600000000004 23.674205905597383,19.0384" fill="none" stroke="#8A6520" stroke-width="1"/>
+  <circle cx="28.42" cy="23.38" r="4.140000000000001" fill="#F2B138"/>
+  <circle cx="28.42" cy="23.38" r="1.7388000000000001" fill="#0B0E14"/>
+  <circle cx="39.58" cy="23.38" r="4.140000000000001" fill="#F2B138"/>
+  <circle cx="39.58" cy="23.38" r="1.7388000000000001" fill="#0B0E14"/>
+  <polygon points="34.0,26.439999999999998 32.128,30.04 35.872,30.04" fill="#3FC9D6"/>
+  <text x="62" y="26" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="14" font-weight="600">I/O mapeada en memoria</text>
+  <text x="62" y="43" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">python -m enigma64.ui.paneles.panel_mmio</text>
+  <rect x="722" y="19" width="142" height="21" fill="#4FD07A" rx="10.5" opacity="0.16"/>
+  <rect x="722" y="19" width="142" height="21" fill="none" rx="10.5" stroke="#4FD07A" stroke-width="1" opacity="0.45"/>
+  <text x="793.0" y="33.0" fill="#4FD07A" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600" text-anchor="middle">MODULO INDEPENDIENTE</text>
+  <rect x="14" y="72" width="852" height="554" fill="#171E2B" rx="8" stroke="#263041" stroke-width="1"/>
+  <rect x="28" y="86" width="3" height="16" fill="#A98BF5" rx="1.5"/>
+  <text x="39" y="99" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="12.5" font-weight="600">I/O mapeada en memoria</text>
+  <text x="39" y="113" fill="#8494AC" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="9.5">0xFF000000 – 0xFFFFFFFF  ·  Tarea 9</text>
+  <line x1="28" y1="124" x2="852" y2="124" stroke="#1B2231" stroke-width="1"/>
+  <rect x="30" y="148" width="822" height="46" fill="#1E2636" rx="6" stroke="#FFB454" stroke-width="1"/>
+  <text x="42" y="166" fill="#FFB454" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8.5" font-weight="600">BANCO PROVISIONAL</text>
+  <text x="42" y="183" fill="#8494AC" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="9">La RAM enruta 0xFF...... al bus de perifericos sin almacenar nada. Se reemplaza en cuanto exista enigma64/perifericos.py.</text>
+  <text x="30" y="220" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">CONTROLADORES  ·  UNA PAGINA DE 4 KiB CADA UNO</text>
+  <rect x="34" y="237" width="4" height="20" fill="#3FC9D6" rx="2"/>
+  <text x="50" y="251" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="10">Entrada (teclado)</text>
+  <text x="844" y="251" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" text-anchor="end">0xFF000000</text>
+  <rect x="34" y="270" width="4" height="20" fill="#4FD07A" rx="2"/>
+  <text x="50" y="284" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="10">Salida (pantalla)</text>
+  <text x="844" y="284" fill="#4FD07A" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" text-anchor="end">0xFF001000</text>
+  <rect x="28" y="298" width="826" height="30" fill="#F2B138" rx="5" opacity="0.12"/>
+  <rect x="28" y="298" width="826" height="30" fill="none" rx="5" stroke="#F2B138" stroke-width="1"/>
+  <rect x="34" y="303" width="4" height="20" fill="#F2B138" rx="2"/>
+  <text x="50" y="317" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="10">Memoria secundaria (disco)</text>
+  <text x="844" y="317" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" text-anchor="end">0xFF002000</text>
+  <rect x="34" y="336" width="4" height="20" fill="#A98BF5" rx="2"/>
+  <text x="50" y="350" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="10">Interfaz de red</text>
+  <text x="844" y="350" fill="#A98BF5" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" text-anchor="end">0xFF003000</text>
+  <rect x="34" y="369" width="4" height="20" fill="#FFB454" rx="2"/>
+  <text x="50" y="383" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="10">Temporizador / reloj</text>
+  <text x="844" y="383" fill="#FFB454" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" text-anchor="end">0xFF004000</text>
+  <line x1="28" y1="405" x2="852" y2="405" stroke="#1B2231" stroke-width="1"/>
+  <text x="30" y="427" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">REGISTROS  ·  MEMORIA SECUNDARIA (DISCO)</text>
+  <text x="30" y="447" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="8" font-weight="600">REGISTRO</text>
+  <text x="150" y="447" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="8" font-weight="600">DIRECCION</text>
+  <text x="270" y="447" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="8" font-weight="600">VALOR (64 BITS)</text>
+  <text x="30" y="483" fill="#E6ECF5" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" font-weight="600">CTRL</text>
+  <text x="150" y="483" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">0xFF002000</text>
+  <rect x="270" y="469" width="186" height="22" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="280" y="484" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">0x0000000000000001</text>
+  <text x="470" y="483" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8.5">Comando que se ordena al controlador.</text>
+  <text x="30" y="511" fill="#E6ECF5" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" font-weight="600">STATUS</text>
+  <text x="150" y="511" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">0xFF002008</text>
+  <rect x="270" y="497" width="186" height="22" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="280" y="512" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">0x0000000000000001</text>
+  <text x="470" y="511" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8.5">Estado devuelto: listo, ocupado, error.</text>
+  <text x="30" y="539" fill="#E6ECF5" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" font-weight="600">DATA</text>
+  <text x="150" y="539" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">0xFF002010</text>
+  <rect x="270" y="525" width="186" height="22" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="280" y="540" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">0x0000000000000000</text>
+  <text x="470" y="539" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8.5">Dato transferido en la operacion.</text>
+  <text x="30" y="567" fill="#E6ECF5" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" font-weight="600">ADDR</text>
+  <text x="150" y="567" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">0xFF002018</text>
+  <rect x="270" y="553" width="186" height="22" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="280" y="568" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">0x000000000000002A</text>
+  <text x="470" y="567" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8.5">Direccion de RAM o bloque implicado.</text>
+  <text x="30" y="595" fill="#E6ECF5" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" font-weight="600">COUNT</text>
+  <text x="150" y="595" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">0xFF002020</text>
+  <rect x="270" y="581" width="186" height="22" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="280" y="596" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">0x0000000000000001</text>
+  <text x="470" y="595" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8.5">Cantidad de unidades a transferir.</text>
+</svg>

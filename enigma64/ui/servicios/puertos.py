@@ -127,3 +127,105 @@ class PuertoCargador(Protocol):
     def byte_en_bits(self, direccion: int) -> str: ...
 
     def regiones(self) -> List[Dict[str, Any]]: ...
+
+
+# ---------------------------------------------------------------------------
+# Unidad de Control / CPU (Integrante 3) - modulo pendiente
+# ---------------------------------------------------------------------------
+
+#: Fases de la maquina de estados multiciclo descrita en la Tarea 9.
+FASES_FSM = ("FETCH", "DECODE", "EXECUTE", "MEMORY", "WRITE-BACK")
+
+#: Registros microarquitectonicos de la ruta interna de datos (Tarea 9).
+MICRO_REGISTROS = ("MAR", "MDR", "IR", "A", "B", "Z")
+
+
+@runtime_checkable
+class PuertoCPU(Protocol):
+    """
+    Contrato que la interfaz espera de la Unidad de Control.
+
+    ESTE ES EL CONTRATO QUE DEBE CUMPLIR `enigma64/cpu.py` (Integrante 3).
+    Mientras el modulo no exista, `AdaptadorCPU` queda no disponible y el panel
+    muestra este contrato en pantalla en lugar de caerse.
+
+    El adaptador acepta tambien nombres equivalentes en ingles (`step`, `run`,
+    `reset`, `state`) y varios nombres de clase, asi que no hace falta acertar
+    la nomenclatura exacta para que enganche.
+
+        class CPU:
+            def __init__(self, ram, banco): ...
+
+            def paso(self) -> dict:
+                '''Avanza UNA fase de la FSM y devuelve el estado resultante.'''
+
+            def paso_instruccion(self) -> dict:
+                '''Completa la instruccion actual (las cinco fases).'''
+
+            def ejecutar(self, max_ciclos: int = 100000) -> dict:
+                '''Corre hasta HLT o hasta agotar el presupuesto de ciclos.'''
+
+            def reiniciar(self) -> None:
+                '''RESET: PC al vector, fase FETCH, micro-registros a cero.'''
+
+            def estado(self) -> dict:
+                '''
+                {
+                  "fase": "FETCH",              # una de FASES_FSM
+                  "ciclos": 12,                 # ciclos de reloj consumidos
+                  "instrucciones": 3,           # instrucciones completadas
+                  "detenido": False,            # True tras HLT
+                  "micro": {"MAR": 0, "MDR": 0, "IR": 0,
+                            "A": 0, "B": 0, "Z": 0},
+                  "mnemonico": "ADD",          # opcional: instruccion en curso
+                  "prefetch": b"",             # opcional: buffer de prebusqueda
+                }
+                '''
+    """
+
+    disponible: bool
+    motivo: str
+
+    def paso(self) -> Dict[str, Any]: ...
+
+    def paso_instruccion(self) -> Dict[str, Any]: ...
+
+    def ejecutar(self, max_ciclos: int = 100000) -> Dict[str, Any]: ...
+
+    def reiniciar(self) -> None: ...
+
+    def estado(self) -> Dict[str, Any]: ...
+
+    def fases(self) -> Sequence[str]: ...
+
+    def micro_registros(self) -> Sequence[str]: ...
+
+
+# ---------------------------------------------------------------------------
+# Perifericos mapeados en memoria
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class PuertoMMIO(Protocol):
+    """
+    Contrato del visor/editor de I/O mapeada.
+
+    Si aparece un `enigma64/perifericos.py`, el adaptador lo prefiere siempre
+    que exponga `leer(base, desplazamiento)` y `escribir(base, desplazamiento,
+    valor)`. Mientras tanto usa el banco provisional de `servicios/mmio.py`.
+    """
+
+    disponible: bool
+    motivo: str
+    es_provisional: bool
+
+    def controladores(self) -> List[Dict[str, Any]]: ...
+
+    def registros(self, clave: str) -> List[Tuple[int, str, str]]: ...
+
+    def leer(self, base: int, desplazamiento: int) -> int: ...
+
+    def escribir(self, base: int, desplazamiento: int, valor: int) -> None: ...
+
+    def reiniciar(self) -> None: ...

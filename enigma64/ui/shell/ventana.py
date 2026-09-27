@@ -30,11 +30,14 @@ from ..core.tema import (
     COMPUTADOR, EMPRESA, LEMA, MARGEN, PALETA, aplicar_tema, mono, sans,
 )
 from ..core.widgets import Insignia, MarcaNoctua, MarcoDesplazable
+from ..paneles.panel_algoritmos import PanelAlgoritmos
 from ..paneles.panel_alu import PanelALU
 from ..paneles.panel_cargador import PanelCargador
 from ..paneles.panel_consola import PanelConsola
+from ..paneles.panel_cpu import PanelCPU
 from ..paneles.panel_mapa import PanelMapa
 from ..paneles.panel_memoria import PanelMemoria
+from ..paneles.panel_mmio import PanelMMIO
 from ..paneles.panel_registros import PanelRegistros
 from ..servicios import construir_maquina
 
@@ -44,6 +47,9 @@ PESTANAS = (
     (PanelRegistros, "registros", "Registros"),
     (PanelALU, "alu", "ALU"),
     (PanelCargador, "cargador", "Cargador"),
+    (PanelCPU, "cpu", "Unidad de Control"),
+    (PanelMMIO, "mmio", "I/O mapeada"),
+    (PanelAlgoritmos, "algoritmos", "Algoritmos"),
 )
 
 #: Ancho reservado a la columna de contexto de la derecha.

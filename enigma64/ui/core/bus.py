@@ -47,6 +47,17 @@ class Evento:
     CARGA_RECHAZADA = "cargador.carga_rechazada"
     BIT_MODIFICADO = "cargador.bit_modificado"
 
+    # Unidad de Control (Integrante 3)
+    CPU_AVANZO = "cpu.avanzo"
+    CPU_REINICIADA = "cpu.reiniciada"
+
+    # I/O mapeada en memoria
+    MMIO_ESCRITO = "mmio.escrito"
+
+    # Algoritmos de verificacion (Tarea 9)
+    ALGORITMO_CARGADO = "algoritmos.cargado"
+    ALGORITMO_VERIFICADO = "algoritmos.verificado"
+
     # Navegacion y traza (Integrante 5)
     IR_A_DIRECCION = "ui.ir_a_direccion"
     TRAZA = "ui.traza"
