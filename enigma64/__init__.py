@@ -76,6 +76,19 @@ from .cargador import (
     leer_byte_directo,
     parsear_texto_a_bytes,
 )
+from .programas import (
+    BYTES_CARGADOR_FIRMWARE,
+    BYTES_EUCLIDES,
+    BYTES_FACTORIAL,
+    BYTES_FIBONACCI,
+    PROGRAMA_EUCLIDES,
+    PROGRAMA_FACTORIAL,
+    PROGRAMA_FIBONACCI,
+    PROGRAMAS_OFICIALES,
+    DefinicionPrograma,
+    exportar_archivos_programas,
+    inicializar_escenario_prueba,
+)
 
 
 __all__ = [
@@ -134,5 +147,18 @@ __all__ = [
     "LOADER_WORKSPACE_START",
     "LOADER_WORKSPACE_END",
     "MAGIC_ENIGMA",
+    # Integrante 7 - Algoritmos & Tests
+    "BYTES_FACTORIAL",
+    "BYTES_EUCLIDES",
+    "BYTES_FIBONACCI",
+    "BYTES_CARGADOR_FIRMWARE",
+    "PROGRAMAS_OFICIALES",
+    "PROGRAMA_FACTORIAL",
+    "PROGRAMA_EUCLIDES",
+    "PROGRAMA_FIBONACCI",
+    "DefinicionPrograma",
+    "exportar_archivos_programas",
+    "inicializar_escenario_prueba",
 ]
+
 
