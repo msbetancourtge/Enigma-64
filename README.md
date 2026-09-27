@@ -49,7 +49,7 @@ Enigma-64/
 │   ├── alu.py                     [OK] Integrante 2: ALU de 64 bits
 │   ├── memoria.py                 [OK] Integrante 1: RAM y buses
 │   ├── cpu.py                     [--] Integrante 3: FSM y prebúsqueda
-│   ├── cargador.py                [--] Integrante 4
+│   ├── cargador.py                [OK] Integrante 4: cargador y manipulación bit a bit
 │   ├── mmio.py                    [--] Integrante 6: controlador de pantalla
 │   └── gui/
 │       ├── __init__.py            [OK]
@@ -59,6 +59,7 @@ Enigma-64/
 └── tests/
     ├── test_registros_alu.py      [OK] Integrante 2: 38 pruebas
     ├── test_memoria.py            [OK] Integrante 1: 22 pruebas
+    ├── test_cargador.py           [OK] Integrante 4: 21 pruebas
     └── test_algoritmos.py         [--] Integrante 7
 ```
 
@@ -255,12 +256,69 @@ cableado a cero y por definición no es de propósito general. Son cuatro: R1 a 
 
 ---
 
+# Módulo implementado: Cargador & Manipulador de Bits (Integrante 4)
+
+## Qué incluye
+
+**`enigma64/cargador.py`** — Submódulo del Cargador, Manipulador de Memoria Bit a Bit y Firmware (código 100% en Python estándar, sin dependencias externas).
+
+- **Manipulación directa de bits y bytes en RAM (Mandato Tarea 10 - Punto 2):**
+  - `leer_bit(ram, direccion, bit_index)`: Lee un bit individual (0 a 7, donde bit 0 es LSB y bit 7 es MSB) en cualquier celda física accesible de la RAM.
+  - `escribir_bit(ram, direccion, bit_index, valor)`: Modifica atómicamente un único bit (0 o 1) mediante máscaras (`|` o `& ~`) sin alterar los 7 bits restantes del byte ni celdas contiguas.
+  - `conmutar_bit(ram, direccion, bit_index)`: Invierte el bit indicado mediante máscara XOR (`^`).
+  - `byte_a_cadena_bits(ram, direccion)`: Genera la cadena de 8 bits (ej. `'10110001'`) formateada de MSB a LSB, lista para la grilla interactiva de edición de memoria en la GUI (Integrante 6).
+  - `escribir_byte_directo(ram, direccion, valor)` y `leer_byte_directo(ram, direccion)`: Métodos utilitarios de bajo nivel sobre RAM sin verificación de alineación.
+- **Modelo de ejecutable con soporte dual (`BinarioEnigma`):**
+  - **Modo 1: Binario plano crudo (`.bin`):** Volcado directo de opcodes e inmediatos para las pruebas inmediatas de la Tarea 10 (Factorial, Euclides y Fibonacci).
+  - **Modo 2: Binario estructurado Enigma-64 (`.e64`):** Cabecera Big-Endian de 32 bytes (`>4s7I`) que encapsula número mágico (`b'ENIG'`), flags (absoluto vs. reubicable), `entry_point`, `direccion_base`, tamaño de código (`.text`), tamaño de datos (`.data`), tabla de reubicación y tabla de símbolos.
+  - **Preparación para el futuro Enlazador:** Si un binario reubicable se monta en una dirección destino diferente a su dirección base original, el cargador procesa la tabla de reubicación y parcha las referencias absolutas automáticamente.
+- **Parser de volcados de texto (`parsear_texto_a_bytes`):**
+  - Procesa volcados en texto con tokens hexadecimales (`0x78`, `4A`), binarios (`0b11001100`) o decimales, ignorando comentarios (`#`, `//`, `;`) y espacios.
+- **Motor del Cargador (`CargadorEnigma`):**
+  - Ciclo de vida desacoplado: detención preventiva de la CPU -> validación estricta de fronteras -> reubicación dinámica -> volcado secuencial a RAM -> inicialización de hardware -> reanudación.
+  - **Validación estricta de fronteras (Tarea 9):**
+    - Bits altos de 64 bits: `A[63:32] == 0` (evita `ADDR_FAULT` y valida espacio físico de 4 GiB).
+    - Límite inferior: rechaza cargas por debajo de `0x00200000` (protege vectores en `0x00000000`, firmware en `0x00001000` y área de trabajo en `0x00100000`) lanzando `ViolacionProteccionMemoria`.
+    - Límite superior: rechaza cualquier programa cuyo rango invada o sobrepase `0xC0000000` (inicio de la Pila/Stack) lanzando `ViolacionProteccionMemoria`.
+- **Inicialización del contexto de hardware:**
+  - Tras la carga, inicializa el banco de registros: `PC = entry_point`, `SP = 0x00000000EFFFFFFF` (tope de pila inicial), `SR = SR_RESET`, `R0 = 0` y `R5 = entry_point` (convención de retorno).
+- **Emulación de la subrutina de firmware (`emular_subrutina_cargador`):**
+  - Modela en software la subrutina residente en `0x00001000`: lee los parámetros pasados en `R1` (origen/buffer), `R2` (destino en RAM), `R3` (longitud), transfiere los bytes y carga `R5 = R2` para que la instrucción siguiente ejecute `JMPR R5`.
+
+## API pública
+
+```python
+from enigma64 import (
+    CargadorEnigma,
+    BinarioEnigma,
+    leer_bit,
+    escribir_bit,
+    conmutar_bit,
+    byte_a_cadena_bits,
+    emular_subrutina_cargador,
+)
+
+cargador = CargadorEnigma(ram=ram, banco=banco)
+
+# Cargar un archivo .bin plano o .e64 estructurado
+metadatos = cargador.cargar_archivo("programas/factorial.bin", direccion_destino=0x00200000)
+
+# O cargar bytes crudos directamente
+metadatos = cargador.cargar_bytes(b"\x10\x20\x30\x40", direccion_destino=0x00200000)
+
+# Manipulación de bits en memoria para la GUI
+bit_val = leer_bit(ram, 0x00200000, bit_index=3)
+escribir_bit(ram, 0x00200000, bit_index=3, valor=1)
+```
+
+---
+
 # Pruebas
 
 ## Nivel 1 — El paquete se importa
 
 ```bash
-python -c "from enigma64 import ALU, BancoRegistros, MemoriaRAM; print('OK')"
+python -c "from enigma64 import ALU, BancoRegistros, RAMMemory, CargadorEnigma; print('OK')"
 ```
 
 Si falla aquí el problema es de ubicación de archivos, no de código:
@@ -275,7 +333,7 @@ Si falla aquí el problema es de ubicación de archivos, no de código:
 python -m unittest discover -s tests -v
 ```
 
-Debe terminar en `Ran 60 tests ... OK`. Cobertura:
+Debe terminar en `Ran 81 tests ... OK`. Cobertura:
 
 | Módulo | Grupo | Qué verifica |
 |---|---|---|
@@ -290,6 +348,12 @@ Debe terminar en `Ran 60 tests ... OK`. Cobertura:
 | **Registros & ALU** | `PruebasLogicaYDesplazamientos` | AND/OR/XOR/NOT, construcción de `0x00200000` y `0xC0000000`, acarreo en desplazamientos, `ASR` frente a `SHR` en negativos, casos límite n = 0 y n ≥ 64 |
 | **Registros & ALU** | `PruebasCMP` | Que no escriba el destino; banderas del trazado de Euclides |
 | **Registros & ALU** | `PruebasIntegracion` | Reproduce los bucles del factorial y de Euclides del documento |
+| **Cargador & Bits** | `TestManipulacionBits` | Lectura de bits 0-7, mutación aislada sin tocar bits vecinos ni bytes contiguos, conmutación XOR, formato string binario y validación de rangos |
+| **Cargador & Bits** | `TestValidacionLimitesYMemoria` | Carga en área de usuario (0x00200000), rechazo de vectores/firmware (< 0x00200000), rechazo de invasión a Pila (>= 0xC0000000) y rechazo de direcciones > 4 GiB |
+| **Cargador & Bits** | `TestCargaFormatos` | Carga de binarios planos (.bin), serialización/deserialización .e64 Big-Endian, reubicación dinámica de direcciones y parser de volcados en texto |
+| **Cargador & Bits** | `TestContextoHardware` | Sincronización de registros tras la carga (PC=entry_point, SP=0xEFFFFFFF, SR=0x1, R0=0, R5=entry_point) y detención/reanudación de CPU |
+| **Cargador & Bits** | `TestSubrutinaFirmware` | Transferencia de datos entre buffers emulando la subrutina en 0x00001000 con parámetros R1, R2, R3 y retorno en R5 |
+
 
 Para correr solo las pruebas de memoria:
 

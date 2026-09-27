@@ -53,6 +53,30 @@ from .registros import (
     a_sin_signo,
     hex64,
 )
+from .cargador import (
+    FIRMWARE_LOADER_ADDR,
+    LOADER_WORKSPACE_END,
+    LOADER_WORKSPACE_START,
+    MAGIC_ENIGMA,
+    STACK_START,
+    USER_MEM_END,
+    USER_MEM_START,
+    BinarioEnigma,
+    CargadorEnigma,
+    DireccionInvalida,
+    ErrorCargador,
+    FormatoInvalido,
+    ViolacionProteccionMemoria,
+    byte_a_cadena_bits,
+    conmutar_bit,
+    emular_subrutina_cargador,
+    escribir_bit,
+    escribir_byte_directo,
+    leer_bit,
+    leer_byte_directo,
+    parsear_texto_a_bytes,
+)
+
 
 __all__ = [
     # Integrante 1 - RAM & Buses
@@ -88,4 +112,27 @@ __all__ = [
     "a_con_signo",
     "a_sin_signo",
     "hex64",
+    # Integrante 4 - Cargador & Manipulador de Bits
+    "CargadorEnigma",
+    "BinarioEnigma",
+    "ErrorCargador",
+    "DireccionInvalida",
+    "ViolacionProteccionMemoria",
+    "FormatoInvalido",
+    "leer_bit",
+    "escribir_bit",
+    "conmutar_bit",
+    "byte_a_cadena_bits",
+    "escribir_byte_directo",
+    "leer_byte_directo",
+    "parsear_texto_a_bytes",
+    "emular_subrutina_cargador",
+    "USER_MEM_START",
+    "USER_MEM_END",
+    "STACK_START",
+    "FIRMWARE_LOADER_ADDR",
+    "LOADER_WORKSPACE_START",
+    "LOADER_WORKSPACE_END",
+    "MAGIC_ENIGMA",
 ]
+
