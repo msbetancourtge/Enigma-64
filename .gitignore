@@ -60,3 +60,10 @@ __pycache__/
 .venv/
 venv/
 .vscode/
+
+# Documents
+/docs/
+task.txt
+
+# Project guide
+/Computer_Emulation-main/

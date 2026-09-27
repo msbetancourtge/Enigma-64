@@ -20,7 +20,8 @@ from __future__ import annotations
 from typing import Dict, List
 
 from .adaptadores import (
-    AdaptadorALU, AdaptadorCargador, AdaptadorMemoria, AdaptadorRegistros,
+    AdaptadorALU, AdaptadorAlgoritmos, AdaptadorCPU, AdaptadorCargador,
+    AdaptadorMemoria, AdaptadorMMIO, AdaptadorRegistros,
 )
 
 
@@ -35,6 +36,14 @@ class Maquina:
         self.registros = AdaptadorRegistros()
         self.alu = AdaptadorALU(registros=self.registros)
         self.cargador = AdaptadorCargador(memoria=self.memoria, registros=self.registros)
+        self.cpu = AdaptadorCPU(memoria=self.memoria, registros=self.registros)
+        self.mmio = AdaptadorMMIO(memoria=self.memoria)
+        # Servicio compuesto: no es un modulo del equipo, por eso no sale en
+        # el informe de modulos de la barra superior.
+        self.algoritmos = AdaptadorAlgoritmos(
+            memoria=self.memoria, cargador=self.cargador,
+            registros=self.registros, cpu=self.cpu,
+        )
 
     # -- diagnostico --------------------------------------------------------
 
@@ -45,6 +54,8 @@ class Maquina:
             "registros": self.registros,
             "alu": self.alu,
             "cargador": self.cargador,
+            "cpu": self.cpu,
+            "mmio": self.mmio,
         }
 
     def informe(self) -> List[Dict[str, object]]:
@@ -74,6 +85,9 @@ class Maquina:
             self.memoria.reiniciar()
         if self.registros.disponible:
             self.registros.reiniciar()
+        if self.cpu.disponible:
+            self.cpu.reiniciar()
+        self.mmio.reiniciar()
 
 
 def construir_maquina() -> Maquina:

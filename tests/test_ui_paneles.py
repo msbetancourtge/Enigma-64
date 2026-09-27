@@ -374,3 +374,195 @@ def test_el_reset_de_la_ventana_limpia_memoria_y_registros():
         assert ventana.maquina.registros.leer_nombre("R1") == 0
     finally:
         ventana.destroy()
+
+
+# ---------------------------------------------------------------------------
+# Panel de la Unidad de Control (modulo pendiente)
+# ---------------------------------------------------------------------------
+
+
+def test_el_panel_de_cpu_muestra_el_contrato_mientras_falte_el_modulo(raiz, maquina, bus):
+    """No basta con no caerse: tiene que decir que debe escribir el Integrante 3."""
+    from enigma64.ui.paneles.panel_cpu import PanelCPU
+    panel = _montar(PanelCPU, raiz, maquina, bus)
+    assert panel.winfo_exists()
+    assert not hasattr(panel, "_cajas_fase")       # no se construyo la vista normal
+
+    textos = []
+    def recoger(widget):
+        try:
+            textos.append(str(widget.cget("text")))
+        except tk.TclError:
+            pass
+        for hijo in widget.winfo_children():
+            recoger(hijo)
+    recoger(panel)
+    unido = " ".join(textos)
+    assert "MODULO PENDIENTE" in unido
+    assert "Integrante 3" in unido
+
+
+def test_el_panel_de_cpu_se_enciende_cuando_llega_el_modulo(raiz, bus):
+    from enigma64.ui.paneles.panel_cpu import PanelCPU
+    from enigma64.ui.servicios.adaptadores import AdaptadorCPU
+
+    class CPUDelIntegrante3:
+        def __init__(self): self.ciclos = 0
+        def paso(self): self.ciclos += 1
+        def paso_instruccion(self): self.ciclos += 5
+        def ejecutar(self, max_ciclos=100000): self.ciclos = 40
+        def reiniciar(self): self.ciclos = 0
+        def estado(self):
+            return {"fase": "EXECUTE", "ciclos": self.ciclos,
+                    "instrucciones": self.ciclos // 5,
+                    "detenido": self.ciclos >= 40,
+                    "micro": {"MAR": 0x200000, "IR": 0x14100020},
+                    "mnemonico": "ADDI", "prefetch": b"\x14\x10\x00\x20"}
+
+    panel = PanelCPU(raiz, servicio=AdaptadorCPU(cpu=CPUDelIntegrante3()), bus=bus)
+    panel.pack()
+    raiz.update_idletasks()
+
+    assert hasattr(panel, "_cajas_fase")
+    assert set(panel._cajas_fase) == {"FETCH", "DECODE", "EXECUTE", "MEMORY", "WRITE-BACK"}
+
+    panel._avanzar("paso")
+    assert panel._contadores["ciclos"].cget("text") == "1"
+    assert panel._celdas_micro["MAR"].cget("text") == "0x0000000000200000"
+
+    panel._avanzar("ejecutar")
+    assert panel.insignia.itemcget(panel.insignia._texto, "text") == "HLT"
+
+
+def test_el_panel_de_cpu_publica_su_avance_en_el_bus(raiz, bus):
+    from enigma64.ui.paneles.panel_cpu import PanelCPU
+    from enigma64.ui.servicios.adaptadores import AdaptadorCPU
+
+    class CPUMinima:
+        def paso(self): pass
+        def estado(self): return {"fase": "DECODE", "ciclos": 3}
+
+    avances = []
+    bus.suscribir(Evento.CPU_AVANZO, lambda m: avances.append(m.get("fase")))
+    panel = PanelCPU(raiz, servicio=AdaptadorCPU(cpu=CPUMinima()), bus=bus)
+    panel.pack()
+    panel._avanzar("paso")
+    assert avances == ["DECODE"]
+
+
+# ---------------------------------------------------------------------------
+# Panel de I/O mapeada
+# ---------------------------------------------------------------------------
+
+
+def test_el_panel_mmio_escribe_un_registro(raiz, maquina, bus):
+    from enigma64.ui.paneles.panel_mmio import PanelMMIO
+    panel = _montar(PanelMMIO, raiz, maquina, bus)
+    panel.seleccionar("disco")
+    panel._campos[0x18].set("0x2A")        # LBA en DSK_ADDR
+    panel.escribir()
+    assert maquina.mmio.leer(0xFF002000, 0x18) == 0x2A
+    assert "escrito" in panel.mensaje.cget("text")
+
+
+def test_el_panel_mmio_renombra_los_registros_de_la_red(raiz, maquina, bus):
+    from enigma64.ui.paneles.panel_mmio import PanelMMIO
+    panel = _montar(PanelMMIO, raiz, maquina, bus)
+    panel.seleccionar("red")
+    assert "INTERFAZ DE RED" in panel.titulo_registros.cget("text")
+    etiquetas = [w.cget("text") for w in panel.rejilla.winfo_children()
+                 if isinstance(w, tk.Label)]
+    assert "NET_MAC" in etiquetas
+
+
+def test_el_panel_mmio_rechaza_un_valor_invalido(raiz, maquina, bus):
+    from enigma64.ui.paneles.panel_mmio import PanelMMIO
+    panel = _montar(PanelMMIO, raiz, maquina, bus)
+    panel._campos[0x00].set("no es un numero")
+    panel.escribir()
+    assert "no es un numero" in panel.mensaje.cget("text").lower()
+
+
+def test_el_panel_mmio_avisa_de_que_el_banco_es_provisional(raiz, maquina, bus):
+    from enigma64.ui.paneles.panel_mmio import PanelMMIO
+    panel = _montar(PanelMMIO, raiz, maquina, bus)
+    assert maquina.mmio.es_provisional
+    textos = []
+    def recoger(widget):
+        try:
+            textos.append(str(widget.cget("text")))
+        except tk.TclError:
+            pass
+        for hijo in widget.winfo_children():
+            recoger(hijo)
+    recoger(panel)
+    assert "BANCO PROVISIONAL" in " ".join(textos)
+
+
+# ---------------------------------------------------------------------------
+# Panel de algoritmos
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("clave", ["factorial", "euclides", "fibonacci"])
+def test_el_panel_de_algoritmos_carga_cada_programa(clave, raiz, maquina, bus):
+    from enigma64.ui.paneles.panel_algoritmos import PanelAlgoritmos
+    panel = _montar(PanelAlgoritmos, raiz, maquina, bus)
+    panel.elegir(clave)
+    panel.cargar()
+    assert panel.titulo_resultado.cget("text") == "PROGRAMA CARGADO"
+
+    algoritmo = maquina.algoritmos.obtener(clave)
+    esperado = maquina.algoritmos.codigo_maquina(algoritmo)
+    real = bytes(maquina.memoria.leer_byte(algoritmo["base"] + i)
+                 for i in range(len(esperado)))
+    assert real == esperado
+
+
+def test_el_panel_de_algoritmos_muestra_el_codigo_maquina_del_documento(
+        raiz, maquina, bus):
+    from enigma64.ui.paneles.panel_algoritmos import PanelAlgoritmos
+    panel = _montar(PanelAlgoritmos, raiz, maquina, bus)
+    panel.elegir("factorial")
+    listado = panel.listado.obtener()
+    assert "0x00200000" in listado
+    assert "14 10 00 20" in listado          # ADDI R1, R0, 0x0020
+    assert "ADDI  R1, R0, 0x0020" in listado
+
+
+def test_el_panel_de_algoritmos_no_da_por_bueno_un_resultado_inexistente(
+        raiz, maquina, bus):
+    from enigma64.ui.paneles.panel_algoritmos import PanelAlgoritmos
+    panel = _montar(PanelAlgoritmos, raiz, maquina, bus)
+    panel.elegir("factorial")
+    panel.cargar()
+    panel.verificar()
+    assert panel.titulo_resultado.cget("text") == "RESULTADO AUN NO ESCRITO"
+    assert "Integrante 3" in panel.detalle_resultado.cget("text")
+
+
+def test_el_panel_de_algoritmos_reconoce_el_resultado_correcto(raiz, maquina, bus):
+    from enigma64.ui.paneles.panel_algoritmos import PanelAlgoritmos
+    panel = _montar(PanelAlgoritmos, raiz, maquina, bus)
+    panel.elegir("factorial")
+    panel.cargar()
+    maquina.memoria.escribir(0x00201008, 120, 8)   # lo que escribiria la CPU
+    panel.verificar()
+    assert "VERIFICADO" in panel.titulo_resultado.cget("text")
+
+
+def test_el_boton_ejecutar_esta_deshabilitado_sin_cpu(raiz, maquina, bus):
+    from enigma64.ui.paneles.panel_algoritmos import PanelAlgoritmos
+    panel = _montar(PanelAlgoritmos, raiz, maquina, bus)
+    assert not maquina.algoritmos.puede_ejecutar
+    assert "disabled" in panel.boton_ejecutar.state()
+
+
+def test_el_panel_de_algoritmos_pide_navegar_tras_cargar(raiz, maquina, bus):
+    from enigma64.ui.paneles.panel_algoritmos import PanelAlgoritmos
+    destinos = []
+    bus.suscribir(Evento.IR_A_DIRECCION, lambda m: destinos.append(m.get("direccion")))
+    panel = _montar(PanelAlgoritmos, raiz, maquina, bus)
+    panel.elegir("euclides")
+    panel.cargar()
+    assert destinos == [0x00200100]

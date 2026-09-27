@@ -585,6 +585,197 @@ def panel_mapa() -> pathlib.Path:
     return L.guardar("05_panel_mapa.svg")
 
 
+def panel_cpu() -> pathlib.Path:
+    """La FSM multiciclo. Se dibuja el estado ENCENDIDO, el que se vera cuando
+    se fusione la rama del Integrante 3."""
+    L = Lienzo(880, 620, "Enigma-64 - Unidad de Control")
+    top = _ventana_suelta(L, "Unidad de Control (FSM)",
+                          "python -m enigma64.ui.paneles.panel_cpu")
+    y = L.tarjeta(14, top + 14, 852, 620 - top - 28, "Unidad de Control (FSM)",
+                  "Integrante 3  ·  enigma64.cpu", P["violeta"])
+
+    L.boton(30, y + 10, 128, "Paso (una fase)")
+    L.boton(166, y + 10, 158, "Instruccion completa", True)
+    L.boton(332, y + 10, 140, "Ejecutar hasta HLT")
+    L.boton(480, y + 10, 84, "RESET")
+    L.insignia(736, y + 15, 112, "EJECUTANDO", P["ok"])
+
+    for i, (etiqueta, valor) in enumerate([("Ciclos de reloj", "48"),
+                                           ("Instrucciones completadas", "11")]):
+        L.texto(30 + i * 210, y + 68, etiqueta.upper(), P["texto_debil"], 8, SANS, True)
+        L.texto(30 + i * 210, y + 88, valor, P["cian"], 14, MONO, True)
+
+    L.linea(28, y + 108, 852, y + 108)
+    L.texto(30, y + 130, "MAQUINA DE ESTADOS MULTICICLO", P["texto_debil"], 8, SANS, True)
+    fases = ["FETCH", "DECODE", "EXECUTE", "MEMORY", "WRITE-BACK"]
+    x = 30
+    for i, fase in enumerate(fases):
+        activa = fase == "EXECUTE"
+        w = 148
+        L.rect(x, y + 142, w, 32, P["violeta"] if activa else P["abismo"],
+               P["violeta"] if activa else P["borde"], radio=5,
+               opacidad=None if activa else None)
+        L.texto(x + w / 2, y + 162, fase, P["abismo"] if activa else P["texto_debil"],
+                9.5, MONO, True, "middle")
+        x += w
+        if i < len(fases) - 1:
+            L.texto(x + 6, y + 162, "→", P["texto_debil"], 10, MONO, ancla="middle")
+            x += 14
+    L.texto(30, y + 196,
+            "La ALU opera sobre A y B; el resultado queda en Z y se calculan las banderas.",
+            P["texto_tenue"], 9)
+
+    L.linea(28, y + 214, 852, y + 214)
+    L.texto(30, y + 236, "REGISTROS MICROARQUITECTONICOS  ·  RUTA INTERNA DE DATOS",
+            P["texto_debil"], 8, SANS, True)
+    micro = [("MAR", "0x0000000000200014"), ("MDR", "0x1222000142FFF631"),
+             ("IR",  "0x0000000000122320"), ("A",   "0x0000000000000078"),
+             ("B",   "0x0000000000000005"), ("Z",   "0x000000000000007D")]
+    for i, (nombre, valor) in enumerate(micro):
+        fila, columna = divmod(i, 2)
+        mx, my = 30 + columna * 420, y + 262 + fila * 24
+        L.texto(mx, my, nombre, P["texto_tenue"], 10, MONO, True)
+        L.texto(mx + 52, my, valor, P["cian"], 10, MONO)
+
+    L.texto(30, y + 350, "BUFFER DE PREBUSQUEDA  ·  16 BYTES", P["texto_debil"], 8,
+            SANS, True)
+    L.texto(30, y + 372, "12 33 20 15 22 00 01 42 FF F6 31 31 00 08 00 00",
+            P["cian"], 10, MONO)
+    return L.guardar("07_panel_cpu.svg")
+
+
+def panel_mmio() -> pathlib.Path:
+    L = Lienzo(880, 640, "Enigma-64 - I/O mapeada en memoria")
+    top = _ventana_suelta(L, "I/O mapeada en memoria",
+                          "python -m enigma64.ui.paneles.panel_mmio")
+    y = L.tarjeta(14, top + 14, 852, 640 - top - 28, "I/O mapeada en memoria",
+                  "0xFF000000 – 0xFFFFFFFF  ·  Tarea 9", P["violeta"])
+
+    L.rect(30, y + 8, 822, 46, P["elevado_alto"], P["alerta"], radio=6)
+    L.texto(42, y + 26, "BANCO PROVISIONAL", P["alerta"], 8.5, SANS, True)
+    L.texto(42, y + 43,
+            "La RAM enruta 0xFF...... al bus de perifericos sin almacenar nada. "
+            "Se reemplaza en cuanto exista enigma64/perifericos.py.",
+            P["texto_tenue"], 9)
+
+    L.texto(30, y + 80, "CONTROLADORES  ·  UNA PAGINA DE 4 KiB CADA UNO",
+            P["texto_debil"], 8, SANS, True)
+    controladores = [("Entrada (teclado)", "0xFF000000", P["cian"], False),
+                     ("Salida (pantalla)", "0xFF001000", P["ok"], False),
+                     ("Memoria secundaria (disco)", "0xFF002000", P["ambar"], True),
+                     ("Interfaz de red", "0xFF003000", P["violeta"], False),
+                     ("Temporizador / reloj", "0xFF004000", P["alerta"], False)]
+    cy = y + 92
+    for nombre, base, color, activo in controladores:
+        if activo:
+            L.rect(28, cy, 826, 30, color, radio=5, opacidad=0.12)
+            L.rect(28, cy, 826, 30, "none", color, radio=5)
+        L.rect(34, cy + 5, 4, 20, color, radio=2)
+        L.texto(50, cy + 19, nombre, P["texto"], 10)
+        L.texto(844, cy + 19, base, color, 10, MONO, ancla="end")
+        cy += 33
+
+    L.linea(28, cy + 8, 852, cy + 8)
+    L.texto(30, cy + 30, "REGISTROS  ·  MEMORIA SECUNDARIA (DISCO)",
+            P["texto_debil"], 8, SANS, True)
+    for i, (nombre, columna) in enumerate([("REGISTRO", 30), ("DIRECCION", 150),
+                                           ("VALOR (64 BITS)", 270),
+                                           ("", 470)]):
+        if nombre:
+            L.texto(columna, cy + 50, nombre, P["texto_debil"], 8, MONO, True)
+    registros = [("CTRL", "0xFF002000", "0x0000000000000001", "Comando que se ordena al controlador."),
+                 ("STATUS", "0xFF002008", "0x0000000000000001", "Estado devuelto: listo, ocupado, error."),
+                 ("DATA", "0xFF002010", "0x0000000000000000", "Dato transferido en la operacion."),
+                 ("ADDR", "0xFF002018", "0x000000000000002A", "Direccion de RAM o bloque implicado."),
+                 ("COUNT", "0xFF002020", "0x0000000000000001", "Cantidad de unidades a transferir.")]
+    for i, (nombre, direccion, valor, nota) in enumerate(registros):
+        ry = cy + 72 + i * 28
+        L.texto(30, ry + 14, nombre, P["texto"], 10, MONO, True)
+        L.texto(150, ry + 14, direccion, P["ambar"], 9.5, MONO)
+        L.rect(270, ry, 186, 22, P["abismo"], P["borde"], radio=4)
+        L.texto(280, ry + 15, valor, P["cian"], 9.5, MONO)
+        L.texto(470, ry + 14, nota, P["texto_debil"], 8.5)
+    return L.guardar("08_panel_mmio.svg")
+
+
+def panel_algoritmos() -> pathlib.Path:
+    L = Lienzo(920, 745, "Enigma-64 - Algoritmos de verificacion")
+    top = _ventana_suelta(L, "Algoritmos de verificacion",
+                          "python -m enigma64.ui.paneles.panel_algoritmos")
+    y = L.tarjeta(14, top + 14, 892, 745 - top - 28, "Algoritmos de verificacion",
+                  "Tarea 9  ·  factorial, Euclides y Fibonacci", P["ok"])
+
+    x = 30
+    for nombre, activo in [("Factorial de N", True), ("Algoritmo de Euclides", False),
+                           ("Sucesion de Fibonacci", False)]:
+        w = 20 + len(nombre) * 7
+        L.rect(x, y + 8, w, 26, P["ok"] if activo else P["abismo"],
+               P["ok"] if activo else P["borde"], radio=5)
+        L.texto(x + w / 2, y + 25, nombre, P["abismo"] if activo else P["texto_tenue"],
+                9.5, MONO, True, "middle")
+        x += w + 6
+
+    L.texto(30, y + 56, "Calcula N! por multiplicaciones sucesivas con un bucle decremental.",
+            P["texto_tenue"], 9)
+    for i, (etiqueta, valor) in enumerate([("Direccion de carga", "0x00200000"),
+                                           ("Variables en RAM", "0x00201000"),
+                                           ("Tamano del programa", "41 bytes"),
+                                           ("Resultado esperado", "5! = 120")]):
+        L.texto(30 + i * 215, y + 82, etiqueta.upper(), P["texto_debil"], 8, SANS, True)
+        L.texto(30 + i * 215, y + 100, valor, P["cian"], 10.5, MONO, True)
+
+    L.texto(30, y + 128, "PSEUDOCODIGO Y TRADUCCION MANUAL A LENGUAJE DE MAQUINA",
+            P["texto_debil"], 8, SANS, True)
+    L.rect(30, y + 138, 832, 300, P["abismo"], P["borde"], radio=6)
+
+    ly = y + 158
+    for linea in ["; Pseudocodigo",
+                  ";   N = Mem[0x00201000]",
+                  ";   factorial = 1",
+                  ";   mientras N > 0: factorial *= N ; N -= 1",
+                  ";   Mem[0x00201008] = factorial"]:
+        L.texto(42, ly, linea, P["texto_tenue"] if linea.startswith(";  ") else P["texto_debil"],
+                9, MONO)
+        ly += 15
+
+    ly += 10
+    L.texto(42, ly, "DIRECCION    ENSAMBLADOR                CODIGO MAQUINA (BIG-ENDIAN)",
+            P["texto_debil"], 8.5, MONO, True)
+    ly += 17
+    listado = [("0x00200000", "ADDI  R1, R0, 0x0020", "14 10 00 20", "R1 = 0x0020"),
+               ("0x00200004", "SHL   R1, R1, 16", "24 11 00 10", "R1 = 0x00200000"),
+               ("0x00200008", "ADDI  R1, R1, 0x1000", "14 11 10 00", "base de datos"),
+               ("0x0020000C", "LOAD  R2, [R1 + 0]", "30 21 00 00", "R2 = N"),
+               ("0x00200010", "ADDI  R3, R0, 1", "14 30 00 01", "factorial = 1"),
+               ("0x00200014", "CMP   R2, R0", "27 02 00", "compara N con 0"),
+               ("0x00200017", "JZ    FIN_FACT", "41 00 0A", "si N == 0 (+10B)"),
+               ("0x0020001A", "MUL   R3, R3, R2", "12 33 20", "factorial *= N"),
+               ("0x0020001D", "SUBI  R2, R2, 1", "15 22 00 01", "N = N - 1"),
+               ("0x00200021", "JNZ   LOOP_FACT", "42 FF F6", "repetir (-10B)"),
+               ("0x00200024", "STORE R3, [R1 + 8]", "31 31 00 08", "guarda el resultado"),
+               ("0x00200028", "HLT", "00", "detener ejecucion")]
+    for direccion, mnemonico, maquina, comentario in listado:
+        L.texto(42, ly, direccion, P["ambar"], 9, MONO)
+        L.texto(140, ly, mnemonico, P["texto"], 9, MONO)
+        L.texto(330, ly, maquina, P["cian"], 9, MONO)
+        L.texto(440, ly, "; " + comentario, P["texto_debil"], 9, MONO)
+        ly += 14
+
+    L.boton(30, y + 452, 130, "Cargar en RAM", True)
+    L.boton(168, y + 452, 142, "Verificar resultado")
+    L.boton(318, y + 452, 92, "Ejecutar")
+    L.texto(420, y + 472, "Ejecutar necesita la Unidad de Control (Integrante 3)",
+            P["texto_debil"], 8.5)
+
+    L.rect(30, y + 496, 832, 70, P["abismo"], P["ok"], radio=6)
+    L.texto(44, y + 518, "PROGRAMA CARGADO", P["ok"], 9, SANS, True)
+    L.texto(44, y + 536, "41 bytes  ·  0x00200000 → 0x00200028  ·  entry point 0x00200000",
+            P["texto_tenue"], 9, MONO)
+    L.texto(44, y + 552, "N = 5 sembrado en 0x00201000  ·  PC y R5 en el entry point",
+            P["cian"], 9, MONO)
+    return L.guardar("09_panel_algoritmos.svg")
+
+
 def sistema_diseno() -> pathlib.Path:
     L = Lienzo(1000, 660, "Enigma-64 - Sistema de diseno Noctua")
     L.rect(0, 0, 1000, 92, P["abismo"])
@@ -643,7 +834,8 @@ def sistema_diseno() -> pathlib.Path:
 
 def generar_todo() -> List[pathlib.Path]:
     return [shell_completo(), panel_memoria(), panel_registros(), panel_alu(),
-            panel_cargador(), panel_mapa(), sistema_diseno()]
+            panel_cargador(), panel_mapa(), sistema_diseno(), panel_cpu(),
+            panel_mmio(), panel_algoritmos()]
 
 
 if __name__ == "__main__":

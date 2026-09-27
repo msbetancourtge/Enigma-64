@@ -17,7 +17,9 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from .puertos import ServicioBase
+from .puertos import (
+    FASES_FSM, MICRO_REGISTROS, ServicioBase, ServicioNoDisponible,
+)
 
 # ---------------------------------------------------------------------------
 # Importacion defensiva de los modulos del equipo
@@ -67,6 +69,18 @@ except Exception as exc:  # pragma: no cover
     _FALLO_CARGADOR = f"{type(exc).__name__}: {exc}"
 
 from .mapa_memoria import REGIONES
+from ..core.formato import hex64
+from .algoritmos import (
+    CATALOGO as CATALOGO_ALGORITMOS,
+    codigo_maquina as codigo_maquina_algoritmo,
+    obtener as obtener_algoritmo,
+)
+from .mmio import (
+    CONTROLADORES as CONTROLADORES_MMIO,
+    BancoMMIOProvisional,
+    descomponer as descomponer_mmio,
+    registros_de as registros_mmio,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -349,3 +363,367 @@ class AdaptadorCargador(ServicioBase):
 
     def regiones(self) -> List[Dict[str, Any]]:
         return list(REGIONES)
+
+
+# ---------------------------------------------------------------------------
+# Unidad de Control / CPU (Integrante 3) - modulo pendiente
+# ---------------------------------------------------------------------------
+
+#: Nombres de clase que se prueban al buscar la CPU dentro de `enigma64.cpu`.
+_CLASES_CPU = ("CPU", "UnidadControl", "UnidadDeControl", "ControlUnit", "Procesador")
+
+#: Equivalencias aceptadas para cada operacion del contrato.
+_ALIAS_CPU = {
+    "paso": ("paso", "step", "ciclo", "tick", "paso_fase"),
+    "paso_instruccion": ("paso_instruccion", "step_instruction", "instruccion",
+                         "siguiente_instruccion", "step_over"),
+    "ejecutar": ("ejecutar", "run", "correr", "ejecutar_todo"),
+    "reiniciar": ("reiniciar", "reset", "reinicializar"),
+    "estado": ("estado", "state", "snapshot", "instantanea"),
+}
+
+try:
+    from ... import cpu as _modulo_cpu  # type: ignore
+    _FALLO_CPU = ""
+except Exception as exc:
+    _modulo_cpu = None  # type: ignore
+    _FALLO_CPU = (
+        f"{type(exc).__name__}: {exc}. El modulo enigma64/cpu.py todavia no "
+        f"existe; lo escribe el Integrante 3."
+    )
+
+
+class AdaptadorCPU(ServicioBase):
+    """
+    Envuelve la Unidad de Control cuando exista `enigma64/cpu.py`.
+
+    Se escribio antes que el modulo a proposito: asi el Integrante 3 tiene un
+    contrato contra el que programar (`puertos.PuertoCPU`) y la interfaz ya
+    esta lista para recibirlo. Hasta entonces queda no disponible y el panel
+    lo explica en pantalla.
+
+    El enganche es por pato: se buscan varios nombres de clase y, para cada
+    operacion, varios nombres de metodo. Si el Integrante 3 escribe `step()`
+    en vez de `paso()`, sigue funcionando.
+    """
+
+    nombre = "Unidad de Control (FSM)"
+    modulo = "enigma64.cpu"
+
+    FASES = FASES_FSM
+    MICRO = MICRO_REGISTROS
+
+    def __init__(self, cpu: Optional[Any] = None,
+                 memoria: Optional["AdaptadorMemoria"] = None,
+                 registros: Optional["AdaptadorRegistros"] = None) -> None:
+        self.memoria = memoria
+        self.registros = registros
+
+        if cpu is None and _modulo_cpu is not None:
+            cpu = self._instanciar()
+
+        motivo = _FALLO_CPU
+        if cpu is None and not motivo:
+            motivo = (
+                f"enigma64/cpu.py existe pero no expone ninguna clase conocida "
+                f"({', '.join(_CLASES_CPU)}). Ver puertos.PuertoCPU."
+            )
+        super().__init__(disponible=cpu is not None, motivo=motivo)
+        self.cpu = cpu
+
+    def _instanciar(self) -> Optional[Any]:
+        """Busca la clase de la CPU y la construye con el hardware conectado."""
+        for nombre_clase in _CLASES_CPU:
+            clase = getattr(_modulo_cpu, nombre_clase, None)
+            if clase is None:
+                continue
+            ram = self.memoria.ram if self.memoria is not None else None
+            banco = self.registros.banco if self.registros is not None else None
+            # Se prueban las firmas mas probables, de la mas completa a la mas simple.
+            for intento in (
+                lambda: clase(ram=ram, banco=banco),
+                lambda: clase(ram, banco),
+                lambda: clase(ram),
+                lambda: clase(),
+            ):
+                try:
+                    return intento()
+                except TypeError:
+                    continue
+        return None
+
+    def _metodo(self, operacion: str):
+        """Resuelve el metodo real detras de un nombre del contrato."""
+        for alias in _ALIAS_CPU[operacion]:
+            metodo = getattr(self.cpu, alias, None)
+            if callable(metodo):
+                return metodo
+        return None
+
+    # -- contrato -----------------------------------------------------------
+
+    def fases(self) -> Sequence[str]:
+        return self.FASES
+
+    def micro_registros(self) -> Sequence[str]:
+        return self.MICRO
+
+    def _invocar(self, operacion: str, *args) -> Dict[str, Any]:
+        self.exigir()
+        metodo = self._metodo(operacion)
+        if metodo is None:
+            raise ServicioNoDisponible(
+                f"La CPU no implementa '{operacion}'. Nombres aceptados: "
+                f"{', '.join(_ALIAS_CPU[operacion])}."
+            )
+        metodo(*args)
+        return self.estado()
+
+    def paso(self) -> Dict[str, Any]:
+        return self._invocar("paso")
+
+    def paso_instruccion(self) -> Dict[str, Any]:
+        return self._invocar("paso_instruccion")
+
+    def ejecutar(self, max_ciclos: int = 100000) -> Dict[str, Any]:
+        return self._invocar("ejecutar", max_ciclos)
+
+    def reiniciar(self) -> None:
+        if not self.disponible:
+            return
+        metodo = self._metodo("reiniciar")
+        if metodo is not None:
+            metodo()
+
+    def estado(self) -> Dict[str, Any]:
+        """
+        Estado normalizado de la FSM. Rellena lo que falte con valores neutros
+        para que el panel nunca tenga que comprobar si una clave existe.
+        """
+        crudo: Dict[str, Any] = {}
+        if self.disponible:
+            metodo = self._metodo("estado")
+            if metodo is not None:
+                try:
+                    crudo = dict(metodo() or {})
+                except Exception as exc:  # pragma: no cover - CPU de terceros
+                    crudo = {"error": f"{type(exc).__name__}: {exc}"}
+
+        micro = dict(crudo.get("micro") or {})
+        return {
+            "fase": crudo.get("fase") or self.FASES[0],
+            "ciclos": int(crudo.get("ciclos") or 0),
+            "instrucciones": int(crudo.get("instrucciones") or 0),
+            "detenido": bool(crudo.get("detenido", False)),
+            "micro": {nombre: int(micro.get(nombre) or 0) for nombre in self.MICRO},
+            "mnemonico": crudo.get("mnemonico") or "",
+            "prefetch": crudo.get("prefetch") or b"",
+            "error": crudo.get("error", ""),
+        }
+
+
+# ---------------------------------------------------------------------------
+# Perifericos mapeados en memoria
+# ---------------------------------------------------------------------------
+
+try:
+    from ... import perifericos as _modulo_perifericos  # type: ignore
+except Exception:
+    _modulo_perifericos = None  # type: ignore
+
+
+class AdaptadorMMIO(ServicioBase):
+    """
+    Envuelve el espacio de I/O mapeada.
+
+    Prefiere `enigma64.perifericos` si alguien lo escribe; mientras tanto usa
+    el banco provisional de `servicios/mmio.py`, de modo que el visor/editor ya
+    se puede usar y demostrar. `es_provisional` dice cual de los dos esta
+    detras, para que el panel lo advierta con honestidad.
+    """
+
+    nombre = "I/O mapeada en memoria"
+    modulo = "enigma64.perifericos"
+
+    def __init__(self, banco: Optional[Any] = None,
+                 memoria: Optional["AdaptadorMemoria"] = None) -> None:
+        self.memoria = memoria
+        self.es_provisional = False
+
+        if banco is None and _modulo_perifericos is not None:
+            for nombre_clase in ("Perifericos", "ControladoresMMIO", "BancoMMIO", "MMIO"):
+                clase = getattr(_modulo_perifericos, nombre_clase, None)
+                if clase is not None:
+                    try:
+                        banco = clase()
+                        break
+                    except TypeError:
+                        continue
+
+        if banco is None:
+            banco = BancoMMIOProvisional()
+            self.es_provisional = True
+
+        super().__init__(disponible=True, motivo="")
+        self.banco = banco
+
+    # -- contrato -----------------------------------------------------------
+
+    def controladores(self) -> List[Dict[str, Any]]:
+        return list(CONTROLADORES_MMIO)
+
+    def registros(self, clave: str) -> List[Tuple[int, str, str]]:
+        return registros_mmio(clave)
+
+    def leer(self, base: int, desplazamiento: int) -> int:
+        return self.banco.leer(base, desplazamiento)
+
+    def escribir(self, base: int, desplazamiento: int, valor: int) -> None:
+        self.banco.escribir(base, desplazamiento, valor)
+
+    def reiniciar(self) -> None:
+        self.banco.reiniciar()
+
+    def descomponer(self, direccion: int):
+        """Parte una direccion MMIO en (controlador, desplazamiento, registro)."""
+        return descomponer_mmio(direccion)
+
+    @property
+    def advertencia(self) -> str:
+        """Texto que el panel muestra si detras hay un andamio y no hardware."""
+        if not self.es_provisional:
+            return ""
+        return ("Banco de registros provisional: la RAM enruta 0xFF...... al bus "
+                "de perifericos sin almacenar nada. Se reemplaza solo en cuanto "
+                "exista enigma64/perifericos.py.")
+
+
+# ---------------------------------------------------------------------------
+# Algoritmos de verificacion (Tarea 9)
+# ---------------------------------------------------------------------------
+
+
+class AdaptadorAlgoritmos(ServicioBase):
+    """
+    Servicio compuesto para los tres algoritmos de verificacion.
+
+    Sembrar los datos, cargar el codigo y comprobar el resultado toca a la RAM,
+    al cargador y (cuando exista) a la CPU. En vez de dar tres servicios al
+    panel y romper la regla de "un panel, un servicio", la composicion se hace
+    aqui y el panel sigue recibiendo uno solo.
+    """
+
+    nombre = "Algoritmos de verificacion"
+    modulo = "enigma64.ui.servicios.algoritmos"
+
+    def __init__(self, memoria: Optional["AdaptadorMemoria"] = None,
+                 cargador: Optional["AdaptadorCargador"] = None,
+                 registros: Optional["AdaptadorRegistros"] = None,
+                 cpu: Optional["AdaptadorCPU"] = None) -> None:
+        self.memoria = memoria
+        self.cargador = cargador
+        self.registros = registros
+        self.cpu = cpu
+
+        faltan = [
+            nombre for nombre, servicio in (("memoria", memoria), ("cargador", cargador))
+            if servicio is None or not servicio.disponible
+        ]
+        super().__init__(
+            disponible=not faltan,
+            motivo=f"faltan los modulos: {', '.join(faltan)}" if faltan else "",
+        )
+
+    # -- catalogo -----------------------------------------------------------
+
+    def catalogo(self) -> List[Dict[str, Any]]:
+        return list(CATALOGO_ALGORITMOS)
+
+    def obtener(self, clave: str) -> Optional[Dict[str, Any]]:
+        return obtener_algoritmo(clave)
+
+    def codigo_maquina(self, algoritmo: Dict[str, Any]) -> bytes:
+        return codigo_maquina_algoritmo(algoritmo)
+
+    # -- preparacion --------------------------------------------------------
+
+    def sembrar_datos(self, algoritmo: Dict[str, Any]) -> List[Tuple[int, int]]:
+        """
+        Escribe en RAM los valores de entrada del algoritmo.
+
+        Devuelve la lista de (direccion, valor) sembrados, para que el panel
+        pueda mostrarlos sin volver a leer la memoria.
+        """
+        self.exigir()
+        sembrados = []
+        for direccion, valor, ancho in algoritmo["entradas"]:
+            _, estado = self.memoria.escribir(direccion, valor, ancho)
+            if estado != STATUS_READY:
+                raise RuntimeError(
+                    f"No se pudo sembrar {hex64(valor)} en 0x{direccion:08X}: {estado}")
+            sembrados.append((direccion, valor))
+        return sembrados
+
+    def cargar(self, algoritmo: Dict[str, Any]) -> Dict[str, Any]:
+        """Siembra los datos y deposita el codigo maquina en su direccion base."""
+        self.exigir()
+        self.sembrar_datos(algoritmo)
+        return self.cargador.cargar_bytes(
+            self.codigo_maquina(algoritmo),
+            destino=algoritmo["base"],
+            punto_entrada=algoritmo["base"],
+            configurar_cpu=True,
+        )
+
+    # -- verificacion -------------------------------------------------------
+
+    def verificar(self, algoritmo: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Lee el resultado del algoritmo en RAM y lo compara con lo que dice el
+        documento. Fibonacci compara la secuencia entera, no un solo valor.
+        """
+        self.exigir()
+        esperado = algoritmo["resultado"]
+        secuencia = esperado.get("secuencia")
+
+        if secuencia is not None:
+            obtenidos = []
+            for indice in range(len(secuencia)):
+                direccion = esperado["direccion"] + indice * esperado["tamano"]
+                valor, estado = self.memoria.leer(direccion, esperado["tamano"])
+                obtenidos.append(valor if estado == STATUS_READY else None)
+            return {
+                "ok": obtenidos == list(secuencia),
+                "obtenido": obtenidos,
+                "esperado": list(secuencia),
+                "direccion": esperado["direccion"],
+                "etiqueta": esperado["etiqueta"],
+                "es_secuencia": True,
+            }
+
+        valor, estado = self.memoria.leer(esperado["direccion"], esperado["tamano"])
+        return {
+            "ok": estado == STATUS_READY and valor == esperado["esperado"],
+            "obtenido": valor,
+            "esperado": esperado["esperado"],
+            "direccion": esperado["direccion"],
+            "etiqueta": esperado["etiqueta"],
+            "estado_bus": estado,
+            "es_secuencia": False,
+        }
+
+    # -- ejecucion ----------------------------------------------------------
+
+    @property
+    def puede_ejecutar(self) -> bool:
+        """La ejecucion real necesita la Unidad de Control del Integrante 3."""
+        return self.cpu is not None and self.cpu.disponible
+
+    def ejecutar(self, max_ciclos: int = 100000) -> Dict[str, Any]:
+        if not self.puede_ejecutar:
+            raise ServicioNoDisponible(
+                "Ejecutar un algoritmo necesita la Unidad de Control "
+                "(enigma64/cpu.py, Integrante 3). Mientras tanto se puede "
+                "cargar el programa y revisarlo en el volcado de memoria."
+            )
+        return self.cpu.ejecutar(max_ciclos)

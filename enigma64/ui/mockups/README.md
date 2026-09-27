@@ -21,8 +21,11 @@ python -m enigma64.ui.mockups.generar_mockups
 | `04_panel_cargador.svg` | El cargador y el manipulador bit a bit |
 | `05_panel_mapa.svg` | El mapa de memoria de la Tarea 9 con permisos y controladores MMIO |
 | `06_sistema_diseno.svg` | Paleta, tipografias, componentes y el principio de aislamiento |
+| `07_panel_cpu.svg` | La Unidad de Control con sus cinco fases y los micro-registros (estado encendido, el que se vera al fusionar la rama del Integrante 3) |
+| `08_panel_mmio.svg` | Visor/editor de los cinco controladores mapeados en memoria |
+| `09_panel_algoritmos.svg` | Los algoritmos de la Tarea 9 con su traduccion manual a lenguaje de maquina |
 
-Los bocetos 01 a 05 estan enmarcados como **ventanas de un solo modulo**,
+Los bocetos 01 a 05 y 07 a 09 estan enmarcados como **ventanas de un solo modulo**,
 porque asi es como se demuestra cada componente por separado. La insignia
 "MODULO INDEPENDIENTE" y la orden `python -m enigma64.ui.paneles.…` aparecen en
 la cabecera de cada uno.

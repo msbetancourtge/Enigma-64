@@ -42,10 +42,13 @@ python -m enigma64.ui                    # ventana completa
 Cada modulo por separado, que es como se demuestra ante el profesor:
 
 ```bash
-python -m enigma64.ui.paneles.panel_memoria     # RAM y buses      (Integrante 1)
-python -m enigma64.ui.paneles.panel_registros   # banco de registros (Integrante 2)
-python -m enigma64.ui.paneles.panel_alu         # ALU              (Integrante 2)
-python -m enigma64.ui.paneles.panel_cargador    # cargador y bits  (Integrante 4)
+python -m enigma64.ui.paneles.panel_memoria     # RAM y buses         (Integrante 1)
+python -m enigma64.ui.paneles.panel_registros   # banco de registros  (Integrante 2)
+python -m enigma64.ui.paneles.panel_alu         # ALU                 (Integrante 2)
+python -m enigma64.ui.paneles.panel_cargador    # cargador y bits     (Integrante 4)
+python -m enigma64.ui.paneles.panel_cpu         # Unidad de Control   (Integrante 3)
+python -m enigma64.ui.paneles.panel_mmio        # I/O mapeada
+python -m enigma64.ui.paneles.panel_algoritmos  # algoritmos de la Tarea 9
 python -m enigma64.ui.paneles.panel_mapa        # mapa de memoria
 python -m enigma64.ui.paneles.panel_consola     # traza del bus
 ```
@@ -71,11 +74,14 @@ enigma64/ui/
 │   ├── puertos.py         el contrato que espera cada panel
 │   ├── adaptadores.py     envoltorios de memoria, registros, alu y cargador
 │   ├── fabrica.py         arma una `Maquina` coherente
-│   └── mapa_memoria.py    el mapa de la Tarea 9 como dato puro
+│   ├── mapa_memoria.py    el mapa de la Tarea 9 como dato puro
+│   ├── mmio.py            controladores MMIO + banco provisional de registros
+│   └── algoritmos.py      los tres programas de la Tarea 9, byte a byte
 ├── paneles/               un panel por modulo, todos independientes
 │   ├── base.py            PanelBase + arranque suelto
-│   ├── panel_memoria.py   · panel_registros.py · panel_alu.py
-│   ├── panel_cargador.py  · panel_mapa.py      · panel_consola.py
+│   ├── panel_memoria.py   · panel_registros.py  · panel_alu.py
+│   ├── panel_cargador.py  · panel_cpu.py        · panel_mmio.py
+│   ├── panel_algoritmos.py · panel_mapa.py      · panel_consola.py
 ├── shell/ventana.py       compone los paneles; no tiene logica de ningun modulo
 └── mockups/               los bocetos previos a la implementacion
 ```
@@ -100,10 +106,27 @@ enigma64/ui/
 | **Banco de registros** | `enigma64.registros` | R0..R7, PC y SR con su nibble, hexadecimal y decimal con signo; las siete banderas como diodos pulsables; R0 marcado como cableado a cero |
 | **ALU** | `enigma64.alu` | Las 16 operaciones del ISA agrupadas por familia, latches A y B, salida Z en hex/decimal/binario y las banderas que esa instruccion afecta |
 | **Cargador y bits** | `enigma64.cargador` | Carga de `.e64` / `.bin` / `.txt` o de un volcado pegado, con validacion del mapa de memoria; manipulador bit a bit con el byte como ocho celdas pulsables |
+| **Unidad de Control** | `enigma64.cpu` *(pendiente)* | Las cinco fases de la FSM, los micro-registros MAR/MDR/IR/A/B/Z, el buffer de prebusqueda y los contadores de ciclos e instrucciones |
+| **I/O mapeada** | `enigma64.perifericos` *(opcional)* | Los cinco controladores con sus registros CTRL/STATUS/DATA/ADDR/COUNT, editables; la interfaz de red renombra los suyos |
+| **Algoritmos** | — (compone cargador y RAM) | Factorial, Euclides y Fibonacci con su pseudocodigo y la traduccion manual a maquina; carga y verificacion |
 | **Mapa de memoria** | — (dato puro) | Las ocho regiones de la Tarea 9 con permisos, los controladores MMIO, y la region donde cayo el ultimo acceso |
 | **Traza del bus** | — (dato puro) | Todo lo que circula por el bus, con hora, origen y severidad |
 
-Los dos ultimos no dependen de ningun modulo, asi que funcionan siempre.
+Los tres ultimos no dependen de ningun modulo del equipo, asi que funcionan siempre.
+
+### Lo que falta y como encaja
+
+| Modulo | Estado | Que hace la interfaz hoy |
+|---|---|---|
+| `enigma64.memoria`, `.registros`, `.alu`, `.cargador` | **listos** | Conectados y en uso |
+| `enigma64.cpu` (Integrante 3) | **pendiente** | El panel muestra en pantalla el contrato que debe cumplir y se enciende solo al fusionar la rama |
+| `enigma64.perifericos` | **opcional** | Un banco de registros provisional en `servicios/mmio.py` sostiene los valores; el adaptador prefiere el modulo real en cuanto exista |
+
+**Para el Integrante 3:** el contrato esta en `servicios/puertos.py` → `PuertoCPU`.
+El adaptador engancha por pato, asi que valen tanto `paso/ejecutar/estado` como
+`step/run/state`, y las clases `CPU`, `UnidadControl`, `ControlUnit` o
+`Procesador`. Nada mas fusionar, la pestana deja de estar en gris; no hay que
+tocar ningun panel.
 
 ---
 
@@ -119,6 +142,9 @@ Los paneles se coordinan publicando estos eventos, definidos en `core/bus.py`:
 | `alu.ejecutada` | panel de la ALU | traza |
 | `cargador.programa_cargado` | panel del cargador | mapa, traza |
 | `cargador.carga_rechazada` | panel del cargador | traza |
+| `cpu.avanzo` / `cpu.reiniciada` | panel de la CPU | traza |
+| `mmio.escrito` | panel de I/O | mapa, traza |
+| `algoritmos.cargado` / `.verificado` | panel de algoritmos | memoria, mapa, traza |
 | `ui.ir_a_direccion` | panel del cargador | panel de memoria |
 | `ui.traza` | cualquiera | traza, barra de estado |
 
@@ -162,6 +188,7 @@ python -m pytest tests/ -q
 | `tests/test_ui_nucleo.py` | formato, bus, mapa de memoria y adaptadores (sin pantalla) |
 | `tests/test_ui_paneles.py` | construccion y comportamiento de los paneles con widgets reales |
 | `tests/test_ui_aislamiento.py` | que los modulos no se mezclan (analisis del codigo) |
+| `tests/test_ui_modulos_nuevos.py` | algoritmos de la Tarea 9, MMIO y el enganche de la CPU |
 
 Las pruebas graficas se omiten solas si no hay servidor X, de modo que la
 bateria completa sigue corriendo en una maquina sin escritorio.
@@ -179,3 +206,8 @@ bateria completa sigue corriendo en una maquina sin escritorio.
   `from enigma64.ui.shell.ventana import main`.
 - Los bocetos se generan desde la misma paleta que usa la aplicacion:
   `python -m enigma64.ui.mockups.generar_mockups`.
+- Los tres algoritmos de la Tarea 9 estan transcritos byte a byte en
+  `servicios/algoritmos.py`. Las pruebas comprueban que las direcciones del
+  documento encajan con la longitud real de cada instruccion, asi que si el
+  grupo corrige una traduccion a mano y se olvida de recalcular un salto,
+  salta una prueba.

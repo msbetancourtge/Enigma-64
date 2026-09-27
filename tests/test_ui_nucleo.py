@@ -179,11 +179,17 @@ def test_fuera_de_los_4_gib_no_hay_region():
 # ---------------------------------------------------------------------------
 
 
-def test_la_maquina_conecta_los_cuatro_modulos():
+def test_la_maquina_conecta_los_modulos_ya_entregados():
+    """
+    Los cuatro modulos que el equipo ya fusiono tienen que estar conectados.
+    La Unidad de Control (Integrante 3) se comprueba aparte, en
+    tests/test_ui_modulos_nuevos.py, porque todavia esta pendiente.
+    """
     maquina = construir_maquina()
-    assert maquina.total_modulos == 4
+    entregados = ("memoria", "registros", "alu", "cargador")
     for informe in maquina.informe():
-        assert informe["disponible"], f"{informe['modulo']}: {informe['motivo']}"
+        if informe["clave"] in entregados:
+            assert informe["disponible"], f"{informe['modulo']}: {informe['motivo']}"
 
 
 def test_dos_maquinas_no_comparten_estado():
