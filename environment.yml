@@ -1,0 +1,17 @@
+# Entorno de desarrollo de Enigma-64 - Noctua Systems
+#
+#   conda env create -f environment.yml
+#   conda activate Enigma-64
+#   python -m enigma64.ui
+#
+# La interfaz se construye unicamente sobre la biblioteca estandar (tkinter/ttk),
+# por eso el entorno solo necesita Python, Tk y las herramientas de prueba.
+name: Enigma-64
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - tk            # requerido por tkinter; sin esto la interfaz no arranca
+  - pip
+  - pip:
+      - pytest==9.1.1

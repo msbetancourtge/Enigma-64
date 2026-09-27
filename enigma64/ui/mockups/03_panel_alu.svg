@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="560" viewBox="0 0 660 560">
+  <title>Enigma-64 - Panel de la ALU</title>
+  <rect x="0" y="0" width="660" height="560" fill="#0B0E14"/>
+  <rect x="0" y="0" width="660" height="58" fill="#0B0E14"/>
+  <line x1="0" y1="58" x2="660" y2="58" stroke="#263041" stroke-width="1"/>
+  <polygon points="34.0,8.439999999999998 48.341380686670306,16.72 48.341380686670306,33.28 34.0,41.56 19.658619313329694,33.28000000000001 19.658619313329694,16.72" fill="none" stroke="#F2B138" stroke-width="2"/>
+  <polygon points="34.0,13.076799999999999 44.32579409440262,19.0384 44.325794094402625,30.961599999999997 34.0,36.9232 23.674205905597383,30.961600000000004 23.674205905597383,19.0384" fill="none" stroke="#8A6520" stroke-width="1"/>
+  <circle cx="28.42" cy="23.38" r="4.140000000000001" fill="#F2B138"/>
+  <circle cx="28.42" cy="23.38" r="1.7388000000000001" fill="#0B0E14"/>
+  <circle cx="39.58" cy="23.38" r="4.140000000000001" fill="#F2B138"/>
+  <circle cx="39.58" cy="23.38" r="1.7388000000000001" fill="#0B0E14"/>
+  <polygon points="34.0,26.439999999999998 32.128,30.04 35.872,30.04" fill="#3FC9D6"/>
+  <text x="62" y="26" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="14" font-weight="600">Unidad aritmetico-logica</text>
+  <text x="62" y="43" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">python -m enigma64.ui.paneles.panel_alu</text>
+  <rect x="502" y="19" width="142" height="21" fill="#4FD07A" rx="10.5" opacity="0.16"/>
+  <rect x="502" y="19" width="142" height="21" fill="none" rx="10.5" stroke="#4FD07A" stroke-width="1" opacity="0.45"/>
+  <text x="573.0" y="33.0" fill="#4FD07A" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600" text-anchor="middle">MODULO INDEPENDIENTE</text>
+  <rect x="14" y="72" width="632" height="474" fill="#171E2B" rx="8" stroke="#263041" stroke-width="1"/>
+  <rect x="28" y="86" width="3" height="16" fill="#F2B138" rx="1.5"/>
+  <text x="39" y="99" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="12.5" font-weight="600">Unidad aritmetico-logica</text>
+  <text x="39" y="113" fill="#8494AC" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="9.5">Integrante 2  ·  enigma64.alu</text>
+  <line x1="28" y1="124" x2="632" y2="124" stroke="#1B2231" stroke-width="1"/>
+  <text x="30" y="146" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">OPERACION</text>
+  <text x="30" y="172" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8.5">Aritmeticas</text>
+  <rect x="140" y="162" width="46" height="20" fill="#F2B138" rx="4" stroke="#F2B138" stroke-width="1" opacity="1"/>
+  <text x="163.0" y="176" fill="#0B0E14" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">ADD</text>
+  <rect x="192" y="162" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="215.0" y="176" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">SUB</text>
+  <rect x="244" y="162" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="267.0" y="176" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">MUL</text>
+  <rect x="296" y="162" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="319.0" y="176" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">DIV</text>
+  <rect x="348" y="162" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="371.0" y="176" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">ADDI</text>
+  <rect x="400" y="162" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="423.0" y="176" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">SUBI</text>
+  <rect x="452" y="162" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="475.0" y="176" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">INC</text>
+  <rect x="504" y="162" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="527.0" y="176" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">DEC</text>
+  <text x="30" y="199" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8.5">Logicas</text>
+  <rect x="140" y="189" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="163.0" y="203" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">AND</text>
+  <rect x="192" y="189" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="215.0" y="203" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">OR</text>
+  <rect x="244" y="189" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="267.0" y="203" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">XOR</text>
+  <rect x="296" y="189" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="319.0" y="203" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">NOT</text>
+  <text x="30" y="226" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8.5">Desplazamientos</text>
+  <rect x="140" y="216" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="163.0" y="230" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">SHL</text>
+  <rect x="192" y="216" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="215.0" y="230" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">SHR</text>
+  <rect x="244" y="216" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="267.0" y="230" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">ASR</text>
+  <text x="30" y="253" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8.5">Comparacion</text>
+  <rect x="140" y="243" width="46" height="20" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="163.0" y="257" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9" font-weight="600" text-anchor="middle">CMP</text>
+  <line x1="28" y1="276" x2="618" y2="276" stroke="#1B2231" stroke-width="1"/>
+  <text x="30" y="297" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">LATCH A</text>
+  <rect x="30" y="302" width="270" height="28" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="39" y="320.0" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="11">0x0000000000000078</text>
+  <text x="318" y="297" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">LATCH B</text>
+  <rect x="318" y="302" width="270" height="28" fill="#0B0E14" rx="4" stroke="#263041" stroke-width="1"/>
+  <text x="327" y="320.0" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="11">0x0000000000000005</text>
+  <rect x="30" y="348" width="120" height="30" fill="#8A6520" rx="5" stroke="#263041" stroke-width="1"/>
+  <text x="90.0" y="367.0" fill="#E6ECF5" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="10" font-weight="600" text-anchor="middle">Ejecutar</text>
+  <rect x="164" y="352" width="15" height="15" fill="#0B0E14" rx="3" stroke="#F2B138" stroke-width="1"/>
+  <text x="170" y="364" fill="#F2B138" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" font-weight="600">✓</text>
+  <text x="187" y="364" fill="#8494AC" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="9.5">Volcar banderas al registro SR</text>
+  <rect x="30" y="388" width="558" height="74" fill="#0B0E14" rx="6" stroke="#263041" stroke-width="1"/>
+  <text x="44" y="412" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="10" font-weight="600">Z</text>
+  <text x="66" y="413" fill="#3FC9D6" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="15" font-weight="600">0x000000000000007D</text>
+  <text x="44" y="434" fill="#8494AC" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5">125 con signo   ·   escribe el registro destino</text>
+  <text x="44" y="450" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9">0000…0000 0111 1101</text>
+  <text x="30" y="486" fill="#5A6880" font-family="Inter, Segoe UI, DejaVu Sans, sans-serif" font-size="8" font-weight="600">BANDERAS PRODUCIDAS  ·  afectadas por ADD: Z N C V</text>
+  <circle cx="36" cy="508" r="5" fill="#4FD07A" stroke="#263041" stroke-width="1" opacity="0.18"/>
+  <text x="48" y="512" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600">Z</text>
+  <circle cx="126" cy="508" r="5" fill="#4FD07A" stroke="#263041" stroke-width="1" opacity="0.18"/>
+  <text x="138" y="512" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600">N</text>
+  <circle cx="216" cy="508" r="5" fill="#4FD07A" stroke="#263041" stroke-width="1" opacity="0.18"/>
+  <text x="228" y="512" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600">C</text>
+  <circle cx="306" cy="508" r="5" fill="#4FD07A" stroke="#263041" stroke-width="1" opacity="0.18"/>
+  <text x="318" y="512" fill="#5A6880" font-family="JetBrains Mono, DejaVu Sans Mono, Consolas, monospace" font-size="9.5" font-weight="600">V</text>
+</svg>
