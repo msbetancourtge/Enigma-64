@@ -3,17 +3,21 @@ Enigma-64 - Noctua Systems
 Modulos integrados:
   * Integrante 1: RAM & Buses (RAMMemory)
   * Integrante 2: Banco de registros y ALU (ALU, BancoRegistros)
+  * Integrante 3: CPU & FSM (CPU, PrefetchBuffer, FASES_FSM)
+  * Integrante 4: Cargador & Manipulador de Bits (CargadorEnigma, BinarioEnigma)
+  * Integrante 5: Interfaz Grafica Modular (enigma64.ui)
+  * Integrante 6: Visor/Editor RAM & MMIO (Perifericos, ControladorPantalla)
+  * Integrante 7: Algoritmos de Prueba & Tests (PROGRAMAS_OFICIALES)
 
 Contrato publico para consumir integrantes:
 
-    from enigma64 import ALU, BancoRegistros, RAMMemory
+    from enigma64 import ALU, BancoRegistros, RAMMemory, CPU, CargadorEnigma
 
     banco = BancoRegistros()
     alu = ALU()
     ram = RAMMemory()
-
-    # Acceso a memoria desde FSM
-    dato, estado = ram.mem_read(banco.pc, size_bytes=4)
+    cargador = CargadorEnigma(ram=ram, banco=banco)
+    cpu = CPU(ram=ram, banco=banco)
 """
 
 from .alu import (
@@ -154,7 +158,7 @@ __all__ = [
     "a_con_signo",
     "a_sin_signo",
     "hex64",
-    # Integrante 3 - Cargador & Manipulador de Bits
+    # Integrante 4 - Cargador & Manipulador de Bits
     "CargadorEnigma",
     "BinarioEnigma",
     "ErrorCargador",
@@ -176,7 +180,7 @@ __all__ = [
     "LOADER_WORKSPACE_START",
     "LOADER_WORKSPACE_END",
     "MAGIC_ENIGMA",
-    # Integrante 4 - CPU & Unidad de Control
+    # Integrante 3 - CPU & FSM
     "CPU",
     "CPUError",
     "PrefetchBuffer",

@@ -20,13 +20,28 @@ from enigma64.ui.paneles import PANELES
 from enigma64.ui.servicios import construir_maquina
 
 
-def _hay_pantalla() -> bool:
+_VENTANA_TEST: tk.Tk | None = None
+
+
+def _obtener_raiz() -> tk.Tk | None:
+    global _VENTANA_TEST
+    if _VENTANA_TEST is not None:
+        try:
+            if _VENTANA_TEST.winfo_exists():
+                return _VENTANA_TEST
+        except Exception:
+            pass
     try:
-        raiz = tk.Tk()
-    except tk.TclError:
-        return False
-    raiz.destroy()
-    return True
+        _VENTANA_TEST = tk.Tk()
+        _VENTANA_TEST.withdraw()
+        aplicar_tema(_VENTANA_TEST)
+        return _VENTANA_TEST
+    except Exception:
+        return None
+
+
+def _hay_pantalla() -> bool:
+    return _obtener_raiz() is not None
 
 
 pytestmark = pytest.mark.skipif(
@@ -36,11 +51,10 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="session")
 def raiz():
-    ventana = tk.Tk()
-    ventana.withdraw()          # nunca aparece en pantalla durante las pruebas
-    aplicar_tema(ventana)
+    ventana = _obtener_raiz()
+    if ventana is None:
+        pytest.skip("se necesita un servidor grafico para crear widgets")
     yield ventana
-    ventana.destroy()
 
 
 @pytest.fixture
@@ -381,10 +395,13 @@ def test_el_reset_de_la_ventana_limpia_memoria_y_registros():
 # ---------------------------------------------------------------------------
 
 
-def test_el_panel_de_cpu_muestra_el_contrato_mientras_falte_el_modulo(raiz, maquina, bus):
+def test_el_panel_de_cpu_muestra_el_contrato_mientras_falte_el_modulo(raiz, bus):
     """No basta con no caerse: tiene que decir que debe escribir el Integrante 3."""
     from enigma64.ui.paneles.panel_cpu import PanelCPU
-    panel = _montar(PanelCPU, raiz, maquina, bus)
+    maquina_sin_cpu = construir_maquina()
+    maquina_sin_cpu.cpu.disponible = False
+    maquina_sin_cpu.cpu.motivo = "Unidad de Control: modulo pendiente del Integrante 3"
+    panel = _montar(PanelCPU, raiz, maquina_sin_cpu, bus)
     assert panel.winfo_exists()
     assert not hasattr(panel, "_cajas_fase")       # no se construyo la vista normal
 
@@ -541,7 +558,10 @@ def test_el_panel_de_algoritmos_no_da_por_bueno_un_resultado_inexistente(
     panel.cargar()
     panel.verificar()
     assert panel.titulo_resultado.cget("text") == "RESULTADO AUN NO ESCRITO"
-    assert "Integrante 3" in panel.detalle_resultado.cget("text")
+    if not maquina.algoritmos.puede_ejecutar:
+        assert "Integrante 3" in panel.detalle_resultado.cget("text")
+    else:
+        assert "esperado" in panel.detalle_resultado.cget("text")
 
 
 def test_el_panel_de_algoritmos_reconoce_el_resultado_correcto(raiz, maquina, bus):
@@ -554,10 +574,12 @@ def test_el_panel_de_algoritmos_reconoce_el_resultado_correcto(raiz, maquina, bu
     assert "VERIFICADO" in panel.titulo_resultado.cget("text")
 
 
-def test_el_boton_ejecutar_esta_deshabilitado_sin_cpu(raiz, maquina, bus):
+def test_el_boton_ejecutar_esta_deshabilitado_sin_cpu(raiz, bus):
     from enigma64.ui.paneles.panel_algoritmos import PanelAlgoritmos
-    panel = _montar(PanelAlgoritmos, raiz, maquina, bus)
-    assert not maquina.algoritmos.puede_ejecutar
+    maquina_sin_cpu = construir_maquina()
+    maquina_sin_cpu.cpu.disponible = False
+    panel = _montar(PanelAlgoritmos, raiz, maquina_sin_cpu, bus)
+    assert not maquina_sin_cpu.algoritmos.puede_ejecutar
     assert "disabled" in panel.boton_ejecutar.state()
 
 
