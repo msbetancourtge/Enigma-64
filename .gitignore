@@ -64,6 +64,8 @@ venv/
 # Documents
 /docs/
 task.txt
+./CLAUDE.md
+CLAUDE.md
 
 # Project guide
 /Computer_Emulation-main/
