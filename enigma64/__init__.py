@@ -76,6 +76,20 @@ from .cargador import (
     leer_byte_directo,
     parsear_texto_a_bytes,
 )
+from .cpu import (
+    CPU,
+    CPUError,
+    PrefetchBuffer,
+    DecodedInstruction,
+    DivisionPorCero as DivisionPorCeroCPU,
+    IllegalInstruction,
+    MemoryFault,
+    AlignmentFault,
+    PrivilegeFault,
+    ExecutionLimitExceeded,
+    FASES_FSM,
+    MICRO_REGISTROS,
+)
 from .perifericos import (
     BASE_DISCO,
     BASE_MMIO as MMIO_PERIFERICOS_BASE,
@@ -90,6 +104,19 @@ from .perifericos import (
     ControladorPantalla,
     ControladoresMMIO,
     Perifericos,
+)
+from .programas import (
+    BYTES_CARGADOR_FIRMWARE,
+    BYTES_EUCLIDES,
+    BYTES_FACTORIAL,
+    BYTES_FIBONACCI,
+    PROGRAMA_EUCLIDES,
+    PROGRAMA_FACTORIAL,
+    PROGRAMA_FIBONACCI,
+    PROGRAMAS_OFICIALES,
+    DefinicionPrograma,
+    exportar_archivos_programas,
+    inicializar_escenario_prueba,
 )
 
 
@@ -127,7 +154,7 @@ __all__ = [
     "a_con_signo",
     "a_sin_signo",
     "hex64",
-    # Integrante 4 - Cargador & Manipulador de Bits
+    # Integrante 3 - Cargador & Manipulador de Bits
     "CargadorEnigma",
     "BinarioEnigma",
     "ErrorCargador",
@@ -149,6 +176,13 @@ __all__ = [
     "LOADER_WORKSPACE_START",
     "LOADER_WORKSPACE_END",
     "MAGIC_ENIGMA",
+    # Integrante 4 - CPU & Unidad de Control
+    "CPU",
+    "CPUError",
+    "PrefetchBuffer",
+    "DecodedInstruction",
+    "FASES_FSM",
+    "MICRO_REGISTROS",
     # Integrante 6 - Visor/Editor RAM & MMIO
     "ControladorPantalla",
     "Perifericos",
@@ -162,5 +196,18 @@ __all__ = [
     "CMD_RESET",
     "CMD_NEWLINE",
     "CMD_SCROLL_UP",
+    # Integrante 7 - Algoritmos & Tests
+    "BYTES_FACTORIAL",
+    "BYTES_EUCLIDES",
+    "BYTES_FIBONACCI",
+    "BYTES_CARGADOR_FIRMWARE",
+    "PROGRAMAS_OFICIALES",
+    "PROGRAMA_FACTORIAL",
+    "PROGRAMA_EUCLIDES",
+    "PROGRAMA_FIBONACCI",
+    "DefinicionPrograma",
+    "exportar_archivos_programas",
+    "inicializar_escenario_prueba",
 ]
+
 
