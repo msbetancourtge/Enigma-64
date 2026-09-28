@@ -1,10 +1,10 @@
 """
-Visor y editor de la I/O mapeada en memoria.
+Visor y editor de la I/O mapeada en memoria (MMIO) y Terminal CRT (Integrante 6).
 
 La Tarea 9 asigna una pagina de 4 KiB a cada controlador y coloca sus
 registros en desplazamientos fijos de 8 bytes. Este panel permite inspeccionar
-y escribir esos registros directamente, que es la forma de probar un
-controlador sin tener todavia el periferico completo.
+y escribir esos registros directamente, e incluye la pantalla emulada interactiva
+para el Controlador de Pantalla (Base 0xFF001000).
 
 Recuerda la regla de enrutamiento: cuando A[31:24] == 0xFF la unidad de
 memoria bloquea la RAM y activa el Chip Select del bus de perifericos, por eso
@@ -12,7 +12,7 @@ estos registros no aparecen en el volcado del panel de memoria.
 
 Arranque suelto:  python -m enigma64.ui.paneles.panel_mmio
 
-Autor: Integrante 5 Maicol Sebastian Olarte Ramirez - Interfaz de usuario
+Autores: Integrante 5 (Shell base) & Integrante 6 (Terminal CRT y controlador de pantalla)
 """
 
 from __future__ import annotations
@@ -22,20 +22,20 @@ from tkinter import ttk
 
 from ..core.bus import Evento
 from ..core.formato import ValorInvalido, hex32, hex64, parsear_entero
-from ..core.tema import MARGEN, PALETA, mono, sans
-from ..core.widgets import mezclar
+from ..core.tema import MARGEN, MARGEN_CHICO, PALETA, mono, sans
+from ..core.widgets import MonitorPantallaCRT, mezclar
 from .base import PanelBase
 
 
 class PanelMMIO(PanelBase):
-    """Inspeccion y edicion de los registros de los controladores."""
+    """Inspeccion y edicion de registros MMIO y Monitor de Pantalla CRT."""
 
     NOMBRE = "mmio"
     TITULO = "I/O mapeada en memoria"
-    SUBTITULO = "0xFF000000 – 0xFFFFFFFF  ·  Tarea 9"
+    SUBTITULO = "Integrante 6  ·  Visor/Editor MMIO y Terminal CRT (0xFF001000)"
     ACENTO = PALETA["violeta"]
     CLAVE_SERVICIO = "mmio"
-    TAMANO_SUELTO = (900, 680)
+    TAMANO_SUELTO = (960, 1050)
 
     def construir(self) -> None:
         self._filas_controlador = {}
@@ -46,7 +46,10 @@ class PanelMMIO(PanelBase):
         self._construir_lista()
         self.separador()
         self._construir_registros()
+        self.separador()
+        self._construir_terminal_pantalla()
 
+        self.bus.suscribir(Evento.MMIO_ESCRITO, lambda _m: self.refrescar())
         self.seleccionar(self.seleccionado["clave"])
 
     # -- construccion -------------------------------------------------------
@@ -127,6 +130,15 @@ class PanelMMIO(PanelBase):
                                 wraplength=800, justify="left")
         self.mensaje.pack(fill="x", pady=(MARGEN, 0))
 
+    def _construir_terminal_pantalla(self) -> None:
+        """Construye el monitor / terminal CRT de salida emulada para la pantalla."""
+        self.terminal_crt = MonitorPantallaCRT(
+            self.cuerpo,
+            al_emitir_data=self._al_emitir_data_pantalla,
+            al_emitir_ctrl=self._al_emitir_ctrl_pantalla,
+        )
+        self.terminal_crt.pack(fill="both", expand=True, pady=(MARGEN_CHICO, 0))
+
     # -- seleccion ----------------------------------------------------------
 
     def seleccionar(self, clave: str) -> None:
@@ -186,6 +198,17 @@ class PanelMMIO(PanelBase):
         for desplazamiento, variable in self._campos.items():
             variable.set(hex64(self.servicio.leer(base, desplazamiento)))
 
+        # Actualizar monitor CRT si el controlador de pantalla está presente
+        ctrl_pantalla = getattr(self.servicio, "controlador_pantalla", None)
+        if ctrl_pantalla is not None:
+            self.terminal_crt.fijar_contenido(
+                lineas=ctrl_pantalla.obtener_lineas(),
+                cursor_fila=ctrl_pantalla.cursor_fila,
+                cursor_col=ctrl_pantalla.cursor_col,
+                count=ctrl_pantalla.count,
+                status=ctrl_pantalla.status,
+            )
+
     def escribir(self) -> None:
         base = self.seleccionado["base"]
         escritos = []
@@ -218,6 +241,22 @@ class PanelMMIO(PanelBase):
         self._informar("Controladores en estado de encendido: STATUS = 1 (listo).",
                        "aviso")
 
+    def _al_emitir_data_pantalla(self, byte_val: int) -> None:
+        base_pantalla = 0xFF001000
+        self.servicio.escribir(base_pantalla, 0x10, byte_val)
+        self.publicar(Evento.MMIO_ESCRITO, direccion=base_pantalla + 0x10, valor=byte_val,
+                      controlador="pantalla")
+        self.publicar(Evento.BUS_SENAL, estado="MMIO", direccion=base_pantalla + 0x10)
+        self.refrescar()
+
+    def _al_emitir_ctrl_pantalla(self, cmd_val: int) -> None:
+        base_pantalla = 0xFF001000
+        self.servicio.escribir(base_pantalla, 0x00, cmd_val)
+        self.publicar(Evento.MMIO_ESCRITO, direccion=base_pantalla, valor=cmd_val,
+                      controlador="pantalla")
+        self.publicar(Evento.BUS_SENAL, estado="MMIO", direccion=base_pantalla)
+        self.refrescar()
+
     def _informar(self, texto: str, severidad: str = "info") -> None:
         colores = {"info": PALETA["texto_tenue"], "exito": PALETA["ok"],
                    "aviso": PALETA["alerta"], "error": PALETA["fallo"]}
@@ -230,7 +269,8 @@ class PanelMMIO(PanelBase):
         if not self.servicio.disponible:
             return
         self.seleccionar("pantalla")
-        self._informar("Escribe en DATA de la pantalla para ver el registro cambiar.",
+        self.terminal_crt.demo_saludo()
+        self._informar("Demostración activa: mensaje emitido a la terminal CRT (0xFF001000).",
                        "info")
 
 
