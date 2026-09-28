@@ -1,4 +1,4 @@
-"""Punto de entrada del emulador Enigma-64."""
+"""Punto de entrada de ejecucion como modulo: python -m enigma64"""
 
 from enigma64.ui.shell.ventana import main
 

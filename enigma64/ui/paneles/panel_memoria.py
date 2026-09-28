@@ -49,7 +49,7 @@ class PanelMemoria(PanelBase):
     SUBTITULO = "Integrantes 1 & 6  ·  Visor/Editor interactivo y 8 bancos RAM"
     ACENTO = PALETA["cian"]
     CLAVE_SERVICIO = "memoria"
-    TAMANO_SUELTO = (960, 1050)
+    TAMANO_SUELTO = (960, 1080)
 
     def construir(self) -> None:
         self.base_volcado: int = 0x00200000
@@ -128,11 +128,11 @@ class PanelMemoria(PanelBase):
             ("0x00001000", "Monitor"),
             ("0x00200000", "Programas"),
             ("0x00201000", "Datos"),
-            ("0xEFFFFFF0", "Pila (SP)"),
+            ("0xEFFFFFF0", "Pila"),
             ("0xFF001000", "MMIO"),
         ]
         for addr, nombre in regiones:
-            btn = ttk.Button(fila, text=f"{nombre} ({addr})",
+            btn = ttk.Button(fila, text=nombre,
                              command=lambda a=addr: self._saltar_a(a))
             btn.pack(side="left", padx=2)
 
