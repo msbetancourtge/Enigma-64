@@ -48,23 +48,31 @@ Enigma-64/
 │   ├── registros.py               [OK] Integrante 2: banco de registros
 │   ├── alu.py                     [OK] Integrante 2: ALU de 64 bits
 │   ├── memoria.py                 [OK] Integrante 1: RAM y buses
-│   ├── cpu.py                     [--] Integrante 3: FSM y prebúsqueda
+│   ├── cpu.py                     [OK] Integrante 3: FSM, prebúsqueda y microarquitectura
 │   ├── cargador.py                [OK] Integrante 4: cargador y manipulación bit a bit
 │   ├── perifericos.py             [OK] Integrante 6: controlador básico de pantalla y MMIO
+│   ├── programas.py               [OK] Integrante 7: definición binaria de programas de Tarea 9
 │   ├── ui/
 │   │   ├── shell/ventana.py       [OK] Integrante 5: shell y cuaderno de módulos
 │   │   ├── paneles/panel_memoria.py [OK] Integrante 1 & 6: Grilla interactiva y editor de bits
 │   │   └── paneles/panel_mmio.py  [OK] Integrante 6: Terminal CRT y registros MMIO
 │   └── gui/
 │       ├── __init__.py            [OK]
-│       ├── panel_registros.py     [OK] Integrante 2: panel en vivo + banco de pruebas
+│       └── panel_registros.py     [OK] Integrante 2: panel en vivo + banco de pruebas
+├── programas/                     [OK] Integrante 7: archivos ejecutables (.bin, .hex, .e64)
+├── scripts/                       [OK] utilitarios de generación binaria y reportes
 └── tests/
     ├── test_registros_alu.py      [OK] Integrante 2: 38 pruebas
     ├── test_memoria.py            [OK] Integrante 1: 22 pruebas
+    ├── test_cpu.py                [OK] Integrante 3: 16 pruebas
     ├── test_cargador.py           [OK] Integrante 4: 21 pruebas
     ├── test_perifericos.py        [OK] Integrante 6: 16 pruebas
-    ├── test_ui_visor_ram_mmio.py  [OK] Integrante 6: 8 pruebas
-    └── test_algoritmos.py         [--] Integrante 7
+    ├── test_algoritmos.py         [OK] Integrante 7: 16 pruebas
+    ├── test_ui_aislamiento.py     [OK] Integrante 5: 29 pruebas AST
+    ├── test_ui_modulos_nuevos.py  [OK] Integrante 5: 42 pruebas
+    ├── test_ui_nucleo.py          [OK] Integrante 5: 52 pruebas
+    ├── test_ui_paneles.py         [OK] Integrante 5: 59 pruebas GUI
+    └── test_ui_visor_ram_mmio.py  [OK] Integrante 6: 8 pruebas
 ```
 
 ## Requisitos
@@ -412,49 +420,31 @@ la resta. Es el mismo mecanismo de la instrucción `JNZ`.
 
 ---
 
-# Pendiente: integración
+# Módulo implementado: CPU & Unidad de Control FSM (Integrante 3)
 
-## Contrato con el Integrante 3 (CPU & FSM)
+## Qué incluye
 
-El banco de registros y la ALU están listos para conectarse. Así se usan desde las fases
-de la máquina de estados:
+**`enigma64/cpu.py`** — Unidad de Control multiciclo, cola de prebúsqueda y microarquitectura completa de Enigma-64.
 
-```python
-from enigma64 import ALU, BancoRegistros
+### 1. FSM de 5 Fases Síncronas
+- **FETCH**: Carga y alineación de instrucciones desde RAM a través del `PrefetchBuffer`.
+- **DECODE**: Decodificación de los 6 formatos de instrucción (F1 a F6, 1 a 5 bytes), resolución de registros fuente/destino e inmediatos con extensión de signo.
+- **EXECUTE**: Ejecución de operaciones aritmético-lógicas mediante la `ALU`, evaluación de saltos condicionales (`JZ`, `JNZ`, `JN`, `JC`, `JV`, `JA`, etc.) y cálculo de direcciones efectivas.
+- **MEMORY**: Accesos de lectura y escritura a `RAMMemory` y desvío al subsistema `MMIO`. Activación de la bandera de desalineación `M` en `SR` cuando se detecta un acceso desalineado.
+- **WRITE-BACK**: Escritura en el banco de registros `BancoRegistros`, actualización de `PC`, puntero de pila `SP` y registro de estado `SR`.
 
-banco = BancoRegistros()
-alu = ALU()
+### 2. Cola FIFO de Prebúsqueda (`PrefetchBuffer`)
+- Búfer de 16 bytes que lee palabras alineadas de 64 bits y proporciona un flujo continuo de bytes decodificables, resolviendo de forma transparente el cruce de fronteras de palabra sin incurrir en fallos de alineación durante la fase de lectura de instrucciones de longitud variable.
 
-# --- FETCH ---
-mar = banco.pc
-# ... la memoria entrega la palabra alineada de 64 bits al MDR ...
-banco.avanzar_pc(longitud_en_bytes)   # longitud variable según el opcode
+### 3. Modos y Control de Pila
+- Manejo de instrucciones de pila (`PUSH`, `POP`, `CALL`, `RET`) decrementando/incrementando de 8 en 8 bytes a partir de `SP_RESET` (`0x00000000EFFFFFFF`).
+- Modos supervisor y usuario, soporte de instrucciones de control de interrupciones (`EI`, `DI`, `IRET`) y detención formal (`HLT`).
 
-# --- DECODE ---
-a = banco.leer(rs1)    # latch A
-b = banco.leer(rs2)    # latch B
+---
 
-# --- EXECUTE ---
-resultado = alu.ejecutar(mnemonico, a, b)
-banco.aplicar_banderas(resultado.banderas, resultado.afectadas)
+# Integración y Contratos de Hardware
 
-# --- WRITE-BACK ---
-if resultado.escribe_destino:
-    banco.escribir(rd, resultado.valor)
-```
-
-Lo que la CPU debe aportar y hoy no existe:
-
-- Decodificar el opcode del primer byte y determinar el formato (1 a 5 bytes) para saber
-  cuánto avanzar el PC.
-- Traducir el opcode numérico al mnemónico que espera `alu.ejecutar()`. Los mnemónicos
-  soportados están en `ALU.operaciones_soportadas()`.
-- El buffer de prebúsqueda de 16 bytes para instrucciones que cruzan el límite de palabra.
-- Las instrucciones que **no** pasan por la ALU: `LOAD`, `STORE`, `LDB`, `STB`, los saltos,
-  `CALL`, `RET`, `PUSH`, `POP`, `ENTER`, `LEAVE`, `EI`, `DI`, `IRET`, `HLT`.
-- Decidir qué hacer con `DivisionPorCero`.
-- Levantar la bandera M en la fase MEMORY cuando detecte un acceso desalineado. El banco
-  ya expone `escribir_bandera("M", 1)`; la ALU no la toca.
+El banco de registros y la ALU se conectan con la CPU y la memoria siguiendo el ciclo de instrucción multiciclo:
 
 ## Contrato con el Integrante 1 (RAM & Buses)
 
@@ -510,12 +500,19 @@ Se suscribe solo al banco, así que se refresca en cada cambio sin que la ventan
 llamarlo. Si se prefiere pintar la tabla de otra forma, `banco.snapshot()` devuelve todo
 en un diccionario con hexadecimal, decimal con signo y las siete banderas.
 
-## Contrato con el Integrante 7 (Algoritmos & Tests)
+# Módulo implementado: Algoritmos & Tests (Integrante 7)
 
-Los trazados de los tres algoritmos del documento ya están reproducidos en
-`PruebasIntegracion` dentro de `tests/test_registros_alu.py`, pero solo al nivel de
-registros y ALU: sin memoria, sin opcodes y sin saltos reales. Sirven como referencia de
-los valores intermedios esperados cuando la máquina completa esté ensamblada.
+## Qué incluye
+
+### 1. `enigma64/programas.py` y `programas/` — Binarios oficiales de la Tarea 9
+- **Algoritmo 1: Factorial ($N!$)** en `0x00200000` (41 bytes). Calcula $5! = 120$ en `0x00201008`.
+- **Algoritmo 2: Euclides ($MCD$)** en `0x00200100` (50 bytes). Calcula $\text{MCD}(48, 18) = 6$ en `0x00202010`.
+- **Algoritmo 3: Sucesión de Fibonacci** en `0x00200200` (63 bytes). Genera $[0, 1, 1, 2, 3, 5, 8]$ secuencialmente en `0x00203000`–`0x00203030`.
+- Formatos suministrados: `.bin` (binario crudo), `.hex` (volcado hexadecimal) y `.e64` (ejecutable estructurado con cabecera Magic `ENIG`).
+- Script generador: `python scripts/generar_binarios.py`.
+
+### 2. Suite de pruebas de validación formal (`tests/test_algoritmos.py`)
+- 16 pruebas automatizadas que verifican la integridad byte a byte contra la Tarea 9, el respeto de fronteras de memoria, la carga en RAM mediante `CargadorEnigma`, la ejecución paso a paso y la ejecución sobre la `CPU` oficial de la máquina.
 
 ---
 
@@ -577,5 +574,9 @@ todos trabajen en la misma carpeta.
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
 ```bash
+# Suite completa (319 pruebas: unitarias y GUI)
+python -m pytest
+
+# O mediante unittest estándar (137 pruebas de hardware sin GUI)
 python -m unittest discover -s tests
 ```
