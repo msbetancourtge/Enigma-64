@@ -76,6 +76,21 @@ from .cargador import (
     leer_byte_directo,
     parsear_texto_a_bytes,
 )
+from .perifericos import (
+    BASE_DISCO,
+    BASE_MMIO as MMIO_PERIFERICOS_BASE,
+    BASE_PANTALLA,
+    BASE_RED,
+    BASE_TECLADO,
+    BASE_TEMPORIZADOR,
+    CMD_CLEAR,
+    CMD_NEWLINE,
+    CMD_RESET,
+    CMD_SCROLL_UP,
+    ControladorPantalla,
+    ControladoresMMIO,
+    Perifericos,
+)
 
 
 __all__ = [
@@ -134,5 +149,18 @@ __all__ = [
     "LOADER_WORKSPACE_START",
     "LOADER_WORKSPACE_END",
     "MAGIC_ENIGMA",
+    # Integrante 6 - Visor/Editor RAM & MMIO
+    "ControladorPantalla",
+    "Perifericos",
+    "ControladoresMMIO",
+    "BASE_PANTALLA",
+    "BASE_TECLADO",
+    "BASE_DISCO",
+    "BASE_RED",
+    "BASE_TEMPORIZADOR",
+    "CMD_CLEAR",
+    "CMD_RESET",
+    "CMD_NEWLINE",
+    "CMD_SCROLL_UP",
 ]
 

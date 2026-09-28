@@ -1,27 +1,35 @@
 """
-Panel del modulo de Memoria RAM y buses (Integrante 1).
+Panel del modulo de Memoria RAM y buses (Integrantes 1 y 6).
 
-Muestra el subsistema de memoria tal y como lo describe la Tarea 9: acceso de
-1, 2, 4 u 8 bytes en Big-Endian, control de alineacion natural, enrutamiento
-hacia MMIO y las senales del bus de control.
+Muestra el subsistema de memoria tal y como lo describe la Tarea 9:
+  * Acceso de 1, 2, 4 u 8 bytes en Big-Endian con control de alineacion natural.
+  * Senales del bus de control (READY, MISALIGNED, MMIO, ADDR_FAULT).
+  * Grilla visual interactiva con los 8 bancos fisicos de memoria de 64 bits (Tarea 9).
+  * Inspector y editor de bits en vivo para conmutar bits (0 <-> 1) y modificar bytes.
+  * Volcado hexadecimal clasico de 16 columnas con vista ASCII.
+  * Botones de salto rapido a regiones del mapa de memoria de la Tarea 9.
 
 Arranque suelto:  python -m enigma64.ui.paneles.panel_memoria
 
-Autor: Integrante 5 Maicol Sebastian Olarte Ramirez - Interfaz de usuario
+Autores: Integrante 5 (Shell base) & Integrante 6 (Grilla interactiva y editor de bits)
 """
 
 from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
+from typing import List, Optional
 
 from ..core.bus import Evento
 from ..core.formato import (
     ValorInvalido, ascii_imprimible, hex32, hex_ancho, parsear_direccion,
     parsear_entero, tamano_legible,
 )
-from ..core.tema import COLOR_POR_ESTADO, MARGEN, PALETA, mono
-from ..core.widgets import CampoValor, TableroLeds, TextoMono
+from ..core.tema import COLOR_POR_ESTADO, MARGEN, MARGEN_CHICO, PALETA, mono, sans
+from ..core.widgets import (
+    CampoValor, GrillaBytesInteractiva, InspectorBitsByte, TableroLeds,
+    TextoMono,
+)
 from ..servicios.mapa_memoria import nombre_region
 from .base import PanelBase
 
@@ -29,29 +37,36 @@ from .base import PanelBase
 POR_LINEA = 16
 #: Lineas visibles del volcado.
 LINEAS = 16
+#: Palabras de 64 bits en la grilla interactiva (8 bytes por fila).
+FILAS_GRILLA = 16
 
 
 class PanelMemoria(PanelBase):
-    """Lectura, escritura y volcado de la memoria fisica."""
+    """Lectura, escritura, grilla interactiva y volcado de la memoria fisica."""
 
     NOMBRE = "memoria"
     TITULO = "Memoria RAM y buses"
-    SUBTITULO = "Integrante 1  ·  enigma64.memoria"
+    SUBTITULO = "Integrantes 1 & 6  ·  Visor/Editor interactivo y 8 bancos RAM"
     ACENTO = PALETA["cian"]
     CLAVE_SERVICIO = "memoria"
-    TAMANO_SUELTO = (900, 720)
+    TAMANO_SUELTO = (960, 1050)
 
     def construir(self) -> None:
-        self.base_volcado = 0x00200000
+        self.base_volcado: int = 0x00200000
+        self.direccion_seleccionada: int = 0x00200000
+        self.modo_vista: tk.StringVar = tk.StringVar(value="grilla")
+
         self._construir_controles()
         self.separador()
         self._construir_bus()
-        self._construir_volcado()
+        self._construir_atajos_regiones()
+        self._construir_area_visual()
         self._construir_estadisticas()
 
-        # Quien quiera llevarme a una direccion lo pide por el bus; no me
-        # llama directamente ningun otro panel.
+        # Suscripción a eventos del bus
         self.bus.suscribir(Evento.IR_A_DIRECCION, self._al_pedir_direccion)
+        self.bus.suscribir(Evento.PROGRAMA_CARGADO, lambda _m: self.refrescar_volcado())
+        self.bus.suscribir(Evento.MEMORIA_REINICIADA, lambda _m: self.refrescar_volcado())
 
         self.refrescar_volcado()
 
@@ -98,26 +113,103 @@ class PanelMemoria(PanelBase):
 
         self.mensaje = tk.Label(self.cuerpo, text="", bg=PALETA["elevado"],
                                 fg=PALETA["texto_tenue"], font=mono(9), anchor="w")
-        self.mensaje.pack(fill="x", pady=(8, 0))
+        self.mensaje.pack(fill="x", pady=(6, 0))
 
-    def _construir_volcado(self) -> None:
+    def _construir_atajos_regiones(self) -> None:
+        """Barra de accesos directos a las regiones clave del mapa de memoria (Tarea 9)."""
+        fila = self.fila()
+        fila.pack(fill="x", pady=(4, 6))
+
+        tk.Label(fila, text="Saltar a región:", bg=PALETA["elevado"],
+                 fg=PALETA["texto_debil"], font=sans(8)).pack(side="left", padx=(0, 6))
+
+        regiones = [
+            ("0x00000000", "Vectores"),
+            ("0x00001000", "Monitor"),
+            ("0x00200000", "Programas"),
+            ("0x00201000", "Datos"),
+            ("0xEFFFFFF0", "Pila (SP)"),
+            ("0xFF001000", "MMIO"),
+        ]
+        for addr, nombre in regiones:
+            btn = ttk.Button(fila, text=f"{nombre} ({addr})",
+                             command=lambda a=addr: self._saltar_a(a))
+            btn.pack(side="left", padx=2)
+
+    def _saltar_a(self, dir_texto: str) -> None:
+        self.campo_direccion.texto = dir_texto
+        self.ir_a_direccion()
+
+    def _construir_area_visual(self) -> None:
+        """Construye el área visual dual: Grilla interactiva y Volcado clásico."""
         encabezado = self.fila()
-        encabezado.pack(fill="x", pady=(MARGEN, 4))
-        self.rotulo(encabezado, "Volcado hexadecimal  ·  Big-Endian").pack(side="left")
+        encabezado.pack(fill="x", pady=(MARGEN_CHICO, 4))
 
-        ttk.Button(encabezado, text="▲ Pagina", width=10,
-                   command=lambda: self.desplazar(-POR_LINEA * LINEAS)).pack(side="right")
-        ttk.Button(encabezado, text="▼ Pagina", width=10,
-                   command=lambda: self.desplazar(POR_LINEA * LINEAS)).pack(
+        self.lbl_titulo_visor = self.rotulo(encabezado, "Visor de Memoria RAM")
+        self.lbl_titulo_visor.pack(side="left")
+
+        # Selector de vista (Grilla interactiva vs Volcado clásico)
+        marco_modo = tk.Frame(encabezado, bg=PALETA["elevado"])
+        marco_modo.pack(side="left", padx=(16, 0))
+
+        rb_grilla = ttk.Radiobutton(marco_modo, text="Grilla Interactiva (8 Bancos)",
+                                    variable=self.modo_vista, value="grilla",
+                                    command=self._cambiar_modo_vista)
+        rb_grilla.pack(side="left", padx=4)
+
+        rb_volcado = ttk.Radiobutton(marco_modo, text="Volcado Clásico (16 B)",
+                                     variable=self.modo_vista, value="volcado",
+                                     command=self._cambiar_modo_vista)
+        rb_volcado.pack(side="left", padx=4)
+
+        # Botones de desplazamiento
+        ttk.Button(encabezado, text="▼ Pagina", width=9,
+                   command=lambda: self.desplazar(POR_LINEA * LINEAS)).pack(side="right")
+        ttk.Button(encabezado, text="▲ Pagina", width=9,
+                   command=lambda: self.desplazar(-POR_LINEA * LINEAS)).pack(
                        side="right", padx=4)
 
-        self.volcado = TextoMono(self.cuerpo, alto=LINEAS + 1, ancho=78, tam=9)
+        # Contenedor para la Grilla Interactiva
+        self.contenedor_grilla = tk.Frame(self.cuerpo, bg=PALETA["elevado"])
+        self.contenedor_grilla.pack(fill="both", expand=True)
+
+        self.grilla_bytes = GrillaBytesInteractiva(
+            self.contenedor_grilla, filas_visibles=FILAS_GRILLA,
+            al_seleccionar=self._al_seleccionar_celda_grilla,
+            fondo=PALETA["abismo"],
+        )
+        self.grilla_bytes.pack(fill="both", expand=True, pady=(2, 6))
+
+        # Inspector de bits interactivo desplegado debajo de la grilla
+        self.inspector_bits = InspectorBitsByte(
+            self.contenedor_grilla,
+            al_conmutar_bit=self._al_conmutar_bit_inspector,
+            al_guardar_byte=self._al_guardar_byte_inspector,
+        )
+        self.inspector_bits.pack(fill="x", pady=(2, 4))
+
+        # Contenedor para el Volcado Clásico (oculto por defecto)
+        self.contenedor_volcado = tk.Frame(self.cuerpo, bg=PALETA["elevado"])
+        self.volcado = TextoMono(self.contenedor_volcado, alto=LINEAS + 1, ancho=78, tam=9)
         self.volcado.pack(fill="both", expand=True)
         self.volcado.configurar_etiqueta("cabecera", foreground=PALETA["texto_debil"])
         self.volcado.configurar_etiqueta("direccion", foreground=PALETA["ambar"])
         self.volcado.configurar_etiqueta("datos", foreground=PALETA["cian"])
         self.volcado.configurar_etiqueta("vacio", foreground=PALETA["texto_debil"])
         self.volcado.configurar_etiqueta("ascii", foreground=PALETA["texto_tenue"])
+
+    def _cambiar_modo_vista(self) -> None:
+        modo = self.modo_vista.get()
+        if modo == "grilla":
+            self.contenedor_volcado.pack_forget()
+            self.contenedor_grilla.pack(fill="both", expand=True)
+            self.lbl_titulo_visor.configure(
+                text="Grilla Interactiva  ·  8 Bancos físicos de 64 bits (Tarea 9)")
+        else:
+            self.contenedor_grilla.pack_forget()
+            self.contenedor_volcado.pack(fill="both", expand=True)
+            self.lbl_titulo_visor.configure(text="Volcado hexadecimal  ·  Big-Endian (16 B)")
+        self.refrescar_volcado()
 
     def _construir_estadisticas(self) -> None:
         fila = self.fila()
@@ -167,6 +259,7 @@ class PanelMemoria(PanelBase):
                       valor=dato, estado=estado)
         self.publicar(Evento.BUS_SENAL, estado=estado, direccion=direccion)
         self.base_volcado = direccion - (direccion % POR_LINEA)
+        self.direccion_seleccionada = direccion
         self.refrescar_volcado()
 
     def escribir(self) -> None:
@@ -196,6 +289,7 @@ class PanelMemoria(PanelBase):
                       valor=valor, estado=estado)
         self.publicar(Evento.BUS_SENAL, estado=estado, direccion=direccion)
         self.base_volcado = direccion - (direccion % POR_LINEA)
+        self.direccion_seleccionada = direccion
         self.refrescar_volcado()
 
     def ir_a_direccion(self) -> None:
@@ -205,8 +299,9 @@ class PanelMemoria(PanelBase):
             self._informar(str(exc), "error")
             return
         self.base_volcado = direccion - (direccion % POR_LINEA)
+        self.direccion_seleccionada = direccion
         self.refrescar_volcado()
-        self._informar(f"Volcado situado en {hex32(self.base_volcado)}", "info")
+        self._informar(f"Visor situado en {hex32(self.base_volcado)}", "info")
 
     def desplazar(self, delta: int) -> None:
         self.base_volcado = max(0, self.base_volcado + delta)
@@ -219,10 +314,52 @@ class PanelMemoria(PanelBase):
         self.publicar(Evento.MEMORIA_REINICIADA)
         self.refrescar_volcado()
 
+    # -- interaccion de grilla e inspector ----------------------------------
+
+    def _al_seleccionar_celda_grilla(self, direccion: int, valor: int, banco: int) -> None:
+        """Callback al hacer clic en una celda de la grilla interactiva."""
+        self.direccion_seleccionada = direccion
+        self.campo_direccion.texto = hex32(direccion)
+        region = nombre_region(direccion)
+        self.inspector_bits.actualizar_byte(direccion, valor, region)
+        self._informar(f"Byte seleccionado: {hex32(direccion)} = 0x{valor:02X} (Banco {banco})", "info")
+
+    def _al_conmutar_bit_inspector(self, direccion: int, bit_index: int) -> None:
+        """Callback al pulsar un bit en el inspector: lo conmuta en RAM en vivo."""
+        nuevo_bit = self.servicio.conmutar_bit(direccion, bit_index)
+        nuevo_byte = self.servicio.leer_byte(direccion)
+        self._informar(f"Bit {bit_index} conmutado a {nuevo_bit} en {hex32(direccion)} (byte: 0x{nuevo_byte:02X})", "exito")
+        self.publicar(Evento.MEMORIA_ESCRITA, direccion=direccion, tamano=1, valor=nuevo_byte, estado="READY")
+        self.publicar(Evento.BUS_SENAL, estado="READY", direccion=direccion)
+        self.refrescar_volcado()
+
+    def _al_guardar_byte_inspector(self, direccion: int, valor: int) -> None:
+        """Callback al guardar un byte modificado desde el inspector."""
+        self.servicio.escribir_byte(direccion, valor)
+        self._informar(f"Byte escrito en {hex32(direccion)}: 0x{valor:02X} ({valor})", "exito")
+        self.publicar(Evento.MEMORIA_ESCRITA, direccion=direccion, tamano=1, valor=valor, estado="READY")
+        self.publicar(Evento.BUS_SENAL, estado="READY", direccion=direccion)
+        self.refrescar_volcado()
+
     # -- pintado ------------------------------------------------------------
 
     def refrescar_volcado(self) -> None:
-        """Vuelve a dibujar las 16 lineas del volcado desde `base_volcado`."""
+        """Actualiza la grilla interactiva y el volcado clásico."""
+        # 1. Actualizar Grilla Interactiva (16 filas de 8 bytes = palabras de 64b)
+        datos_grilla = []
+        for fila in range(FILAS_GRILLA):
+            base_palabra = self.base_volcado + fila * 8
+            fila_bytes = [self.servicio.leer_byte(base_palabra + b) for b in range(8)]
+            datos_grilla.append(fila_bytes)
+        self.grilla_bytes.fijar_datos(self.base_volcado, datos_grilla)
+        self.grilla_bytes.seleccionar_direccion(self.direccion_seleccionada)
+
+        # Actualizar inspector de bits con la dirección seleccionada
+        val_sel = self.servicio.leer_byte(self.direccion_seleccionada)
+        self.inspector_bits.actualizar_byte(self.direccion_seleccionada, val_sel,
+                                           nombre_region(self.direccion_seleccionada))
+
+        # 2. Actualizar Volcado clásico de 16 columnas
         self.volcado.limpiar()
         cabecera = ("DIRECCION    " + " ".join(f"{i:02X}" for i in range(POR_LINEA))
                     + "   ASCII\n")
@@ -268,12 +405,13 @@ class PanelMemoria(PanelBase):
             return
         self.campo_direccion.texto = hex32(direccion)
         self.base_volcado = direccion - (direccion % POR_LINEA)
+        self.direccion_seleccionada = direccion
         self.refrescar_volcado()
 
     # -- demostracion suelta ------------------------------------------------
 
     def preparar_demo(self) -> None:
-        """Siembra la cabecera de un .e64 para que el volcado no salga vacio."""
+        """Siembra la cabecera de un .e64 para que el visor no salga vacio."""
         if not self.servicio.disponible:
             return
         for desplazamiento, byte in enumerate(b"ENIG\x00\x00\x00\x01"):

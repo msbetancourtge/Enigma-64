@@ -120,6 +120,33 @@ class AdaptadorMemoria(ServicioBase):
         dato, estado = self.ram.mem_read(direccion, 1, check_alignment=False)
         return dato if estado == STATUS_READY and dato is not None else 0
 
+    def escribir_byte(self, direccion: int, valor: int) -> Tuple[Optional[int], str]:
+        """Escribe un byte directamente sin verificacion de alineacion."""
+        self.exigir()
+        return self.ram.mem_write(direccion, valor & 0xFF, 1, check_alignment=False)
+
+    def leer_bit(self, direccion: int, bit_index: int) -> int:
+        """Lee el valor (0 o 1) del bit indicado dentro del byte."""
+        b = self.leer_byte(direccion)
+        return (b >> bit_index) & 1
+
+    def escribir_bit(self, direccion: int, bit_index: int, valor: int) -> int:
+        """Escribe 0 o 1 en el bit indicado de la direccion y devuelve el nuevo byte."""
+        b = self.leer_byte(direccion)
+        if valor:
+            b |= (1 << bit_index)
+        else:
+            b &= ~(1 << bit_index)
+        self.escribir_byte(direccion, b)
+        return b
+
+    def conmutar_bit(self, direccion: int, bit_index: int) -> int:
+        """Invierte el bit indicado en la memoria y devuelve el nuevo estado del bit."""
+        b = self.leer_byte(direccion)
+        b ^= (1 << bit_index)
+        self.escribir_byte(direccion, b)
+        return (b >> bit_index) & 1
+
     def reiniciar(self) -> None:
         self.exigir()
         self.ram.reset()
@@ -560,12 +587,22 @@ class AdaptadorMMIO(ServicioBase):
                     except TypeError:
                         continue
 
-        if banco is None:
-            banco = BancoMMIOProvisional()
+        if banco is None or getattr(banco, "es_provisional", False):
+            if banco is None:
+                banco = BancoMMIOProvisional()
             self.es_provisional = True
 
         super().__init__(disponible=True, motivo="")
         self.banco = banco
+
+    @property
+    def controlador_pantalla(self) -> Optional[Any]:
+        """Devuelve el controlador de pantalla si el modulo de hardware lo expone."""
+        if hasattr(self.banco, "controlador_pantalla"):
+            return self.banco.controlador_pantalla
+        if hasattr(self.banco, "pantalla"):
+            return self.banco.pantalla
+        return None
 
     # -- contrato -----------------------------------------------------------
 

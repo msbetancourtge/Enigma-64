@@ -198,9 +198,16 @@ def test_el_adaptador_mmio_lee_y_escribe():
 
 
 def test_el_adaptador_mmio_avisa_de_que_es_provisional():
-    adaptador = AdaptadorMMIO()
+    adaptador = AdaptadorMMIO(banco=mmio.BancoMMIOProvisional())
     assert adaptador.es_provisional is True
     assert "provisional" in adaptador.advertencia.lower()
+
+
+def test_el_adaptador_mmio_usa_modulo_real_por_defecto():
+    adaptador = AdaptadorMMIO()
+    assert adaptador.es_provisional is False
+    assert adaptador.advertencia == ""
+    assert adaptador.controlador_pantalla is not None
 
 
 def test_el_adaptador_mmio_prefiere_el_modulo_real_si_existe():

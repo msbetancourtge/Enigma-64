@@ -34,7 +34,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def raiz():
     ventana = tk.Tk()
     ventana.withdraw()          # nunca aparece en pantalla durante las pruebas
@@ -485,6 +485,9 @@ def test_el_panel_mmio_rechaza_un_valor_invalido(raiz, maquina, bus):
 
 def test_el_panel_mmio_avisa_de_que_el_banco_es_provisional(raiz, maquina, bus):
     from enigma64.ui.paneles.panel_mmio import PanelMMIO
+    from enigma64.ui.servicios import mmio
+    from enigma64.ui.servicios.adaptadores import AdaptadorMMIO
+    maquina.mmio = AdaptadorMMIO(banco=mmio.BancoMMIOProvisional(), memoria=maquina.memoria)
     panel = _montar(PanelMMIO, raiz, maquina, bus)
     assert maquina.mmio.es_provisional
     textos = []

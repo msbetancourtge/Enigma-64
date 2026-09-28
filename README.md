@@ -50,16 +50,20 @@ Enigma-64/
 │   ├── memoria.py                 [OK] Integrante 1: RAM y buses
 │   ├── cpu.py                     [--] Integrante 3: FSM y prebúsqueda
 │   ├── cargador.py                [OK] Integrante 4: cargador y manipulación bit a bit
-│   ├── mmio.py                    [--] Integrante 6: controlador de pantalla
+│   ├── perifericos.py             [OK] Integrante 6: controlador básico de pantalla y MMIO
+│   ├── ui/
+│   │   ├── shell/ventana.py       [OK] Integrante 5: shell y cuaderno de módulos
+│   │   ├── paneles/panel_memoria.py [OK] Integrante 1 & 6: Grilla interactiva y editor de bits
+│   │   └── paneles/panel_mmio.py  [OK] Integrante 6: Terminal CRT y registros MMIO
 │   └── gui/
 │       ├── __init__.py            [OK]
-│       ├── ventana.py             [--] Integrante 5: ventana principal
 │       ├── panel_registros.py     [OK] Integrante 2: panel en vivo + banco de pruebas
-│       └── visor_ram.py           [--] Integrante 6
 └── tests/
     ├── test_registros_alu.py      [OK] Integrante 2: 38 pruebas
     ├── test_memoria.py            [OK] Integrante 1: 22 pruebas
     ├── test_cargador.py           [OK] Integrante 4: 21 pruebas
+    ├── test_perifericos.py        [OK] Integrante 6: 16 pruebas
+    ├── test_ui_visor_ram_mmio.py  [OK] Integrante 6: 8 pruebas
     └── test_algoritmos.py         [--] Integrante 7
 ```
 
@@ -512,6 +516,39 @@ Los trazados de los tres algoritmos del documento ya están reproducidos en
 `PruebasIntegracion` dentro de `tests/test_registros_alu.py`, pero solo al nivel de
 registros y ALU: sin memoria, sin opcodes y sin saltos reales. Sirven como referencia de
 los valores intermedios esperados cuando la máquina completa esté ensamblada.
+
+---
+
+# Módulo implementado: Visor/Editor RAM & MMIO (Integrante 6)
+
+## Qué incluye
+
+### 1. `enigma64/perifericos.py` — Controlador básico de pantalla y subsistema MMIO
+- **Controlador básico de pantalla (Salida, Base `0xFF001000`):**
+  - Mantiene un buffer de texto de pantalla/terminal emulada con cursor bidimensional (`cursor_fila`, `cursor_col`).
+  - **`CTRL` (`+0x00`):** Comandos de control (`0x01`: limpiar pantalla y resetear cursor, `0x02`: reset de encendido, `0x03`: salto de línea, `0x04`: scroll).
+  - **`STATUS` (`+0x08`):** Estado devuelto (`1 = READY` / Listo).
+  - **`DATA` (`+0x10`):** Escribir un byte/código ASCII emite el carácter a la matriz de pantalla, gestionando saltos de línea (`\n`), retorno de carro (`\r`), backspace (`\b`), tabulador (`\t`) y scroll vertical automático.
+  - **`ADDR` (`+0x18`):** Posición lineal del cursor en el buffer de texto (o dirección de visualización).
+  - **`COUNT` (`+0x20`):** Total acumulado de caracteres emitidos a la pantalla.
+  - Callbacks y suscripción de eventos para actualización reactiva en la GUI.
+- **Gestor de Periféricos (`Perifericos` / `ControladoresMMIO`):**
+  - Mapea los 5 dispositivos físicos de la Tarea 9 (Teclado `0xFF000000`, Pantalla `0xFF001000`, Disco `0xFF002000`, Red `0xFF003000`, Temporizador `0xFF004000`).
+  - Conectado automáticamente en `enigma64.ui.servicios.adaptadores.AdaptadorMMIO`, reemplazando el andamio provisional (`es_provisional = False`).
+
+### 2. Grilla visual interactiva de memoria RAM (`enigma64/ui/paneles/panel_memoria.py`)
+- **Organización por 8 bancos de memoria (Tarea 9):**
+  - Visualiza palabras de 64 bits divididas en sus 8 bancos físicos (`B0` a `B7` seleccionados por `A[2:0]`), reflejando la microarquitectura de la página 4 de la Tarea 9.
+  - Cada celda de byte es interactiva: clic la selecciona, la resalta en ámbar Noctua y vincula el Inspector de Bits en vivo.
+- **Inspector y Editor de Bits en vivo:**
+  - Panel visual con 8 celdas/botones interactivos ($b_7 \dots b_0$).
+  - **Conmutación en tiempo real:** hacer clic en cualquier bit conmuta su valor ($0 \leftrightarrow 1$) directamente en la RAM emulada y publica el evento en el bus.
+  - Desglose y edición directa en Hexadecimal (`0xXX`), Decimal (con y sin signo), Binario (`0bXXXXXXXX`) y ASCII.
+  - Accesos directos a regiones del mapa de memoria (Vectores `0x00000000`, Monitor `0x00001000`, Programas `0x00200000`, Datos `0x00201000`, Pila `0xEFFFFFF0`, MMIO `0xFF001000`).
+
+### 3. Terminal CRT emulada en MMIO (`enigma64/ui/paneles/panel_mmio.py`)
+- Visualizador estilo terminal fósforo verde CRT que refleja en tiempo real el buffer del controlador de pantalla.
+- Controles interactivos para emitir caracteres/cadenas a `DATA` (`0xFF001010`), enviar comandos a `CTRL` (`0xFF001000`), limpiar pantalla y botón de demostración rápida.
 
 ---
 

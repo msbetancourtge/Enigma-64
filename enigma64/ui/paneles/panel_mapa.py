@@ -33,7 +33,7 @@ class PanelMapa(PanelBase):
     SUBTITULO = "4 GiB fisicos implementados  ·  Tarea 9"
     ACENTO = PALETA["violeta"]
     CLAVE_SERVICIO = ""          # no necesita ningun modulo del equipo
-    TAMANO_SUELTO = (680, 800)
+    TAMANO_SUELTO = (680, 920)
 
     def construir(self) -> None:
         self._marcos = {}
