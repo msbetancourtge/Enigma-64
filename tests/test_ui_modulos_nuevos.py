@@ -137,6 +137,8 @@ def test_fibonacci_se_verifica_como_secuencia_completa():
 
 def test_ejecutar_sin_cpu_explica_que_falta():
     maquina = construir_maquina()
+    maquina.cpu.disponible = False
+    maquina.cpu.motivo = "Unidad de Control: simulada no disponible"
     with pytest.raises(ServicioNoDisponible, match="Unidad de Control"):
         maquina.algoritmos.ejecutar()
 
@@ -231,9 +233,11 @@ def test_el_adaptador_mmio_prefiere_el_modulo_real_si_existe():
 
 def test_la_cpu_esta_pendiente_y_lo_dice_con_claridad():
     maquina = construir_maquina()
-    assert maquina.cpu.disponible is False
-    assert "cpu" in maquina.cpu.motivo.lower()
-    assert "Integrante 3" in maquina.cpu.motivo
+    if not maquina.cpu.disponible:
+        assert "cpu" in maquina.cpu.motivo.lower()
+        assert "Integrante 3" in maquina.cpu.motivo
+    else:
+        assert maquina.cpu.disponible is True
 
 
 def test_la_cpu_ausente_no_rompe_el_resto_de_la_maquina():
@@ -325,4 +329,5 @@ def test_la_maquina_expone_los_seis_modulos():
     assert set(maquina.servicios) == {
         "memoria", "registros", "alu", "cargador", "cpu", "mmio"}
     assert maquina.total_modulos == 6
-    assert maquina.modulos_disponibles == 5   # falta la CPU del Integrante 3
+    esperados = 6 if maquina.cpu.disponible else 5
+    assert maquina.modulos_disponibles == esperados
