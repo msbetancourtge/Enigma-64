@@ -1,15 +1,17 @@
 """
 Enigma-64 - Noctua Systems
-Modulos integrados:
-  * Integrante 1: RAM & Buses (RAMMemory)
-  * Integrante 2: Banco de registros y ALU (ALU, BancoRegistros)
-  * Integrante 3: CPU & FSM (CPU, PrefetchBuffer, FASES_FSM)
-  * Integrante 4: Cargador & Manipulador de Bits (CargadorEnigma, BinarioEnigma)
-  * Integrante 5: Interfaz Grafica Modular (enigma64.ui)
-  * Integrante 6: Visor/Editor RAM & MMIO (Perifericos, ControladorPantalla)
-  * Integrante 7: Algoritmos de Prueba & Tests (PROGRAMAS_OFICIALES)
+Arquitectura y emulacion de computador Von Neumann de 64 bits.
 
-Contrato publico para consumir integrantes:
+Subsistemas principales:
+  * Memoria RAM y Buses (RAMMemory)
+  * Banco de Registros y ALU (ALU, BancoRegistros)
+  * Unidad de Control y FSM (CPU, PrefetchBuffer, FASES_FSM)
+  * Cargador y Manipulador de Bits (CargadorEnigma, BinarioEnigma)
+  * Interfaz Grafica Modular (enigma64.ui)
+  * Perifericos y MMIO (Perifericos, ControladorPantalla)
+  * Programas Oficiales y Algoritmos de Prueba (PROGRAMAS_OFICIALES)
+
+API publica del emulador:
 
     from enigma64 import ALU, BancoRegistros, RAMMemory, CPU, CargadorEnigma
 
@@ -125,7 +127,7 @@ from .programas import (
 
 
 __all__ = [
-    # Integrante 1 - RAM & Buses
+    # Memoria RAM & Buses
     "RAMMemory",
     "InvalidAccessSizeError",
     "STATUS_READY",
@@ -135,7 +137,7 @@ __all__ = [
     "PAGE_SIZE",
     "VALID_SIZES",
     "MMIO_BASE",
-    # Integrante 2 - ALU & Registros
+    # Banco de Registros & ALU
     "ALU",
     "BancoRegistros",
     "ResultadoALU",
@@ -158,7 +160,7 @@ __all__ = [
     "a_con_signo",
     "a_sin_signo",
     "hex64",
-    # Integrante 4 - Cargador & Manipulador de Bits
+    # Cargador & Manipulador de Bits
     "CargadorEnigma",
     "BinarioEnigma",
     "ErrorCargador",
@@ -180,14 +182,14 @@ __all__ = [
     "LOADER_WORKSPACE_START",
     "LOADER_WORKSPACE_END",
     "MAGIC_ENIGMA",
-    # Integrante 3 - CPU & FSM
+    # CPU & Unidad de Control FSM
     "CPU",
     "CPUError",
     "PrefetchBuffer",
     "DecodedInstruction",
     "FASES_FSM",
     "MICRO_REGISTROS",
-    # Integrante 6 - Visor/Editor RAM & MMIO
+    # Perifericos & MMIO
     "ControladorPantalla",
     "Perifericos",
     "ControladoresMMIO",
@@ -200,7 +202,7 @@ __all__ = [
     "CMD_RESET",
     "CMD_NEWLINE",
     "CMD_SCROLL_UP",
-    # Integrante 7 - Algoritmos & Tests
+    # Programas Oficiales & Algoritmos de Prueba
     "BYTES_FACTORIAL",
     "BYTES_EUCLIDES",
     "BYTES_FIBONACCI",

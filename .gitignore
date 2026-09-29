@@ -73,3 +73,7 @@ CLAUDE.md
 claude.md
 CLAUDE.md
 
+# Reports script
+scripts/generar_reporte_pdf.py
+
+
