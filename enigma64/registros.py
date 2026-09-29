@@ -5,12 +5,11 @@ Implementa los registros arquitectonicos definidos en la Tarea 9:
     R0..R7, PC, SR  (codificados en 4 bits, 0x0..0x9)
 
 Reglas de la arquitectura implementadas aqui:
-  * R0 esta cableado a cero: toda escritura se ignora silenciosamente.
+  * R0 es parte de los registros de proposito general pero se usa para proveer
+    de forma cableada el 0 de reset, halt y referencia; toda escritura se descarta.
   * Todos los registros son de 64 bits; cualquier valor se enmascara a 64 bits.
   * SR contiene las banderas Z, N, C, V, M, I, S en los bits 0..6.
   * SP (R6) arranca en 0x00000000EFFFFFFF (tope de la region de Pila).
-
-Autor: Integrante 2 Tomas Garzon - Registros & ALU
 """
 
 from __future__ import annotations
@@ -115,11 +114,10 @@ ORDEN_BANDERAS = ("Z", "N", "C", "V", "M", "I", "S")
 SP_RESET = 0x00000000EFFFFFFF  # tope de la region de Pila
 PC_RESET = 0x0000000000000000  # vector de reset
 
-# La Tarea 9 documenta SR = 0x...0001 al reset, lo que enciende la bandera Z.
-# Lo mas probable es que se haya querido escribir el bit S (supervisor, bit 6),
-# que corresponde a 0x40. Se deja como constante para que el grupo lo decida:
+# Valor de reset de SR segun la especificacion: 0x...0001 (Z = 1).
+# Se provee tambien SR_RESET_SUPERVISOR (0x40, S = 1) para arranque en modo supervisor:
 SR_RESET_SEGUN_DOCUMENTO = 0x0000000000000001  # Z = 1
-SR_RESET_SUPERVISOR = 0x0000000000000040       # S = 1  (recomendado)
+SR_RESET_SUPERVISOR = 0x0000000000000040       # S = 1
 
 SR_RESET = SR_RESET_SEGUN_DOCUMENTO
 
@@ -137,14 +135,14 @@ class BancoRegistros:
     """
     Banco de registros de 64 bits del Enigma-64.
 
-    Uso tipico desde la CPU (Integrante 3):
+    Uso tipico desde la CPU:
 
         banco = BancoRegistros()
         a = banco.leer(COD_R1)
         banco.escribir(COD_R3, resultado)
         banco.aplicar_banderas({"Z": 1, "N": 0}, afectadas={"Z", "N"})
 
-    Uso tipico desde la GUI (Integrante 5):
+    Uso tipico desde la GUI:
 
         banco.suscribir(self.refrescar_panel)
         datos = banco.snapshot()
@@ -186,8 +184,9 @@ class BancoRegistros:
         """
         Escribe el registro indicado por su nibble.
 
-        R0 esta cableado a cero: la escritura se descarta, tal como lo hace el
-        hardware. No es un error, simplemente no tiene efecto.
+        R0 es un registro de proposito general que provee de forma cableada el 0 de reset
+        o de halt: la escritura se descarta silenciosamente, tal como en el hardware.
+        No es un error, simplemente no tiene efecto.
         """
         codigo = self._validar(codigo)
         if codigo == COD_R0:
