@@ -20,21 +20,17 @@ e implementado en la Tarea 10 del curso Lenguajes de Programación G2 2026-2.
 | Formatos de instrucción | 6 formatos, longitud variable (1 a 5 bytes) |
 | E/S | Mapeada a memoria a partir de `0xFF000000` |
 
-## Integrantes
+## Autores
 
-| # | Nombre | Módulo |
-|---|---|---|
-| 1 | Juan Sebastian Umaña Camacho | RAM & Buses |
-| 2 | Tomas Felipe Garzón Gómez | Registros & ALU |
-| 3 | Michael Stiven Betancourt Gelves | CPU & FSM |
-| 4 | Deibyd Santiago Barragán Gaitán | Cargador & Manipulador de Bits |
-| 5 | Maicol Sebastian Olarte Ramirez | GUI Principal (Tkinter) |
-| 6 | Juan Luis Vergara Novoa | Visor/Editor RAM & MMIO |
-| 7 | Alejandro Argüello Muñoz | Algoritmos & Tests |
+- Juan Sebastian Umaña Camacho
+- Tomas Felipe Garzón Gómez
+- Michael Stiven Betancourt Gelves
+- Deibyd Santiago Barragán Gaitán
+- Maicol Sebastian Olarte Ramirez
+- Juan Luis Vergara Novoa
+- Alejandro Argüello Muñoz
 
 ## Estructura del repositorio
-
-Leyenda de estado: **[OK]** implementado y probado · **[--]** pendiente
 
 ```
 Enigma-64/
@@ -43,38 +39,39 @@ Enigma-64/
 ├── README.md
 ├── requirements.txt
 ├── environment.yml
-├── main.py                        [OK] punto de entrada: lanza la GUI
-├── verificacion_manual.py         [OK] traza el factorial usando solo registros y ALU
-├── enigma64/                           el paquete (todo importable)
-│   ├── __init__.py                [OK] exporta el contrato público
-│   ├── registros.py               [OK] Integrante 2: banco de registros
-│   ├── alu.py                     [OK] Integrante 2: ALU de 64 bits
-│   ├── memoria.py                 [OK] Integrante 1: RAM y buses
-│   ├── cpu.py                     [OK] Integrante 3: FSM, prebúsqueda y microarquitectura
-│   ├── cargador.py                [OK] Integrante 4: cargador y manipulación bit a bit
-│   ├── perifericos.py             [OK] Integrante 6: controlador básico de pantalla y MMIO
-│   ├── programas.py               [OK] Integrante 7: definición binaria de programas de Tarea 9
-│   ├── ui/
-│   │   ├── shell/ventana.py       [OK] Integrante 5: shell y cuaderno de módulos
-│   │   ├── paneles/panel_memoria.py [OK] Integrante 1 & 6: Grilla interactiva y editor de bits
-│   │   └── paneles/panel_mmio.py  [OK] Integrante 6: Terminal CRT y registros MMIO
+├── main.py                        Punto de entrada: lanza la interfaz gráfica del emulador
+├── verificacion_manual.py         Script de trazado y verificación del bucle factorial
+├── enigma64/                           Paquete principal del emulador
+│   ├── __init__.py                Exportación de la API pública del sistema
+│   ├── registros.py               Banco de registros de 64 bits, punteros y banderas SR
+│   ├── alu.py                     Unidad Aritmético-Lógica (ALU) pura de 64 bits
+│   ├── memoria.py                 Controlador de memoria RAM física y subsistema de buses
+│   ├── cpu.py                     Unidad de Control FSM (5 fases) y PrefetchBuffer
+│   ├── cargador.py                Cargador de ejecutables (.e64, .bin) y manipulador de bits
+│   ├── perifericos.py             Subsistema MMIO y controlador de pantalla CRT
+│   ├── programas.py               Definición y compilación de programas oficiales de prueba
+│   ├── ui/                        Interfaz gráfica modular (Tkinter / TTK)
+│   │   ├── shell/ventana.py       Shell principal y cuaderno de módulos
+│   │   ├── paneles/panel_memoria.py Grilla interactiva de RAM (8 bancos) y editor de bits
+│   │   └── paneles/panel_mmio.py  Terminal CRT y visualizador de registros MMIO
 │   └── gui/
-│       ├── __init__.py            [OK]
-│       └── panel_registros.py     [OK] Integrante 2: panel en vivo + banco de pruebas
-├── programas/                     [OK] Integrante 7: archivos ejecutables (.bin, .hex, .e64)
-├── scripts/                       [OK] utilitarios de generación binaria y reportes
-└── tests/
-    ├── test_registros_alu.py      [OK] Integrante 2: 38 pruebas
-    ├── test_memoria.py            [OK] Integrante 1: 22 pruebas
-    ├── test_cpu.py                [OK] Integrante 3: 16 pruebas
-    ├── test_cargador.py           [OK] Integrante 4: 21 pruebas
-    ├── test_perifericos.py        [OK] Integrante 6: 16 pruebas
-    ├── test_algoritmos.py         [OK] Integrante 7: 16 pruebas
-    ├── test_ui_aislamiento.py     [OK] Integrante 5: 29 pruebas AST
-    ├── test_ui_modulos_nuevos.py  [OK] Integrante 5: 42 pruebas
-    ├── test_ui_nucleo.py          [OK] Integrante 5: 52 pruebas
-    ├── test_ui_paneles.py         [OK] Integrante 5: 50 pruebas GUI
-    └── test_ui_visor_ram_mmio.py  [OK] Integrante 6: 8 pruebas
+│       ├── __init__.py
+│       └── panel_registros.py     Panel en vivo de registros y banco de pruebas ALU
+├── programas/                     Archivos binarios ejecutables (.bin, .hex, .e64)
+├── scripts/                       Scripts utilitarios (generación automatizada de binarios)
+└── tests/                         Suite de pruebas automatizadas
+    ├── conftest.py                Configuración global de entorno para pytest
+    ├── test_registros_alu.py      Pruebas de banco de registros y operaciones ALU
+    ├── test_memoria.py            Pruebas de memoria física, paginación y alineación
+    ├── test_cpu.py                Pruebas de la CPU, FSM multiciclo y decodificador
+    ├── test_cargador.py           Pruebas de carga, formatos y manipulación de bits
+    ├── test_perifericos.py        Pruebas de MMIO y controlador de pantalla
+    ├── test_algoritmos.py         Pruebas de ejecución de algoritmos oficiales
+    ├── test_ui_aislamiento.py     Pruebas estáticas de desacoplamiento de capas (AST)
+    ├── test_ui_modulos_nuevos.py  Pruebas de interfaces de servicios y adaptadores
+    ├── test_ui_nucleo.py          Pruebas del núcleo de interfaz y bus de eventos
+    ├── test_ui_paneles.py         Pruebas funcionales de los paneles gráficos
+    └── test_ui_visor_ram_mmio.py  Pruebas de visualización de memoria y edición de bits
 ```
 
 ## Requisitos
@@ -82,7 +79,7 @@ Enigma-64/
 - Python 3.10 o superior
 - Tkinter (viene incluido con el instalador oficial de Python en Windows)
 
-El emulador central utiliza únicamente la biblioteca estándar. Para instalar las herramientas de prueba (`pytest`) y generación de reportes:
+El emulador central utiliza únicamente la biblioteca estándar. Para instalar las dependencias de prueba (`pytest`):
 
 ```bash
 pip install -r requirements.txt
@@ -106,7 +103,7 @@ python -m enigma64.gui.panel_registros
 
 ---
 
-# Módulo implementado: RAM & Buses (Integrante 1)
+# Subsistema de Memoria RAM y Buses
 
 ## Qué incluye
 
@@ -154,7 +151,7 @@ ram = RAMMemory(page_size=4096)
 |---|---|---|
 | `"READY"` | Operación completada con éxito en la RAM física | El ciclo continúa normalmente; en lectura `data` contiene el valor. |
 | `"MISALIGNED"` | Dirección no alineada al tamaño del dato | La CPU enciende la bandera `M` (bit 4 del SR) y genera excepción si aplica. |
-| `"MMIO"` | Dirección ubicada en `0xFF000000` - `0xFFFFFFFF` | La solicitud se desvía al bus de controladores de periféricos (Integrante 6). |
+| `"MMIO"` | Dirección ubicada en `0xFF000000` - `0xFFFFFFFF` | La solicitud se desvía al subsistema de periféricos MMIO. |
 | `"ADDR_FAULT"` | Dirección mayor a 4 GiB (`A[63:32] != 0`) o negativa | La CPU aborta la instrucción y dispara un fallo de protección de memoria. |
 
 Excepciones: `InvalidAccessSizeError` (si `size_bytes` no pertenece a `{1, 2, 4, 8}`).
@@ -171,7 +168,7 @@ Excepciones: `InvalidAccessSizeError` (si `size_bytes` no pertenece a `{1, 2, 4,
 
 ---
 
-# Módulo implementado: Registros & ALU (Integrante 2)
+# Banco de Registros y Unidad Aritmético-Lógica (ALU)
 
 ## Qué incluye
 
@@ -274,17 +271,17 @@ cableado a cero y por definición no es de propósito general. Son cuatro: R1 a 
 
 ---
 
-# Módulo implementado: Cargador & Manipulador de Bits (Integrante 4)
+# Cargador de Programas y Manipulación de Memoria Bit a Bit
 
 ## Qué incluye
 
 **`enigma64/cargador.py`** — Submódulo del Cargador, Manipulador de Memoria Bit a Bit y Firmware (código 100% en Python estándar, sin dependencias externas).
 
-- **Manipulación directa de bits y bytes en RAM (Mandato Tarea 10 - Punto 2):**
+- **Manipulación directa de bits y bytes en RAM:**
   - `leer_bit(ram, direccion, bit_index)`: Lee un bit individual (0 a 7, donde bit 0 es LSB y bit 7 es MSB) en cualquier celda física accesible de la RAM.
   - `escribir_bit(ram, direccion, bit_index, valor)`: Modifica atómicamente un único bit (0 o 1) mediante máscaras (`|` o `& ~`) sin alterar los 7 bits restantes del byte ni celdas contiguas.
   - `conmutar_bit(ram, direccion, bit_index)`: Invierte el bit indicado mediante máscara XOR (`^`).
-  - `byte_a_cadena_bits(ram, direccion)`: Genera la cadena de 8 bits (ej. `'10110001'`) formateada de MSB a LSB, lista para la grilla interactiva de edición de memoria en la GUI (Integrante 6).
+  - `byte_a_cadena_bits(ram, direccion)`: Genera la cadena de 8 bits (ej. `'10110001'`) formateada de MSB a LSB, lista para la grilla interactiva de edición de memoria en la GUI.
   - `escribir_byte_directo(ram, direccion, valor)` y `leer_byte_directo(ram, direccion)`: Métodos utilitarios de bajo nivel sobre RAM sin verificación de alineación.
 - **Modelo de ejecutable con soporte dual (`BinarioEnigma`):**
   - **Modo 1: Binario plano crudo (`.bin`):** Volcado directo de opcodes e inmediatos para las pruebas inmediatas de la Tarea 10 (Factorial, Euclides y Fibonacci).
@@ -426,7 +423,7 @@ la resta. Es el mismo mecanismo de la instrucción `JNZ`.
 
 ---
 
-# Módulo implementado: CPU & Unidad de Control FSM (Integrante 3)
+# Unidad de Control (CPU) y Microarquitectura FSM
 
 ## Qué incluye
 
@@ -448,13 +445,13 @@ la resta. Es el mismo mecanismo de la instrucción `JNZ`.
 
 ---
 
-# Integración y Contratos de Hardware
+# Interconexión y Ciclo de Instrucción
 
 El banco de registros y la ALU se conectan con la CPU y la memoria siguiendo el ciclo de instrucción multiciclo:
 
-## Contrato con el Integrante 1 (RAM & Buses)
+## Acceso a Memoria en el Ciclo de Instrucción
 
-El subsistema de memoria expone el contrato principal de buses mediante `MemoriaRAM`:
+El subsistema de memoria expone la interfaz principal de buses mediante `RAMMemory`:
 
 ```python
 from enigma64 import RAMMemory, STATUS_READY, STATUS_MISALIGNED, STATUS_MMIO, STATUS_ADDR_FAULT
@@ -475,7 +472,7 @@ if status == STATUS_READY:
 elif status == STATUS_MISALIGNED:
     banco.escribir_bandera("M", 1)  # La CPU activa la bandera M en el SR
 elif status == STATUS_MMIO:
-    # Desviar al bus de periféricos (pantalla/teclado de Integrante 6)
+    # Desviar al bus de periféricos (pantalla/teclado MMIO)
     pass
 elif status == STATUS_FALLO_DIR:
     # Disparar excepción por dirección > 4 GiB
@@ -488,10 +485,10 @@ _, status = ram.mem_write(mar, mdr, size_bytes=8)
 Puntos clave de integración:
 - El PC y los punteros apuntan a **bytes**, no a palabras. El MAR se carga con la dirección de 64 bits tal cual.
 - El SP arranca en `0x00000000EFFFFFFF` (constante `SP_RESET`), dentro de la región de Pila del mapa de memoria. Las operaciones `PUSH`/`POP` decrementan/incrementan de 8 en 8 bytes.
-- La validación de rango `A[63:32] == 0` y el desvío a `MMIO` viven exclusivamente en `MemoriaRAM`.
+- La validación de rango `A[63:32] == 0` y el desvío a `MMIO` viven exclusivamente en `RAMMemory`.
 - Si `mem_read` o `mem_write` retornan `STATUS_MISALIGNED`, la Unidad de Control (FSM) es quien debe escribir la bandera `M` en el SR llamando a `banco.escribir_bandera("M", 1)`.
 
-## Contrato con el Integrante 5 (GUI Principal)
+## Integración con la Interfaz Gráfica (GUI)
 
 `PanelRegistros` es un `ttk.Frame` normal. Para incrustarlo en la ventana principal:
 
@@ -506,7 +503,7 @@ Se suscribe solo al banco, así que se refresca en cada cambio sin que la ventan
 llamarlo. Si se prefiere pintar la tabla de otra forma, `banco.snapshot()` devuelve todo
 en un diccionario con hexadecimal, decimal con signo y las siete banderas.
 
-# Módulo implementado: Algoritmos & Tests (Integrante 7)
+# Programas Oficiales y Algoritmos de Prueba
 
 ## Qué incluye
 
@@ -522,7 +519,7 @@ en un diccionario con hexadecimal, decimal con signo y las siete banderas.
 
 ---
 
-# Módulo implementado: Visor/Editor RAM & MMIO (Integrante 6)
+# Subsistema de Entrada/Salida Mapeada en Memoria (MMIO) y Periféricos
 
 ## Qué incluye
 
@@ -571,11 +568,7 @@ git commit -m "feat(modulo): descripción breve"
 git push -u origin feat/mi-modulo
 ```
 
-Luego se abre un Pull Request y otro integrante lo revisa.
-
-**Regla de propiedad de archivos:** cada integrante edita únicamente los archivos marcados
-con su número en la estructura de arriba. Así Git no genera conflictos de merge aunque
-todos trabajen en la misma carpeta.
+Luego se abre un Pull Request para revisión e integración de cambios.
 
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
