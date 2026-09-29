@@ -1,0 +1,8 @@
+# Entorno de dependencias de Enigma-64 - Noctua Systems
+#
+# El emulador y la interfaz grafica utilizan exclusivamente la biblioteca estandar de Python (tkinter, etc.).
+# Este archivo lista las dependencias necesarias para ejecutar la suite de pruebas y generar el reporte tecnico.
+
+pytest>=8.0.0
+reportlab>=4.0.0
+pillow>=10.0.0

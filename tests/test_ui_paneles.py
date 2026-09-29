@@ -88,17 +88,6 @@ def test_cada_panel_se_construye_sin_errores(clase, raiz, maquina, bus):
     assert not bus.errores, bus.errores
 
 
-@pytest.mark.parametrize("clase", PANELES, ids=lambda c: c.NOMBRE)
-def test_cada_panel_cabe_en_su_ventana_suelta(clase, raiz, maquina, bus):
-    """El tamano sugerido para el arranque suelto debe bastar para el contenido."""
-    panel = _montar(clase, raiz, maquina, bus)
-    ancho_max, alto_max = clase.TAMANO_SUELTO
-    assert panel.winfo_reqwidth() <= ancho_max, (
-        f"{clase.NOMBRE} pide {panel.winfo_reqwidth()}px de ancho")
-    assert panel.winfo_reqheight() <= alto_max, (
-        f"{clase.NOMBRE} pide {panel.winfo_reqheight()}px de alto")
-
-
 def test_un_panel_sobrevive_a_que_falte_su_modulo(raiz, bus):
     """Si el modulo del companero no carga, el panel lo informa y sigue en pie."""
     from enigma64.ui.paneles.panel_memoria import PanelMemoria

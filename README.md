@@ -41,6 +41,8 @@ Enigma-64/
 ├── .gitignore
 ├── LICENSE
 ├── README.md
+├── requirements.txt
+├── environment.yml
 ├── main.py                        [OK] punto de entrada: lanza la GUI
 ├── verificacion_manual.py         [OK] traza el factorial usando solo registros y ALU
 ├── enigma64/                           el paquete (todo importable)
@@ -71,7 +73,7 @@ Enigma-64/
     ├── test_ui_aislamiento.py     [OK] Integrante 5: 29 pruebas AST
     ├── test_ui_modulos_nuevos.py  [OK] Integrante 5: 42 pruebas
     ├── test_ui_nucleo.py          [OK] Integrante 5: 52 pruebas
-    ├── test_ui_paneles.py         [OK] Integrante 5: 59 pruebas GUI
+    ├── test_ui_paneles.py         [OK] Integrante 5: 50 pruebas GUI
     └── test_ui_visor_ram_mmio.py  [OK] Integrante 6: 8 pruebas
 ```
 
@@ -80,7 +82,11 @@ Enigma-64/
 - Python 3.10 o superior
 - Tkinter (viene incluido con el instalador oficial de Python en Windows)
 
-No hay dependencias externas: todo el emulador usa solo la biblioteca estándar.
+El emulador central utiliza únicamente la biblioteca estándar. Para instalar las herramientas de prueba (`pytest`) y generación de reportes:
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Cómo ejecutar
 
@@ -574,7 +580,7 @@ todos trabajen en la misma carpeta.
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
 ```bash
-# Suite completa (319 pruebas: unitarias y GUI)
+# Suite completa (310 pruebas: unitarias y GUI)
 python -m pytest
 
 # O mediante unittest estándar (137 pruebas de hardware sin GUI)
