@@ -1,0 +1,6 @@
+# Entorno de pruebas de Enigma-64 - Noctua Systems
+#
+# El emulador y la interfaz grafica utilizan exclusivamente la biblioteca estandar de Python (tkinter, etc.).
+# Este archivo lista las dependencias necesarias para ejecutar la suite de pruebas automatizadas.
+
+pytest>=8.0.0

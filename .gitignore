@@ -35,6 +35,7 @@
 *.i*86
 *.x86_64
 *.hex
+!programas/*.hex
 
 # Debug files
 *.dSYM/
@@ -53,3 +54,26 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# py cache
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.vscode/
+
+# Documents
+/docs/
+task.txt
+./CLAUDE.md
+CLAUDE.md
+
+# Project guide
+/Computer_Emulation-main/
+claude.md
+CLAUDE.md
+
+# Reports script
+scripts/generar_reporte_pdf.py
+
+
