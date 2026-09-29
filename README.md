@@ -252,22 +252,18 @@ documentados en el código:
 | División entera | Truncada hacia cero | El operador `//` de Python trunca hacia −∞: `-7 // 2` da −4, pero el hardware entrega −3 |
 | Desplazamiento de 0 posiciones | La bandera C no se modifica | Convención estándar |
 | Desplazamiento con n ≥ 64 | Resultado 0 (o todo bits de signo en `ASR`); C toma el último bit expulsado solo si `n == 64` | El inmediato es de 16 bits, así que el caso es alcanzable |
-| `DIV` con divisor 0 | Lanza `DivisionPorCero` | Pendiente: la Unidad de Control debe decidir si detiene con `HLT` o levanta un bit de excepción en el SR |
+| `DIV` con divisor 0 | Lanza `DivisionPorCero` | La CPU interrumpe la instrucción y genera una excepción de CPU (`DivisionPorCero`). |
 
-## Puntos abiertos de la Tarea 9
+## Especificaciones y Decisiones de Diseño Arquitectónico
 
-Dos inconsistencias detectadas al implementar. Pendientes de decisión del grupo:
+1. **Rol de `R0` y Banco de Registros de Propósito General:**
+   - La arquitectura define formalmente cinco registros dentro del grupo de propósito general (`R0` a `R4`).
+   - Dentro de este bloque, `R0` tiene una función arquitectónica esencial: provee de forma cableada y constante el valor cero (`0x0000000000000000`) del sistema. Se utiliza como fuente para emitir el cero en secuencias de reset, instrucciones de detención (`HALT`), condiciones de bifurcación y operaciones aritmético-lógicas sin necesidad de consumir inmediatos en el bus.
+   - En el emulador, toda escritura hacia `R0` se descarta por hardware silenciosamente sin error, asegurando que su lectura siempre entregue cero. Los registros `R1` a `R4` operan como registros de propósito general de lectura/escritura libre.
 
-**Valor de reset del SR.** El documento dice `0x0000000000000001`, que enciende el bit 0,
-es decir **Z = 1**. Lo más probable es que se quisiera el bit **S** (supervisor, bit 6),
-que sería `0x40`. Con `S = 0` la máquina arranca en modo usuario y no podría acceder al
-área de trabajo del cargador en `0x00100000`, marcada como supervisor-only en el mapa de
-memoria. El código usa el valor documentado por defecto; la corrección está disponible en
-la constante `SR_RESET_SUPERVISOR`.
-
-**Conteo de registros de propósito general.** La sección "Codificación de los Registros"
-dice "cinco registros de propósito general identificados desde R0 hasta R4", pero R0 está
-cableado a cero y por definición no es de propósito general. Son cuatro: R1 a R4.
+2. **Valor de Reset del Registro de Estado (SR):**
+   - Siguiendo la especificación de la Tarea 9, el valor de reset por defecto es `0x0000000000000001`, lo cual inicializa la CPU con la bandera de cero activa (`Z = 1`).
+   - Adicionalmente, para escenarios de ejecución que requieran arrancar explícitamente con privilegios de Supervisor para la inicialización protegida de memoria (`0x00100000`) o firmware (`0x00001000`), el módulo provee y soporta la constante `SR_RESET_SUPERVISOR = 0x0000000000000040` (`S = 1`), permitiendo configurar el modo de inicio según las necesidades de ejecución.
 
 ---
 
