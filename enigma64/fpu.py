@@ -7,6 +7,8 @@ en código ensamblador propio de la arquitectura:
   * FPU_EMPAQUETAR: Ensambla signo, exponente y mantisa al formato canónico IEEE 754.
   * FADD: Suma de flotantes con alineación por corrimiento de mantisas y renormalización.
   * FSUB: Resta de flotantes mediante inversión del signo del sustraendo y FADD.
+  * FMUL: Multiplicación con producto de 106 bits, redondeo al par más cercano,
+    subnormales y casos especiales (fmul.s).
 """
 
 from __future__ import annotations
@@ -27,11 +29,18 @@ FRAC_MASK: int = 0x000FFFFFFFFFFFFF
 IMPLICIT_BIT: int = 0x0010000000000000
 SIGN_BIT: int = 0x8000000000000000
 
-# Carga del código fuente ensamblador oficial
+# Carga del código fuente ensamblador oficial. fmul.s usa las subrutinas de
+# fpu.s, así que ambos se ensamblan como una sola unidad.
 _RUTA_FPU_S = os.path.join(os.path.dirname(__file__), "fpu.s")
+_RUTA_FMUL_S = os.path.join(os.path.dirname(__file__), "fmul.s")
 
 with open(_RUTA_FPU_S, "r", encoding="utf-8") as _f:
-    CODIGO_FPU_ASM: str = _f.read()
+    _CODIGO_NUCLEO_ASM: str = _f.read()
+
+with open(_RUTA_FMUL_S, "r", encoding="utf-8") as _f:
+    _CODIGO_FMUL_ASM: str = _f.read()
+
+CODIGO_FPU_ASM: str = f"{_CODIGO_NUCLEO_ASM}\n{_CODIGO_FMUL_ASM}"
 
 
 def compilar_fpu(direccion_base: int = 0x00200000) -> bytes:
@@ -162,9 +171,22 @@ class EmuladorFPUEnigma64:
         """Ejecuta FSUB en Enigma-64 y devuelve el flotante resultante."""
         return self._ejecutar_binario_fpu(a, b, subrutina="FSUB")
 
+    def multiplicar(self, a: float | int, b: float | int) -> float:
+        """Ejecuta FMUL en Enigma-64 y devuelve el flotante resultante."""
+        return self._ejecutar_binario_fpu(a, b, subrutina="FMUL")
+
+    def multiplicar_bits(self, a: float | int, b: float | int) -> int:
+        """Ejecuta FMUL en Enigma-64 y devuelve el patrón IEEE 754 de 64 bits."""
+        return self._ejecutar_binario_fpu_u64(a, b, subrutina="FMUL")
+
     def _ejecutar_binario_fpu(
         self, a: float | int, b: float | int, subrutina: str
     ) -> float:
+        return ieee64_a_float(self._ejecutar_binario_fpu_u64(a, b, subrutina))
+
+    def _ejecutar_binario_fpu_u64(
+        self, a: float | int, b: float | int, subrutina: str
+    ) -> int:
         u64_a = float_a_ieee64(a) if isinstance(a, float) else (a & MASK64)
         u64_b = float_a_ieee64(b) if isinstance(b, float) else (b & MASK64)
 
@@ -195,4 +217,4 @@ class EmuladorFPUEnigma64:
         self.cpu.ejecutar(max_ciclos=50000)
 
         res_u64, _ = self.ram.mem_read(self.DIRECCION_VARIABLES + 16, 8)
-        return ieee64_a_float(res_u64 or 0)
+        return res_u64 or 0
