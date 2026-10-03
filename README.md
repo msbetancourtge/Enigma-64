@@ -67,6 +67,7 @@ Enigma-64/
     ├── test_cargador.py           Pruebas de carga, formatos y manipulación de bits
     ├── test_perifericos.py        Pruebas de MMIO y controlador de pantalla
     ├── test_algoritmos.py         Pruebas de ejecución de algoritmos oficiales
+    ├── test_fmul.py               Pruebas de FMUL (IEEE 754 binary64) contra el oráculo de Python
     ├── test_ui_aislamiento.py     Pruebas estáticas de desacoplamiento de capas (AST)
     ├── test_ui_modulos_nuevos.py  Pruebas de interfaces de servicios y adaptadores
     ├── test_ui_nucleo.py          Pruebas del núcleo de interfaz y bus de eventos
@@ -364,6 +365,7 @@ Debe terminar en `Ran 81 tests ... OK`. Cobertura:
 | **Cargador & Bits** | `TestCargaFormatos` | Carga de binarios planos (.bin), serialización/deserialización .e64 Big-Endian, reubicación dinámica de direcciones y parser de volcados en texto |
 | **Cargador & Bits** | `TestContextoHardware` | Sincronización de registros tras la carga (PC=entry_point, SP=0xEFFFFFFF, SR=0x1, R0=0, R5=entry_point) y detención/reanudación de CPU |
 | **Cargador & Bits** | `TestSubrutinaFirmware` | Transferencia de datos entre buffers emulando la subrutina en 0x00001000 con parámetros R1, R2, R3 y retorno en R5 |
+| **FPU — FMUL** | `TestFMULEnigma64` | Tabla de 24 casos en hex, 300 casos aleatorios bit a bit contra el oráculo IEEE 754 de Python, conmutatividad, peor caso de ciclos y producto de 128 bits de `FPU_MUL128` (ver sección FMUL) |
 
 
 Para correr solo las pruebas de memoria:
@@ -548,6 +550,69 @@ en un diccionario con hexadecimal, decimal con signo y las siete banderas.
 
 ---
 
+# FPU: Multiplicación de Punto Flotante (FMUL)
+
+## Qué incluye
+
+- **`enigma64/fmul.s`** — Subrutina `FMUL` en ensamblador de Enigma-64: `R5 = R1 × R2` en IEEE 754 binary64, con redondeo al par más cercano, subnormales en entrada y salida, y casos especiales (NaN, ±Inf, ±0, 0 × Inf). Incluye las auxiliares `FPU_MUL128` (producto 64 × 64 → 128 bits con cuatro productos parciales de 32 bits, porque `MUL` solo conserva los 64 bits bajos) y `FPU_NORMALIZAR_SUBNORMAL`. Reutiliza `FPU_DESEMPAQUETAR` y `FPU_EMPAQUETAR` de `fpu.s`.
+- **`enigma64/fpu.py`** — Ensambla `fpu.s` + `fmul.s` como una sola unidad y expone `EmuladorFPUEnigma64.multiplicar()` (devuelve `float`) y `multiplicar_bits()` (devuelve el patrón de 64 bits).
+- **`docs/informe_integrante2_fmul.md`** — Diseño, asignación de registros, oráculo y limitaciones.
+
+## Pruebas (`tests/test_fmul.py`)
+
+Cada prueba ejecuta `FMUL` sobre la CPU oficial y compara el resultado bit a bit contra el oráculo de Python (`struct` + `*`, que es IEEE 754 binary64 con redondeo al par más cercano).
+
+| Prueba | Qué verifica |
+|---|---|
+| `test_tabla_casos` | 24 casos con entradas y salida esperada en hexadecimal (tabla siguiente) |
+| `test_tabla_concuerda_con_oraculo` | Que los valores esperados de la tabla coinciden con el oráculo (NaN se compara con `math.isnan`) |
+| `test_multiplicar_flotantes` | La interfaz con `float`: `6.0 × 7.0 = 42.0`, `−0.75 × 8.0 = −6.0`, `0.1 × 3.0` |
+| `test_conmutatividad` | `A × B == B × A` en normales, subnormales y extremos |
+| `test_aleatorio_contra_oraculo` | 300 casos con semilla fija: bits aleatorios, valores cercanos a 1, zona de subdesbordamiento y subnormal × grande |
+| `test_ciclos_peor_caso` | Subnormal × subnormal termina en menos de 10 000 ciclos de la FSM |
+| `test_mul128` | `FPU_MUL128` entrega el producto exacto de 128 bits en `R5:R4` |
+
+Casos de `test_tabla_casos`:
+
+| # | Caso | A | B | Esperado |
+|:-:|---|---|---|---|
+| 1 | normal × normal: 1.5 × 2.5 | `3FF8000000000000` | `4004000000000000` | `400E000000000000` |
+| 2 | signo: −3.0 × 4.0 | `C008000000000000` | `4010000000000000` | `C028000000000000` |
+| 3 | signo: −2.0 × −0.5 | `C000000000000000` | `BFE0000000000000` | `3FF0000000000000` |
+| 4 | identidad: 1.0 × π | `3FF0000000000000` | `400921FB54442D18` | `400921FB54442D18` |
+| 5 | potencias de 2: 2^10 × 2^−3 | `4090000000000000` | `3FC0000000000000` | `4060000000000000` |
+| 6 | normalización (producto ≥ 2): 1.75 × 1.75 | `3FFC000000000000` | `3FFC000000000000` | `4008800000000000` |
+| 7 | redondeo inexacto: 0.1 × 0.2 | `3FB999999999999A` | `3FC999999999999A` | `3F947AE147AE147C` |
+| 8 | +0 × 5.0 | `0000000000000000` | `4014000000000000` | `0000000000000000` |
+| 9 | −0 × 5.0 | `8000000000000000` | `4014000000000000` | `8000000000000000` |
+| 10 | +Inf × −2.0 | `7FF0000000000000` | `C000000000000000` | `FFF0000000000000` |
+| 11 | −Inf × −Inf | `FFF0000000000000` | `FFF0000000000000` | `7FF0000000000000` |
+| 12 | 0 × Inf (operación inválida) | `0000000000000000` | `7FF0000000000000` | `7FF8000000000000` |
+| 13 | NaN × 1.0 (propaga carga útil) | `7FF8000000000123` | `3FF0000000000000` | `7FF8000000000123` |
+| 14 | sNaN × 1.0 (se silencia) | `7FF0000000000001` | `3FF0000000000000` | `7FF8000000000001` |
+| 15 | overflow: MAX × 2.0 | `7FEFFFFFFFFFFFFF` | `4000000000000000` | `7FF0000000000000` |
+| 16 | overflow: 1e200 × −1e200 | `6974E718D7D7625A` | `E974E718D7D7625A` | `FFF0000000000000` |
+| 17 | underflow a subnormal: 2^−1022 × 0.5 | `0010000000000000` | `3FE0000000000000` | `0008000000000000` |
+| 18 | underflow a cero: 1e−200 × 1e−200 | `16687E92154EF7AC` | `16687E92154EF7AC` | `0000000000000000` |
+| 19 | subnormal × normal: 2^−1074 × 2^60 | `0000000000000001` | `43B0000000000000` | `0090000000000000` |
+| 20 | empate al par, sube: (1+2^−52) × 1.5 | `3FF0000000000001` | `3FF8000000000000` | `3FF8000000000002` |
+| 21 | empate al par, baja: (1+3·2^−52) × 1.5 | `3FF0000000000003` | `3FF8000000000000` | `3FF8000000000004` |
+| 22 | empate subnormal: 2^−1074 × 0.5 | `0000000000000001` | `3FE0000000000000` | `0000000000000000` |
+| 23 | empate subnormal: 3·2^−1074 × 0.5 | `0000000000000003` | `3FE0000000000000` | `0000000000000002` |
+| 24 | subnormal que redondea al menor normal | `000FFFFFFFFFFFFF` | `3FF0000000000001` | `0010000000000000` |
+
+En el caso 12 el oráculo de Python (x86) da `FFF8000000000000`. Los dos son NaN silenciosos: IEEE 754 no fija el signo de un NaN, y FMUL devuelve el NaN canónico positivo.
+
+Para correr solo estas pruebas:
+
+```bash
+python -m pytest tests/test_fmul.py -v
+# o con unittest estándar
+python -m unittest tests.test_fmul -v
+```
+
+---
+
 # Flujo de trabajo con Git
 
 Nunca se trabaja directo sobre `main`. `main` debe estar siempre ejecutable.
@@ -569,9 +634,9 @@ Luego se abre un Pull Request para revisión e integración de cambios.
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
 ```bash
-# Suite completa (310 pruebas: unitarias y GUI)
+# Suite completa (336 pruebas: unitarias y GUI)
 python -m pytest
 
-# O mediante unittest estándar (137 pruebas de hardware sin GUI)
+# O mediante unittest estándar (163 pruebas de hardware sin GUI)
 python -m unittest discover -s tests
 ```
