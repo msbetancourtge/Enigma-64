@@ -869,18 +869,13 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
 def main():
     base_dir = Path(__file__).resolve().parent.parent
     pdf_salida_oficial = base_dir / "Tarea_17_Reporte_Tecnico_Enigma64.pdf"
-    pdf_salida_estudiante = base_dir / "17 Arguello Munoz Alejandro 01.pdf"
 
     print("Procesando mockup en escala de grises...")
     ruta_figura_fpu = preparar_figura_fpu_bw(base_dir)
 
     print("Compilando reporte formal académico Tarea 17 en PDF...")
     construir_reporte_pdf(pdf_salida_oficial, ruta_figura_fpu)
-
-    # Copia con el nombre formal del estudiante según Sección 4.2 de los Lineamientos
-    print("Generando copia formal con nomenclatura según Sección 4.2...")
-    shutil.copyfile(pdf_salida_oficial, pdf_salida_estudiante)
-    print(f"Archivos finales listos:\n  - {pdf_salida_oficial}\n  - {pdf_salida_estudiante}")
+    print(f"Reporte técnico listo en:\n  - {pdf_salida_oficial}")
 
 
 if __name__ == "__main__":
