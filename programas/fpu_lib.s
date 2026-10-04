@@ -689,7 +689,7 @@ FPU_NORM_SUB_FIN:
 ;                         para desacoplar a los llamadores de las direcciones internas.
 ;   2. FPU_INT_TO_FLOAT:  Convierte entero con signo de 64 bits (R1) a IEEE 754 (R5).
 ;   3. FPU_FLOAT_TO_INT:  Convierte IEEE 754 de 64 bits (R1) a entero truncado (R5).
-;   4. FPU_FDIV / FCMP:   Stubs provisionales con RET para la integración del Int. 3.
+;   4. FPU_FDIV / FCMP:   Puntos de entrada implementados en fdiv.s y fcmp.s.
 ; ==============================================================================
 
 ; ------------------------------------------------------------------------------
@@ -699,10 +699,11 @@ FPU_NORM_SUB_FIN:
 ;   Vector 0 (+0x00): JMP FADD              (Suma - Integrante 1)
 ;   Vector 1 (+0x05): JMP FSUB              (Resta - Integrante 1)
 ;   Vector 2 (+0x0A): JMP FMUL              (Multiplicación - Integrante 2)
-;   Vector 3 (+0x0F): JMP FPU_FDIV          (División - Integrante 3 provisional)
-;   Vector 4 (+0x14): JMP FPU_FCMP          (Comparación - Integrante 3 provisional)
+;   Vector 3 (+0x0F): JMP FDIV              (División)
+;   Vector 4 (+0x14): JMP FCMP              (Comparación)
 ;   Vector 5 (+0x19): JMP FPU_INT_TO_FLOAT  (Conversión INT -> FLOAT - Integrante 4)
 ;   Vector 6 (+0x1E): JMP FPU_FLOAT_TO_INT  (Conversión FLOAT -> INT - Integrante 4)
+;   Vector 7 (+0x23): JMP FSQRT             (Raíz Cuadrada - Integrante 6)
 ; ------------------------------------------------------------------------------
 FPU_VECTORES:
 VEC_FADD:
@@ -712,23 +713,15 @@ VEC_FSUB:
 VEC_FMUL:
     JMP FMUL
 VEC_FDIV:
-    JMP FPU_FDIV
+    JMP FDIV
 VEC_FCMP:
-    JMP FPU_FCMP
+    JMP FCMP
 VEC_INT_TO_FLOAT:
     JMP FPU_INT_TO_FLOAT
 VEC_FLOAT_TO_INT:
     JMP FPU_FLOAT_TO_INT
-
-
-; Stubs provisionales para desacoplar al Integrante 3 (FDIV y FCMP)
-FPU_FDIV:
-    ADDI R5, R0, 0
-    RET
-
-FPU_FCMP:
-    ADDI R5, R0, 0
-    RET
+VEC_FSQRT:
+    JMP FSQRT
 
 ; ------------------------------------------------------------------------------
 ; SUBRUTINA: FPU_INT_TO_FLOAT (alias INT64_TO_FLOAT64)
@@ -966,5 +959,648 @@ F2I_MAX_INT:
     ADDI R5, R0, 1
     SHL R5, R5, 63
     SUBI R5, R5, 1
+    LEAVE
+    RET
+
+; ==============================================================================
+; Computador Enigma-64 (Noctua Systems)
+; Modulo FPU: FDIV (Division IEEE 754 Doble Precision - binary64)
+; Autor: Michael Stiven Betancourt Gelves
+;
+; Contenido:
+;   1. FDIV: division binaria IEEE-754 con casos especiales y subnormales.
+;
+; Convencion de llamada:
+;   * Entrada: R1 = dividendo A, R2 = divisor B.
+;   * Salida: R5 = A / B como patron IEEE-754 binary64.
+;   * R1..R5 son registros temporales; SP y BP se restauran con LEAVE.
+;
+; Casos especiales:
+;   * NaN: propagacion silenciada del operando NaN.
+;   * 0/0 e infinito/infinito: NaN canonico.
+;   * Division por cero: infinito con el signo XOR de los operandos.
+;   * Cero e infinito: conservan el signo XOR correspondiente.
+;
+; El cociente usa division larga de mantisas, bit de guarda, bit pegajoso,
+; redondeo al par mas cercano y empaquetado de resultados normales/subnormales.
+; Dependencias: FPU_DESEMPAQUETAR y FPU_EMPAQUETAR de fpu.s.
+; ==============================================================================\n
+FDIV:
+    ENTER 160
+    STORE R1, [BP - 8]       ; A original
+    STORE R2, [BP - 16]      ; B original
+
+    ; Signo del resultado.
+    XOR R3, R1, R2
+    SHR R3, R3, 63
+    STORE R3, [BP - 24]
+
+    ; Clasificacion inicial.
+    SHL R3, R1, 1
+    SHR R3, R3, 1
+    SHL R4, R2, 1
+    SHR R4, R4, 1
+    STORE R3, [BP - 32]      ; abs(A)
+    STORE R4, [BP - 40]      ; abs(B)
+    ADDI R5, R0, 0x07FF
+    SHL R5, R5, 52
+    STORE R5, [BP - 48]      ; infinito positivo
+
+    ; NaN: abs(x) > infinito.
+    CMP R5, R3
+    JC FDIV_NAN_A
+    CMP R5, R4
+    JC FDIV_NAN_B
+
+    ; Infinito / infinito es invalido.
+    CMP R3, R5
+    JNZ FDIV_A_NO_INF
+    CMP R4, R5
+    JZ FDIV_INVALID
+    JMP FDIV_RETURN_INF
+FDIV_A_NO_INF:
+    ; x / infinito = cero con signo; infinito ya se trato arriba.
+    CMP R4, R5
+    JNZ FDIV_B_NO_INF
+    JMP FDIV_RETURN_ZERO
+FDIV_B_NO_INF:
+    ; Ceros: 0/0 invalido; x/0 infinito; 0/x cero.
+    CMP R4, R0
+    JNZ FDIV_B_NOT_ZERO
+    CMP R3, R0
+    JZ FDIV_INVALID
+    JMP FDIV_RETURN_INF
+FDIV_B_NOT_ZERO:
+    CMP R3, R0
+    JZ FDIV_RETURN_ZERO
+
+    ; Desempaquetar y normalizar A.
+    LOAD R1, [BP - 8]
+    CALL FPU_DESEMPAQUETAR
+    STORE R4, [BP - 72]      ; mantisa A
+    CMP R3, R0
+    JZ FDIV_NORM_A_SUB
+    SUBI R3, R3, 1023
+    STORE R3, [BP - 56]      ; exponente A sin sesgo
+    JMP FDIV_NORM_B
+FDIV_NORM_A_SUB:
+    ADDI R3, R0, -1022
+FDIV_NORM_A_LOOP:
+    SHR R5, R4, 52
+    ADDI R1, R0, 1
+    AND R5, R5, R1
+    JNZ FDIV_NORM_A_DONE
+    SHL R4, R4, 1
+    SUBI R3, R3, 1
+    JMP FDIV_NORM_A_LOOP
+FDIV_NORM_A_DONE:
+    STORE R4, [BP - 72]
+    STORE R3, [BP - 56]
+
+    ; Desempaquetar y normalizar B.
+FDIV_NORM_B:
+    LOAD R1, [BP - 16]
+    CALL FPU_DESEMPAQUETAR
+    STORE R4, [BP - 80]      ; mantisa B
+    CMP R3, R0
+    JZ FDIV_NORM_B_SUB
+    SUBI R3, R3, 1023
+    STORE R3, [BP - 64]
+    JMP FDIV_PREP_DIV
+FDIV_NORM_B_SUB:
+    ADDI R3, R0, -1022
+FDIV_NORM_B_LOOP:
+    SHR R5, R4, 52
+    ADDI R1, R0, 1
+    AND R5, R5, R1
+    JNZ FDIV_NORM_B_DONE
+    SHL R4, R4, 1
+    SUBI R3, R3, 1
+    JMP FDIV_NORM_B_LOOP
+FDIV_NORM_B_DONE:
+    STORE R4, [BP - 80]
+    STORE R3, [BP - 64]
+
+FDIV_PREP_DIV:
+    ; Exponente preliminar y division larga de mantisas.
+    LOAD R1, [BP - 56]
+    LOAD R2, [BP - 64]
+    SUB R1, R1, R2
+    STORE R1, [BP - 88]      ; exponente preliminar
+
+    ; Primera fase: consumir los 53 bits de A y obtener el bit entero.
+    ADDI R1, R0, 0
+    STORE R1, [BP - 96]      ; resto
+    LOAD R2, [BP - 72]      ; fuente A
+    LOAD R4, [BP - 80]      ; divisor B
+    ADDI R5, R0, 53
+FDIV_DIVIDENDO:
+    SHR R3, R2, 52
+    ADDI R1, R0, 1
+    AND R3, R3, R1
+    SHL R2, R2, 1
+    LOAD R1, [BP - 96]
+    SHL R1, R1, 1
+    OR R1, R1, R3
+    CMP R1, R4
+    JC FDIV_BIT_CERO
+    SUB R1, R1, R4
+    ADDI R3, R0, 1
+    JMP FDIV_GUARDAR_BIT
+FDIV_BIT_CERO:
+    ADDI R3, R0, 0
+FDIV_GUARDAR_BIT:
+    STORE R1, [BP - 96]
+    SUBI R5, R5, 1
+    JNZ FDIV_DIVIDENDO
+    STORE R3, [BP - 104]      ; bit entero q0
+
+    ; Segunda fase: 53 bits fraccionarios para la mantisa.
+    LOAD R3, [BP - 104]
+    STORE R3, [BP - 112]      ; cociente Q
+    LOAD R1, [BP - 96]
+    LOAD R4, [BP - 80]
+    ADDI R5, R0, 53
+FDIV_FRACCION:
+    SHL R1, R1, 1
+    CMP R1, R4
+    JC FDIV_FRAC_CERO
+    SUB R1, R1, R4
+    ADDI R2, R0, 1
+    JMP FDIV_FRAC_GUARDAR
+FDIV_FRAC_CERO:
+    ADDI R2, R0, 0
+FDIV_FRAC_GUARDAR:
+    LOAD R3, [BP - 112]
+    SHL R3, R3, 1
+    OR R3, R3, R2
+    STORE R3, [BP - 112]
+    SUBI R5, R5, 1
+    JNZ FDIV_FRACCION
+    STORE R1, [BP - 96]
+
+    ; Bit de guarda y bit pegajoso.
+    SHL R1, R1, 1
+    CMP R1, R4
+    JC FDIV_GUARD_CERO
+    SUB R1, R1, R4
+    ADDI R2, R0, 1
+    JMP FDIV_GUARD_LISTO
+FDIV_GUARD_CERO:
+    ADDI R2, R0, 0
+FDIV_GUARD_LISTO:
+    STORE R2, [BP - 120]
+    CMP R1, R0
+    JZ FDIV_STICKY_CERO
+    ADDI R1, R0, 1
+    JMP FDIV_STICKY_LISTO
+FDIV_STICKY_CERO:
+    ADDI R1, R0, 0
+FDIV_STICKY_LISTO:
+    STORE R1, [BP - 128]
+
+    ; Normalizar antes de redondear. Si Q >= 1, el bit 0 de Q
+    ; se convierte en el nuevo bit de guarda al hacer Q >>= 1.
+    LOAD R3, [BP - 112]
+    SHR R1, R3, 53
+    CMP R1, R0
+    JZ FDIV_Q_MENOR_UNO
+    ADDI R2, R0, 1
+    AND R2, R3, R2
+    SHR R3, R3, 1
+    STORE R3, [BP - 112]
+    LOAD R1, [BP - 128]
+    LOAD R5, [BP - 120]
+    OR R1, R1, R5
+    STORE R1, [BP - 128]
+    JMP FDIV_REDONDEO_FINAL
+FDIV_Q_MENOR_UNO:
+    LOAD R1, [BP - 88]
+    SUBI R1, R1, 1
+    STORE R1, [BP - 88]
+    LOAD R2, [BP - 120]
+    LOAD R1, [BP - 128]
+
+FDIV_REDONDEO_FINAL:
+    ; Redondeo al par: guard && (sticky || mantisa impar).
+    LOAD R3, [BP - 112]
+    CMP R2, R0
+    JZ FDIV_NO_ROUND_GUARD
+    CMP R1, R0
+    JNZ FDIV_REDONDEAR
+    ADDI R5, R0, 1
+    AND R5, R3, R5
+    CMP R5, R0
+    JZ FDIV_NO_ROUND_GUARD
+FDIV_REDONDEAR:
+    ADDI R3, R3, 1
+FDIV_NO_ROUND_GUARD:
+    ; El redondeo puede producir 2.0; volver a normalizar en ese caso.
+    SHR R5, R3, 53
+    CMP R5, R0
+    JZ FDIV_STORE_Q_FINAL
+    SHR R3, R3, 1
+    LOAD R5, [BP - 88]
+    ADDI R5, R5, 1
+    STORE R5, [BP - 88]
+FDIV_STORE_Q_FINAL:
+    STORE R3, [BP - 112]
+
+FDIV_PACK_RESULT:
+    ; Overflow del exponente: resultado infinito.
+    LOAD R1, [BP - 88]
+    ADDI R2, R0, 1023
+    CMP R1, R2
+    JP FDIV_RETURN_INF
+
+    ; Underflow: desplazar la mantisa a fraccion subnormal.
+    ADDI R2, R0, -1022
+    CMP R1, R2
+    JN FDIV_SUBNORMAL
+
+    ; Resultado normal: empaquetar con exponente sesgado.
+    ADDI R1, R1, 1023
+    LOAD R2, [BP - 24]
+    ADDI R4, R3, 0
+    ADDI R3, R1, 0
+    CALL FPU_EMPAQUETAR
+    LEAVE
+    RET
+
+FDIV_SUBNORMAL:
+    ; shift = -1022 - E. Se limita a 63; mas alla solo queda cero.
+    ADDI R2, R0, -1022
+    SUB R5, R2, R1
+    ADDI R1, R0, 63
+    CMP R5, R1
+    JN FDIV_SUB_SHIFT_OK
+    ADDI R5, R0, 63
+FDIV_SUB_SHIFT_OK:
+    ADDI R1, R0, 0
+FDIV_SUB_SHIFT_LOOP:
+    CMP R5, R0
+    JZ FDIV_SUB_SHIFT_DONE
+    ADDI R2, R0, 1
+    AND R2, R3, R2
+    SHR R3, R3, 1
+    SUBI R5, R5, 1
+    JZ FDIV_SUB_SHIFT_LAST
+    OR R1, R1, R2
+    JMP FDIV_SUB_SHIFT_LOOP
+FDIV_SUB_SHIFT_LAST:
+    ; R2 es el bit de guarda; R1 acumula los bits anteriores.
+    CMP R2, R0
+    JZ FDIV_SUB_ROUND_DONE
+    CMP R1, R0
+    JNZ FDIV_SUB_ROUND_UP
+    ADDI R5, R0, 1
+    AND R5, R3, R5
+    CMP R5, R0
+    JZ FDIV_SUB_ROUND_DONE
+FDIV_SUB_ROUND_UP:
+    ADDI R3, R3, 1
+FDIV_SUB_ROUND_DONE:
+FDIV_SUB_SHIFT_DONE:
+    ; El signo ocupa bit 63; el campo exponente es cero.
+    LOAD R2, [BP - 24]
+    SHL R2, R2, 63
+    SHR R5, R3, 52
+    CMP R5, R0
+    JZ FDIV_SUB_PACK
+    ADDI R5, R0, 1
+    SHL R5, R5, 52
+    OR R5, R2, R5
+    LEAVE
+    RET
+FDIV_SUB_PACK:
+    OR R5, R2, R3
+    LEAVE
+    RET
+
+; -----------------------------------------------------------------------------
+; Casos especiales de FDIV
+; -----------------------------------------------------------------------------
+FDIV_NAN_A:
+    LOAD R5, [BP - 8]
+    JMP FDIV_SILENCIAR_NAN
+FDIV_NAN_B:
+    LOAD R5, [BP - 16]
+FDIV_SILENCIAR_NAN:
+    ADDI R4, R0, 1
+    SHL R4, R4, 51
+    OR R5, R5, R4
+    LEAVE
+    RET
+FDIV_INVALID:
+    ADDI R5, R0, 0x0FFF
+    SHL R5, R5, 51
+    LEAVE
+    RET
+FDIV_RETURN_INF:
+    LOAD R3, [BP - 24]
+    ADDI R5, R0, 0x07FF
+    SHL R5, R5, 52
+    SHL R3, R3, 63
+    OR R5, R5, R3
+    LEAVE
+    RET
+FDIV_RETURN_ZERO:
+    LOAD R5, [BP - 24]
+    SHL R5, R5, 63
+    LEAVE
+    RET
+
+; ==============================================================================
+; Computador Enigma-64 (Noctua Systems)
+; Modulo FPU: FCMP (Comparacion IEEE 754 Doble Precision - binary64)
+; Autor: Michael Stiven Betancourt Gelves
+;
+; Contenido:
+;   1. FCMP: comparacion quieta de dos patrones IEEE-754 binary64.
+;
+; Convencion de llamada:
+;   * Entrada: R1 = operando A, R2 = operando B.
+;   * Salida: R5 = -1 si A < B, 0 si A == B, 1 si A > B,
+;             2 si la comparacion es unordered por NaN.
+;   * -1 se representa como 0xFFFFFFFFFFFFFFFF en el registro de 64 bits.
+;
+; Reglas IEEE-754:
+;   * +0 y -0 son iguales.
+;   * Los NaN no tienen orden y producen 2.
+;   * Los infinitos respetan el orden numerico.
+;   * No se modifica el estado de excepciones de la CPU.
+; ==============================================================================\n
+FCMP:
+    ENTER 32
+    STORE R1, [BP - 8]
+    STORE R2, [BP - 16]
+
+    ; abs(x) = x sin el bit de signo; R4 = +infinito.
+    SHL R3, R1, 1
+    SHR R3, R3, 1
+    SHL R4, R2, 1
+    SHR R4, R4, 1
+    ADDI R5, R0, 0x07FF
+    SHL R5, R5, 52
+
+    ; NaN: exponente 0x7FF y fraccion distinta de cero.
+    CMP R5, R3
+    JC FCMP_UNORDERED
+    CMP R5, R4
+    JC FCMP_UNORDERED
+
+    ; +0 y -0 son iguales.
+    CMP R3, R0
+    JNZ FCMP_NO_A_ZERO
+    CMP R4, R0
+    JZ FCMP_EQUAL
+FCMP_NO_A_ZERO:
+    CMP R4, R0
+    JZ FCMP_SIGNED_RESULT
+
+    ; Signos distintos: el negativo es menor.
+    LOAD R1, [BP - 8]
+    LOAD R2, [BP - 16]
+    SHR R1, R1, 63
+    SHR R2, R2, 63
+    CMP R1, R2
+    JZ FCMP_SAME_SIGN
+    CMP R1, R0
+    JZ FCMP_GREATER
+    JMP FCMP_LESS
+
+FCMP_SAME_SIGN:
+    ; Mismos signos: comparar magnitudes y cambiar el sentido para negativos.
+    LOAD R1, [BP - 8]
+    LOAD R2, [BP - 16]
+    SHL R1, R1, 1
+    SHR R1, R1, 1
+    SHL R2, R2, 1
+    SHR R2, R2, 1
+    CMP R1, R2
+    JZ FCMP_EQUAL
+    JC FCMP_MAG_A_LESS
+    ; A tiene mayor magnitud.
+    LOAD R1, [BP - 8]
+    SHR R1, R1, 63
+    CMP R1, R0
+    JZ FCMP_GREATER
+    JMP FCMP_LESS
+FCMP_MAG_A_LESS:
+    LOAD R1, [BP - 8]
+    SHR R1, R1, 63
+    CMP R1, R0
+    JZ FCMP_LESS
+    JMP FCMP_GREATER
+
+FCMP_SIGNED_RESULT:
+    ; Solo uno es cero: el signo del cero no altera el orden numerico.
+    LOAD R1, [BP - 8]
+    SHR R1, R1, 63
+    CMP R1, R0
+    JZ FCMP_GREATER
+    JMP FCMP_LESS
+FCMP_UNORDERED:
+    ADDI R5, R0, 2
+    LEAVE
+    RET
+FCMP_EQUAL:
+    ADDI R5, R0, 0
+    LEAVE
+    RET
+FCMP_LESS:
+    ADDI R5, R0, -1
+    LEAVE
+    RET
+FCMP_GREATER:
+    ADDI R5, R0, 1
+    LEAVE
+    RET
+
+; ==============================================================================
+; Computador Enigma-64 (Noctua Systems)
+; Modulo Oficial: FSQRT (Raiz Cuadrada IEEE 754 Doble Precision - binary64)
+;
+; Metodo Numerico: Newton-Raphson para estimacion de raiz cuadrada
+; Referencia: Ricardo Peña, 'De Euclides a JAVA' (pag. 26)
+; Autor: Integrante 6 (Algoritmo Raiz Cuadrada & Oraculo)
+;
+; Contenido:
+;   1. FSQRT / FPU_FSQRT: Estimacion de raiz cuadrada en punto flotante
+;      utilizando aproximacion inicial y refinamiento iterativo cuadratico:
+;          x_{k+1} = 0.5 * (x_k + A / x_k)
+;
+; Convencion de llamada:
+;   * Entrada: R1 = operando A en formato IEEE 754 de 64 bits (binary64).
+;   * Salida:  R5 = sqrt(A) en formato IEEE 754 binary64.
+;   * Registros modificados: R1..R5 (temporales).
+;   * Preservacion: SP (R6) y BP (R7) gestionados formalmente con ENTER / LEAVE.
+;
+; Reglas del Estandar IEEE 754:
+;   * sqrt(+0.0) = +0.0 (preserva signo positivo)
+;   * sqrt(-0.0) = -0.0 (preserva signo negativo)
+;   * sqrt(x < 0) = NaN canonico (0x7FF8000000000000, operacion invalida)
+;   * sqrt(+inf) = +inf
+;   * sqrt(-inf) = NaN canonico (operacion invalida)
+;   * sqrt(NaN)  = NaN silenciado (activa bit 51 conservando carga util)
+; ==============================================================================
+
+FSQRT:
+FPU_FSQRT:
+    ENTER 64
+    STORE R1, [BP - 8]          ; [BP - 8] = Operando A original
+
+    ; 1. Construir constantes necesarias en la pila
+    ; Constante +Infinito = 0x7FF0000000000000
+    ADDI R4, R0, 0x07FF
+    SHL R4, R4, 52
+    STORE R4, [BP - 48]         ; [BP - 48] = +Infinito
+
+    ; Constante 0.5 = 0x3FE0000000000000
+    ADDI R4, R0, 0x03FE
+    SHL R4, R4, 52
+    STORE R4, [BP - 32]         ; [BP - 32] = 0.5 (flotante)
+
+    ; 2. Extraer signo S = (A >> 63) & 1
+    LOAD R1, [BP - 8]
+    SHR R2, R1, 63              ; R2 = S (0 o 1)
+
+    ; 3. Extraer magnitud |A| (limpiar bit 63 de signo)
+    SHL R3, R1, 1
+    SHR R3, R3, 1               ; R3 = |A|
+
+    ; --- Caso Especial A: Cero (+0.0 y -0.0) ---
+    CMP R3, R0
+    JZ FSQRT_RET_A              ; sqrt(+-0.0) = +-0.0 (retorna A original)
+
+    ; --- Caso Especial B: Negativo estricto (S == 1 y |A| > 0) ---
+    CMP R2, R0
+    JNZ FSQRT_RET_NAN_CANONICO  ; Raiz de negativo -> NaN canonico
+
+    ; --- Caso Especial C: Infinito y NaN (|A| >= +Infinito) ---
+    LOAD R4, [BP - 48]          ; R4 = +Infinito
+    CMP R4, R3                  ; Compara +Inf con |A| (prestamo si |A| > +Inf)
+    JC FSQRT_RET_NAN_SILENCIADO ; Si |A| > +Inf -> Es NaN
+    CMP R3, R4
+    JZ FSQRT_RET_A              ; Si |A| == +Inf -> Retorna +Inf
+
+    ; 4. Calcular Aproximacion Inicial x_0 (Semilla de Newton)
+    ; Extraer exponente E_A = (A >> 52) & 0x7FF
+    SHR R2, R1, 52
+    ADDI R3, R0, 0x07FF
+    AND R2, R2, R3              ; R2 = E_A
+    CMP R2, R0
+    JZ FSQRT_SEMILLA_SUBNORMAL  ; Si E_A == 0, A es subnormal
+
+    ; Caso normal: exponente real e = E_A - 1023
+    ADDI R3, R0, 1023
+    SUB R2, R2, R3              ; R2 = e (con signo)
+    JMP FSQRT_SEMILLA_CALC
+
+FSQRT_SEMILLA_SUBNORMAL:
+    ; A es subnormal: normalizar mantisa para obtener exponente efectivo
+    LOAD R1, [BP - 8]
+    SHL R4, R1, 12
+    SHR R4, R4, 12              ; R4 = Fraccion M > 0
+    ADDI R2, R0, 1022
+    SUB R2, R0, R2              ; R2 = -1022 inicial
+
+FSQRT_NORM_SUB_LOOP:
+    SHR R5, R4, 52
+    ADDI R3, R0, 1
+    AND R5, R5, R3
+    JNZ FSQRT_SEMILLA_CALC
+    SHL R4, R4, 1
+    SUBI R2, R2, 1              ; e -= 1 por cada corrimiento
+    JMP FSQRT_NORM_SUB_LOOP
+
+FSQRT_SEMILLA_CALC:
+    ; R2 = exponente no sesgado e
+    ; e_nuevo = e / 2 (desplazamiento aritmetico con signo)
+    ASR R2, R2, 1
+    ADDI R3, R0, 1023
+    ADD R2, R2, R3              ; E_nuevo = e_nuevo + 1023
+    SHL R2, R2, 52              ; R2 = patron IEEE de x_0
+    STORE R2, [BP - 16]         ; [BP - 16] = x_k
+
+    ; Inicializar contador de iteraciones maximas (25 iteraciones)
+    ADDI R1, R0, 25
+    STORE R1, [BP - 40]
+
+; ------------------------------------------------------------------------------
+; BUCLE ITERATIVO DE NEWTON-RAPHSON (Ricardo Peña, pag. 26):
+;   x_{k+1} = 0.5 * (x_k + A / x_k)
+; ------------------------------------------------------------------------------
+FSQRT_LOOP:
+    ; Paso 1: T = A / x_k (FDIV)
+    LOAD R1, [BP - 8]           ; R1 = A
+    LOAD R2, [BP - 16]          ; R2 = x_k
+    CALL FDIV                   ; R5 = A / x_k
+    STORE R5, [BP - 24]         ; [BP - 24] = T
+
+    ; Paso 2: S = x_k + T (FADD)
+    LOAD R1, [BP - 16]          ; R1 = x_k
+    LOAD R2, [BP - 24]          ; R2 = T
+    CALL FADD                   ; R5 = x_k + T
+    STORE R5, [BP - 24]         ; [BP - 24] = S
+
+    ; Paso 3: x_sig = S * 0.5 (FMUL)
+    LOAD R1, [BP - 24]          ; R1 = S
+    LOAD R2, [BP - 32]          ; R2 = 0.5
+    CALL FMUL                   ; R5 = x_sig
+
+    ; Paso 4: Evaluar Criterio de Parada
+    ; a) Coincidencia bit a bit exacta: x_sig == x_k
+    LOAD R2, [BP - 16]          ; R2 = x_k
+    CMP R5, R2
+    JZ FSQRT_CONVERGIDO
+
+    ; b) Oscilacion de 1 ULP: |x_sig - x_k| <= 1
+    SUB R3, R5, R2              ; R3 = x_sig - x_k
+    ADDI R4, R0, 1
+    CMP R3, R4
+    JZ FSQRT_CONVERGIDO         ; Diferencia exactamente +1 ULP
+    SUB R4, R0, R4              ; R4 = -1
+    CMP R3, R4
+    JZ FSQRT_CONVERGIDO         ; Diferencia exactamente -1 ULP
+
+    ; Actualizar x_k = x_sig para la proxima iteracion
+    STORE R5, [BP - 16]
+
+    ; Decrementar contador de iteraciones restantes
+    LOAD R1, [BP - 40]
+    SUBI R1, R1, 1
+    STORE R1, [BP - 40]
+    JZ FSQRT_CONVERGIDO         ; Si agoto el limite, retorna x_sig
+
+    JMP FSQRT_LOOP
+
+FSQRT_CONVERGIDO:
+    ; R5 ya contiene x_sig
+    LEAVE
+    RET
+
+; ------------------------------------------------------------------------------
+; Salidas de Casos Especiales
+; ------------------------------------------------------------------------------
+FSQRT_RET_A:
+    ; Retorna A original (para +-0.0 y +infinito)
+    LOAD R5, [BP - 8]
+    LEAVE
+    RET
+
+FSQRT_RET_NAN_CANONICO:
+    ; Retorna NaN canonico: 0x7FF8000000000000
+    ADDI R5, R0, 0x0FFF
+    SHL R5, R5, 51
+    LEAVE
+    RET
+
+FSQRT_RET_NAN_SILENCIADO:
+    ; Retorna NaN con bit 51 activo (silenciado) conservando la carga util
+    LOAD R5, [BP - 8]
+    ADDI R4, R0, 1
+    SHL R4, R4, 51
+    OR R5, R5, R4
     LEAVE
     RET

@@ -53,7 +53,11 @@ Enigma-64/
 │   ├── fpu.py                     EmuladorFPUEnigma64, vector jump table y utilidades IEEE 754
 │   ├── fpu.s                      Núcleo FPU: FADD, FSUB, empaquetado y desempaquetado
 │   ├── fmul.s                     Multiplicación FMUL (IEEE 754 binary64) y MUL128
+│   ├── fdiv.s                     División FDIV (IEEE 754 binary64) con guarda y pegajoso
+│   ├── fcmp.s                     Comparador FCMP quieto de flotantes IEEE 754
 │   ├── fconv.s                    Conversiones INT-FLOAT, FLOAT-INT y tabla canónica FPU_VECTORES
+│   ├── fsqrt.s                    Raíz cuadrada FSQRT (Newton-Raphson, Ricardo Peña pág. 26)
+│   ├── oraculo_ieee754.py         Módulo utilitario de validación IEEE 754 y oráculo de referencia
 │   ├── ui/                        Interfaz gráfica modular (Tkinter / TTK)
 │   │   ├── shell/ventana.py       Shell principal y cuaderno de módulos
 │   │   ├── paneles/panel_memoria.py Grilla interactiva de RAM (8 bancos) y editor de bits
@@ -75,6 +79,8 @@ Enigma-64/
     ├── test_fpu.py                Pruebas de FADD, FSUB, desempaquetar y empaquetar
     ├── test_fmul.py               Pruebas de FMUL (IEEE 754 binary64) contra el oráculo de Python
     ├── test_fconv.py              Pruebas de conversiones INT-FLOAT y mesa de vectores FPU
+    ├── test_oraculo.py            Pruebas del oráculo de validación IEEE 754 y simulación Newton
+    ├── test_fsqrt.py              Pruebas de FSQRT (Newton-Raphson) en la CPU contra el oráculo
     ├── test_ui_aislamiento.py     Pruebas estáticas de desacoplamiento de capas (AST)
     ├── test_ui_fpu.py             Pruebas del panel de la FPU, su adaptador y el formato IEEE 754
     ├── test_ui_modulos_nuevos.py  Pruebas de interfaces de servicios y adaptadores

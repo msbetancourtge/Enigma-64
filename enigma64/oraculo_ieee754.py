@@ -366,8 +366,8 @@ def simular_newton_raphson(
         )
         historial.append(paso)
 
-        # Criterio de parada: cuando los bits se estabilizan o la diferencia cae bajo epsilon
-        if x_sig_bits == x_k_bits or diff <= tolerancia:
+        # Criterio de parada: cuando los bits se estabilizan o la diferencia relativa cae bajo epsilon
+        if x_sig_bits == x_k_bits or diff_rel <= tolerancia:
             convergido = True
             x_k = x_sig
             break
@@ -477,7 +477,16 @@ class OraculoIEEE754:
 
         desglose_in = descomponer_ieee754(entrada_bits)
 
-        # Caso NaN
+        # Ceros con signo (+0.0 y -0.0)
+        if desglose_in.es_cero:
+            if obtenido_bits == esperado_bits:
+                return True, f"Correcto: cero con signo preservado (0x{obtenido_bits:016X})."
+            return False, (
+                f"Fallo en cero: esperado 0x{esperado_bits:016X}, "
+                f"obtenido 0x{obtenido_bits:016X}."
+            )
+
+        # Casos NaN y Negativos estrictos (< 0)
         if desglose_in.es_nan or desglose_in.es_negativo:
             es_nan_obtenido = bool(
                 ((obtenido_bits >> 52) & EXP_MASK) == EXP_MASK
@@ -486,15 +495,6 @@ class OraculoIEEE754:
             if es_nan_obtenido:
                 return True, "Correcto: resultado es NaN como se esperaba."
             return False, f"Fallo: se esperaba NaN pero se obtuvo 0x{obtenido_bits:016X}."
-
-        # Ceros con signo
-        if desglose_in.es_cero:
-            if obtenido_bits == esperado_bits:
-                return True, f"Correcto: cero con signo preservado (0x{obtenido_bits:016X})."
-            return False, (
-                f"Fallo en cero: esperado 0x{esperado_bits:016X}, "
-                f"obtenido 0x{obtenido_bits:016X}."
-            )
 
         # Infinito positivo
         if desglose_in.es_inf and not desglose_in.es_negativo:

@@ -37,6 +37,7 @@ _RUTA_FMUL_S = os.path.join(os.path.dirname(__file__), "fmul.s")
 _RUTA_FCONV_S = os.path.join(os.path.dirname(__file__), "fconv.s")
 _RUTA_FDIV_S = os.path.join(os.path.dirname(__file__), "fdiv.s")
 _RUTA_FCMP_S = os.path.join(os.path.dirname(__file__), "fcmp.s")
+_RUTA_FSQRT_S = os.path.join(os.path.dirname(__file__), "fsqrt.s")
 
 with open(_RUTA_FPU_S, "r", encoding="utf-8") as _f:
     _CODIGO_NUCLEO_ASM: str = _f.read()
@@ -53,9 +54,12 @@ with open(_RUTA_FDIV_S, "r", encoding="utf-8") as _f:
 with open(_RUTA_FCMP_S, "r", encoding="utf-8") as _f:
     _CODIGO_FCMP_ASM: str = _f.read()
 
+with open(_RUTA_FSQRT_S, "r", encoding="utf-8") as _f:
+    _CODIGO_FSQRT_ASM: str = _f.read()
+
 CODIGO_FPU_ASM: str = (
     f"{_CODIGO_NUCLEO_ASM}\n{_CODIGO_FMUL_ASM}\n{_CODIGO_FCONV_ASM}\n"
-    f"{_CODIGO_FDIV_ASM}\n{_CODIGO_FCMP_ASM}"
+    f"{_CODIGO_FDIV_ASM}\n{_CODIGO_FCMP_ASM}\n{_CODIGO_FSQRT_ASM}"
 )
 
 # Desplazamientos fijos de la Tabla de Vectores de la FPU (5 bytes por JMP)
@@ -66,6 +70,7 @@ VECTOR_FDIV: int = 0x0F
 VECTOR_FCMP: int = 0x14
 VECTOR_INT_TO_FLOAT: int = 0x19
 VECTOR_FLOAT_TO_INT: int = 0x1E
+VECTOR_FSQRT: int = 0x23
 
 
 
@@ -310,10 +315,44 @@ class EmuladorFPUEnigma64:
         val_u64 = res_u64 or 0
         return val_u64 - (1 << 64) if val_u64 & SIGN_BIT else val_u64
 
+    def raiz_cuadrada(self, a: float | int) -> float:
+        """Ejecuta FSQRT en Enigma-64 y devuelve el flotante resultante."""
+        return ieee64_a_float(self.raiz_cuadrada_bits(a))
+
+    def raiz_cuadrada_bits(self, a: float | int) -> int:
+        """Ejecuta FSQRT en Enigma-64 y devuelve el patrón IEEE 754 de 64 bits."""
+        u64_a = float_a_ieee64(a) if isinstance(a, float) else (a & MASK64)
+        harness = f"""
+        JMP HARNESS_START
+        HARNESS_START:
+            ADDI SP, R0, 0x0020
+            SHL SP, SP, 16
+            ADDI SP, SP, 0x4000
+            ADDI BP, SP, 0
+
+            ADDI R4, R0, 0x0020
+            SHL R4, R4, 16
+            ADDI R4, R4, 0x5000
+            LOAD R1, [R4 + 0]
+            CALL FSQRT
+
+            ADDI R4, R0, 0x0020
+            SHL R4, R4, 16
+            ADDI R4, R4, 0x5000
+            STORE R5, [R4 + 8]
+            HLT
+        """
+        self._preparar_entorno(harness)
+        self.ram.mem_write(self.DIRECCION_VARIABLES + 0, u64_a, 8)
+        self.cpu.ejecutar(max_ciclos=80000)
+
+        res_u64, _ = self.ram.mem_read(self.DIRECCION_VARIABLES + 8, 8)
+        return res_u64 or 0
+
     def ejecutar_vector(self, vector_label: str, a: float | int, b: float | int = 0) -> int:
         """
         Ejecuta una subrutina invocándola a través de su punto de entrada en la tabla
-        canónica FPU_VECTORES (p. ej. VEC_FADD, VEC_INT_TO_FLOAT).
+        canónica FPU_VECTORES (p. ej. VEC_FADD, VEC_INT_TO_FLOAT, VEC_FSQRT).
         """
         u64_a = float_a_ieee64(a) if isinstance(a, float) else (a & MASK64)
         u64_b = float_a_ieee64(b) if isinstance(b, float) else (b & MASK64)
@@ -341,7 +380,7 @@ class EmuladorFPUEnigma64:
         self._preparar_entorno(harness)
         self.ram.mem_write(self.DIRECCION_VARIABLES + 0, u64_a, 8)
         self.ram.mem_write(self.DIRECCION_VARIABLES + 8, u64_b, 8)
-        self.cpu.ejecutar(max_ciclos=50000)
+        self.cpu.ejecutar(max_ciclos=80000)
 
         res_u64, _ = self.ram.mem_read(self.DIRECCION_VARIABLES + 16, 8)
         return res_u64 or 0

@@ -138,6 +138,7 @@ from .fpu import (
     VECTOR_FCMP,
     VECTOR_INT_TO_FLOAT,
     VECTOR_FLOAT_TO_INT,
+    VECTOR_FSQRT,
 )
 from .oraculo_ieee754 import (
     ClaseIEEE754,
@@ -257,6 +258,7 @@ __all__ = [
     "VECTOR_FCMP",
     "VECTOR_INT_TO_FLOAT",
     "VECTOR_FLOAT_TO_INT",
+    "VECTOR_FSQRT",
     # Oráculo IEEE 754 & Raíz Cuadrada (Integrante 6)
     "ClaseIEEE754",
     "DesgloseIEEE754",
