@@ -35,6 +35,8 @@ SIGN_BIT: int = 0x8000000000000000
 _RUTA_FPU_S = os.path.join(os.path.dirname(__file__), "fpu.s")
 _RUTA_FMUL_S = os.path.join(os.path.dirname(__file__), "fmul.s")
 _RUTA_FCONV_S = os.path.join(os.path.dirname(__file__), "fconv.s")
+_RUTA_FDIV_S = os.path.join(os.path.dirname(__file__), "fdiv.s")
+_RUTA_FCMP_S = os.path.join(os.path.dirname(__file__), "fcmp.s")
 
 with open(_RUTA_FPU_S, "r", encoding="utf-8") as _f:
     _CODIGO_NUCLEO_ASM: str = _f.read()
@@ -45,7 +47,16 @@ with open(_RUTA_FMUL_S, "r", encoding="utf-8") as _f:
 with open(_RUTA_FCONV_S, "r", encoding="utf-8") as _f:
     _CODIGO_FCONV_ASM: str = _f.read()
 
-CODIGO_FPU_ASM: str = f"{_CODIGO_NUCLEO_ASM}\n{_CODIGO_FMUL_ASM}\n{_CODIGO_FCONV_ASM}"
+with open(_RUTA_FDIV_S, "r", encoding="utf-8") as _f:
+    _CODIGO_FDIV_ASM: str = _f.read()
+
+with open(_RUTA_FCMP_S, "r", encoding="utf-8") as _f:
+    _CODIGO_FCMP_ASM: str = _f.read()
+
+CODIGO_FPU_ASM: str = (
+    f"{_CODIGO_NUCLEO_ASM}\n{_CODIGO_FMUL_ASM}\n{_CODIGO_FCONV_ASM}\n"
+    f"{_CODIGO_FDIV_ASM}\n{_CODIGO_FCMP_ASM}"
+)
 
 # Desplazamientos fijos de la Tabla de Vectores de la FPU (5 bytes por JMP)
 VECTOR_FADD: int = 0x00

@@ -10,7 +10,7 @@
 ;                         para desacoplar a los llamadores de las direcciones internas.
 ;   2. FPU_INT_TO_FLOAT:  Convierte entero con signo de 64 bits (R1) a IEEE 754 (R5).
 ;   3. FPU_FLOAT_TO_INT:  Convierte IEEE 754 de 64 bits (R1) a entero truncado (R5).
-;   4. FPU_FDIV / FCMP:   Stubs provisionales con RET para la integración del Int. 3.
+;   4. FPU_FDIV / FCMP:   Puntos de entrada implementados en fdiv.s y fcmp.s.
 ; ==============================================================================
 
 ; ------------------------------------------------------------------------------
@@ -20,8 +20,8 @@
 ;   Vector 0 (+0x00): JMP FADD              (Suma - Integrante 1)
 ;   Vector 1 (+0x05): JMP FSUB              (Resta - Integrante 1)
 ;   Vector 2 (+0x0A): JMP FMUL              (Multiplicación - Integrante 2)
-;   Vector 3 (+0x0F): JMP FPU_FDIV          (División - Integrante 3 provisional)
-;   Vector 4 (+0x14): JMP FPU_FCMP          (Comparación - Integrante 3 provisional)
+;   Vector 3 (+0x0F): JMP FDIV              (División)
+;   Vector 4 (+0x14): JMP FCMP              (Comparación)
 ;   Vector 5 (+0x19): JMP FPU_INT_TO_FLOAT  (Conversión INT -> FLOAT - Integrante 4)
 ;   Vector 6 (+0x1E): JMP FPU_FLOAT_TO_INT  (Conversión FLOAT -> INT - Integrante 4)
 ; ------------------------------------------------------------------------------
@@ -33,23 +33,13 @@ VEC_FSUB:
 VEC_FMUL:
     JMP FMUL
 VEC_FDIV:
-    JMP FPU_FDIV
+    JMP FDIV
 VEC_FCMP:
-    JMP FPU_FCMP
+    JMP FCMP
 VEC_INT_TO_FLOAT:
     JMP FPU_INT_TO_FLOAT
 VEC_FLOAT_TO_INT:
     JMP FPU_FLOAT_TO_INT
-
-
-; Stubs provisionales para desacoplar al Integrante 3 (FDIV y FCMP)
-FPU_FDIV:
-    ADDI R5, R0, 0
-    RET
-
-FPU_FCMP:
-    ADDI R5, R0, 0
-    RET
 
 ; ------------------------------------------------------------------------------
 ; SUBRUTINA: FPU_INT_TO_FLOAT (alias INT64_TO_FLOAT64)

@@ -16,13 +16,14 @@ Verifica sobre la CPU oficial de Enigma-64:
   3. FPU_VECTORES (Mesa de Entrada de la Biblioteca):
      - Invocación de VEC_FADD, VEC_FSUB, VEC_FMUL.
      - Invocación de VEC_INT_TO_FLOAT y VEC_FLOAT_TO_INT.
-     - Verificación de stubs no bloqueantes para VEC_FDIV y VEC_FCMP.
+    - Verificación de VEC_FDIV y VEC_FCMP, incluidos casos especiales.
 
 Autor: Integrante 4 (Deibyd Santiago Barragán Gaitán / Juan Luis Vergara Novoa)
 """
 
 from __future__ import annotations
 
+import math
 import struct
 import unittest
 
@@ -251,15 +252,21 @@ class TestFPUMesaDeVectores(unittest.TestCase):
         res_bits = self.fpu.ejecutar_vector("VEC_FLOAT_TO_INT", 9876.54, 0)
         self.assertEqual(res_bits, 9876)
 
-    def test_vector_stubs_no_bloqueantes(self) -> None:
-        """Los vectores 3 (FDIV) y 4 (FCMP) deben retornar limpiamente sin colapsar."""
-        # Vector 3 (FDIV stub)
+    def test_vector_fdiv(self) -> None:
+        """El vector 3 (VEC_FDIV) debe ejecutar division IEEE-754."""
         res_fdiv = self.fpu.ejecutar_vector("VEC_FDIV", 1.0, 2.0)
-        self.assertEqual(res_fdiv, 0)
+        self.assertEqual(ieee64_a_float(res_fdiv), 0.5)
 
-        # Vector 4 (FCMP stub)
+        res_fdiv_zero = self.fpu.ejecutar_vector("VEC_FDIV", 0.0, 0.0)
+        self.assertTrue(math.isnan(ieee64_a_float(res_fdiv_zero)))
+
+    def test_vector_fcmp(self) -> None:
+        """El vector 4 (VEC_FCMP) debe comparar valores binary64."""
         res_fcmp = self.fpu.ejecutar_vector("VEC_FCMP", 1.0, 2.0)
-        self.assertEqual(res_fcmp, 0)
+        self.assertEqual(res_fcmp, (1 << 64) - 1)
+
+        res_fcmp_nan = self.fpu.ejecutar_vector("VEC_FCMP", float("nan"), 1.0)
+        self.assertEqual(res_fcmp_nan, 2)
 
 
 if __name__ == "__main__":
