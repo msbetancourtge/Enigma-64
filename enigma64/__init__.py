@@ -139,6 +139,19 @@ from .fpu import (
     VECTOR_INT_TO_FLOAT,
     VECTOR_FLOAT_TO_INT,
 )
+from .oraculo_ieee754 import (
+    ClaseIEEE754,
+    DesgloseIEEE754,
+    OraculoIEEE754,
+    PasoNewtonRaphson,
+    ResultadoNewtonRaphson,
+    bits_a_float,
+    componer_ieee754,
+    descomponer_ieee754,
+    float_a_bits,
+    generar_catalogo_casos_prueba,
+    simular_newton_raphson,
+)
 
 
 __all__ = [
@@ -244,6 +257,18 @@ __all__ = [
     "VECTOR_FCMP",
     "VECTOR_INT_TO_FLOAT",
     "VECTOR_FLOAT_TO_INT",
+    # Oráculo IEEE 754 & Raíz Cuadrada (Integrante 6)
+    "ClaseIEEE754",
+    "DesgloseIEEE754",
+    "OraculoIEEE754",
+    "PasoNewtonRaphson",
+    "ResultadoNewtonRaphson",
+    "bits_a_float",
+    "componer_ieee754",
+    "descomponer_ieee754",
+    "float_a_bits",
+    "generar_catalogo_casos_prueba",
+    "simular_newton_raphson",
 ]
 
 
