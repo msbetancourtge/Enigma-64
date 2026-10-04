@@ -124,9 +124,25 @@ from .programas import (
     exportar_archivos_programas,
     inicializar_escenario_prueba,
 )
+from .fpu import (
+    EmuladorFPUEnigma64,
+    compilar_fpu,
+    float_a_ieee64,
+    ieee64_a_float,
+    CODIGO_FPU_ASM,
+    BYTES_FPU_MODULO,
+    VECTOR_FADD,
+    VECTOR_FSUB,
+    VECTOR_FMUL,
+    VECTOR_FDIV,
+    VECTOR_FCMP,
+    VECTOR_INT_TO_FLOAT,
+    VECTOR_FLOAT_TO_INT,
+)
 
 
 __all__ = [
+
     # Memoria RAM & Buses
     "RAMMemory",
     "InvalidAccessSizeError",
@@ -214,6 +230,20 @@ __all__ = [
     "DefinicionPrograma",
     "exportar_archivos_programas",
     "inicializar_escenario_prueba",
+    # FPU IEEE 754 & Vectores Canónicos
+    "EmuladorFPUEnigma64",
+    "compilar_fpu",
+    "float_a_ieee64",
+    "ieee64_a_float",
+    "CODIGO_FPU_ASM",
+    "BYTES_FPU_MODULO",
+    "VECTOR_FADD",
+    "VECTOR_FSUB",
+    "VECTOR_FMUL",
+    "VECTOR_FDIV",
+    "VECTOR_FCMP",
+    "VECTOR_INT_TO_FLOAT",
+    "VECTOR_FLOAT_TO_INT",
 ]
 
 
