@@ -324,10 +324,10 @@ def test_una_cpu_que_lanza_en_estado_no_tumba_el_panel():
     assert estado["fase"] == "FETCH"      # sigue siendo utilizable
 
 
-def test_la_maquina_expone_los_seis_modulos():
+def test_la_maquina_expone_los_siete_modulos():
     maquina = construir_maquina()
     assert set(maquina.servicios) == {
-        "memoria", "registros", "alu", "cargador", "cpu", "mmio"}
-    assert maquina.total_modulos == 6
-    esperados = 6 if maquina.cpu.disponible else 5
+        "memoria", "registros", "alu", "cargador", "cpu", "mmio", "fpu"}
+    assert maquina.total_modulos == 7
+    esperados = 7 if maquina.cpu.disponible else 6
     assert maquina.modulos_disponibles == esperados

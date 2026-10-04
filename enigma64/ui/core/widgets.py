@@ -352,6 +352,145 @@ class TiraBits(tk.Canvas):
 
 
 # ---------------------------------------------------------------------------
+# Visor de campos IEEE 754
+# ---------------------------------------------------------------------------
+
+
+class VisorIEEE754(tk.Canvas):
+    """
+    Los 64 bits de un flotante de doble precision, separados en sus campos:
+    el bit 63 de signo, los 11 de exponente y los 52 de mantisa. Entre el
+    exponente y la mantisa se dibuja, con trazo discontinuo, el bit implicito:
+    forma parte del numero pero no se almacena.
+
+    Las 64 celdas almacenadas son pulsables; el bit implicito no, porque no
+    existe en la palabra. El ancho de las celdas se ajusta al del panel.
+    """
+
+    ALTO = 76
+    #: (nombre, bit mas alto, bit mas bajo, clave de color en la paleta)
+    CAMPOS = (
+        ("SIGNO", 63, 63, "violeta"),
+        ("EXPONENTE", 62, 52, "ambar"),
+        ("MANTISA", 51, 0, "cian"),
+    )
+    _SEPARACION = 8
+    _CELDA_MIN = 9.0
+    _CELDA_MAX = 16.0
+
+    def __init__(self, maestro, al_pulsar: Optional[Callable[[int], None]] = None,
+                 fondo: Optional[str] = None, ancho: int = 760) -> None:
+        fondo = fondo or PALETA["elevado"]
+        super().__init__(maestro, width=ancho, height=self.ALTO, bg=fondo,
+                         highlightthickness=0)
+        self.fondo = fondo
+        self.al_pulsar = al_pulsar
+        self.patron = 0
+        self.implicito = 0
+        self.editable = True
+        self._indices: Dict[int, int] = {}
+        self._ancho_dibujado = 0
+
+        self.bind("<Configure>", self._al_redimensionar)
+        self.bind("<Button-1>", self._al_hacer_clic)
+        self._dibujar(ancho)
+
+    # -- estado -------------------------------------------------------------
+
+    def fijar(self, patron: int, implicito: Optional[int] = None,
+              editable: bool = True) -> None:
+        """Muestra un patron. Sin `implicito` se deduce del exponente."""
+        self.patron = patron & 0xFFFFFFFFFFFFFFFF
+        if implicito is None:
+            implicito = 0 if (self.patron >> 52) & 0x7FF == 0 else 1
+        self.implicito = implicito & 1
+        self.editable = editable
+        self._dibujar(self._ancho_dibujado)
+
+    def pulsar(self, indice: int) -> None:
+        """Lo mismo que hacer clic sobre la celda del bit `indice`."""
+        if self.editable and self.al_pulsar is not None and 0 <= indice <= 63:
+            self.al_pulsar(indice)
+
+    # -- dibujo -------------------------------------------------------------
+
+    def _al_redimensionar(self, evento) -> None:
+        if abs(evento.width - self._ancho_dibujado) > 1:
+            self._dibujar(evento.width)
+
+    def _dibujar(self, ancho: int) -> None:
+        self.delete("all")
+        self._indices.clear()
+        self._ancho_dibujado = ancho
+
+        # 64 celdas almacenadas + 1 implicita, con tres separaciones entre grupos.
+        celda = (ancho - 2 - 3 * self._SEPARACION) / 65.0
+        celda = max(self._CELDA_MIN, min(self._CELDA_MAX, celda))
+        tam_bit = 9 if celda >= 13 else (8 if celda >= 11 else 7)
+        y0, y1 = 20, 46
+
+        x = 1.0
+        for nombre, alto, bajo, clave_color in self.CAMPOS:
+            color = PALETA[clave_color]
+            if nombre == "MANTISA":
+                x = self._dibujar_implicito(x, celda, y0, y1, tam_bit)
+            inicio = x
+            for indice in range(alto, bajo - 1, -1):
+                encendido = bool((self.patron >> indice) & 1)
+                forma = self.create_rectangle(
+                    x + 0.5, y0, x + celda - 0.5, y1,
+                    fill=color if encendido else PALETA["abismo"],
+                    outline=color if encendido else mezclar(PALETA["borde"], color, 0.35))
+                texto = self.create_text(
+                    x + celda / 2, (y0 + y1) / 2, text="1" if encendido else "0",
+                    fill=PALETA["abismo"] if encendido else mezclar(self.fondo, color, 0.6),
+                    font=mono(tam_bit, True))
+                self._indices[forma] = indice
+                self._indices[texto] = indice
+                x += celda
+            fin = x
+
+            bits = alto - bajo + 1
+            # El signo ocupa una sola celda: su nombre entero pisaria al del
+            # exponente, asi que se abrevia a la S de la notacion habitual.
+            rotulo = "S" if bits == 1 else f"{nombre}  ·  {bits} bits"
+            self.create_text(inicio, 8, text=rotulo, anchor="w", fill=color,
+                             font=sans(8, True))
+            self.create_text(inicio + celda / 2, y1 + 10, text=str(alto),
+                             fill=PALETA["texto_debil"], font=mono(7))
+            if bits > 1:
+                self.create_text(fin - celda / 2, y1 + 10, text=str(bajo),
+                                 fill=PALETA["texto_debil"], font=mono(7))
+            x += self._SEPARACION
+
+        if not self.editable:
+            self.create_text(1, self.ALTO - 6, anchor="w", fill=PALETA["texto_debil"],
+                             font=sans(7), text="solo lectura")
+
+    def _dibujar_implicito(self, x: float, celda: float, y0: float, y1: float,
+                           tam_bit: int) -> float:
+        """Celda fantasma del bit que la norma da por sabido."""
+        color = PALETA["texto_tenue"]
+        self.create_rectangle(x + 0.5, y0, x + celda - 0.5, y1, fill=self.fondo,
+                              outline=color, dash=(2, 2))
+        self.create_text(x + celda / 2, (y0 + y1) / 2, text=str(self.implicito),
+                         fill=PALETA["texto"] if self.implicito else color,
+                         font=mono(tam_bit, True))
+        # Va una linea mas abajo que los indices para no pisar el 52 y el 51.
+        self.create_line(x + celda / 2, y1 + 2, x + celda / 2, y1 + 14, fill=color,
+                         dash=(2, 2))
+        self.create_text(x + celda / 2, y1 + 21, text="bit implicito", fill=color,
+                         font=sans(7))
+        return x + celda + self._SEPARACION
+
+    def _al_hacer_clic(self, evento) -> None:
+        for item in self.find_overlapping(evento.x, evento.y, evento.x, evento.y):
+            if item in self._indices:
+                self.pulsar(self._indices[item])
+                return
+
+
+# ---------------------------------------------------------------------------
 # Marca
 # ---------------------------------------------------------------------------
 

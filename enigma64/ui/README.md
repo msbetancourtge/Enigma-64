@@ -45,6 +45,7 @@ Cada modulo por separado, que es como se demuestra ante el profesor:
 python -m enigma64.ui.paneles.panel_memoria     # RAM y buses         (Integrante 1)
 python -m enigma64.ui.paneles.panel_registros   # banco de registros  (Integrante 2)
 python -m enigma64.ui.paneles.panel_alu         # ALU                 (Integrante 2)
+python -m enigma64.ui.paneles.panel_fpu         # punto flotante IEEE 754
 python -m enigma64.ui.paneles.panel_cargador    # cargador y bits     (Integrante 4)
 python -m enigma64.ui.paneles.panel_cpu         # Unidad de Control   (Integrante 3)
 python -m enigma64.ui.paneles.panel_mmio        # I/O mapeada
@@ -67,12 +68,12 @@ modelo propio:
 enigma64/ui/
 ├── core/                  sistema de diseno y fontaneria
 │   ├── tema.py            paleta, tipografias y estilos ttk (fuente unica de verdad)
-│   ├── widgets.py         tarjetas, diodos, insignias, tira de bits, marca Noctua
+│   ├── widgets.py         tarjetas, diodos, insignias, tira de bits, visor IEEE 754, marca Noctua
 │   ├── bus.py             bus de eventos: el unico canal entre paneles
 │   └── formato.py         parseo y formateo de valores de 64 bits
 ├── servicios/             frontera con los modulos del equipo
 │   ├── puertos.py         el contrato que espera cada panel
-│   ├── adaptadores.py     envoltorios de memoria, registros, alu y cargador
+│   ├── adaptadores.py     envoltorios de memoria, registros, alu, cargador y fpu
 │   ├── fabrica.py         arma una `Maquina` coherente
 │   ├── mapa_memoria.py    el mapa de la Tarea 9 como dato puro
 │   ├── mmio.py            controladores MMIO + banco provisional de registros
@@ -82,6 +83,7 @@ enigma64/ui/
 │   ├── panel_memoria.py   · panel_registros.py  · panel_alu.py
 │   ├── panel_cargador.py  · panel_cpu.py        · panel_mmio.py
 │   ├── panel_algoritmos.py · panel_mapa.py      · panel_consola.py
+│   ├── panel_fpu.py
 ├── shell/ventana.py       compone los paneles; no tiene logica de ningun modulo
 └── mockups/               los bocetos previos a la implementacion
 ```
@@ -89,7 +91,7 @@ enigma64/ui/
 ### Flujo de dependencias
 
 ```
-   paneles  ──►  servicios  ──►  enigma64.{memoria,registros,alu,cargador}
+   paneles  ──►  servicios  ──►  enigma64.{memoria,registros,alu,cargador,fpu}
       │                                   (modulos del equipo, intactos)
       └──────►  core (tema, widgets, bus, formato)
 
@@ -105,6 +107,7 @@ enigma64/ui/
 | **Memoria RAM y buses** | `enigma64.memoria` | Acceso de 1/2/4/8 bytes en Big-Endian, control de alineacion, volcado hexadecimal con ASCII, diodos `READY` / `MISALIGNED` / `MMIO` / `ADDR_FAULT`, paginas asignadas |
 | **Banco de registros** | `enigma64.registros` | R0..R7, PC y SR con su nibble, hexadecimal y decimal con signo; las siete banderas como diodos pulsables; R0 marcado como cableado a cero |
 | **ALU** | `enigma64.alu` | Las 16 operaciones del ISA agrupadas por familia, latches A y B, salida Z en hex/decimal/binario y las banderas que esa instruccion afecta |
+| **Punto flotante** | `enigma64.fpu` | Calculadora reactiva sobre las rutinas en ensamblador (FADD, FSUB, FMUL, FDIV, FCMP y las conversiones), contraste con el IEEE 754 del anfitrion, y visor que desglosa el bit de signo, los 11 de exponente, los 52 de mantisa y el bit implicito, con las celdas pulsables |
 | **Cargador y bits** | `enigma64.cargador` | Carga de `.e64` / `.bin` / `.txt` o de un volcado pegado, con validacion del mapa de memoria; manipulador bit a bit con el byte como ocho celdas pulsables |
 | **Unidad de Control** | `enigma64.cpu` *(pendiente)* | Las cinco fases de la FSM, los micro-registros MAR/MDR/IR/A/B/Z, el buffer de prebusqueda y los contadores de ciclos e instrucciones |
 | **I/O mapeada** | `enigma64.perifericos` *(opcional)* | Los cinco controladores con sus registros CTRL/STATUS/DATA/ADDR/COUNT, editables; la interfaz de red renombra los suyos |
@@ -120,6 +123,9 @@ Los tres ultimos no dependen de ningun modulo del equipo, asi que funcionan siem
 |---|---|---|
 | `enigma64.memoria`, `.registros`, `.alu`, `.cargador` | **listos** | Conectados y en uso |
 | `enigma64.cpu` (Integrante 3) | **pendiente** | El panel muestra en pantalla el contrato que debe cumplir y se enciende solo al fusionar la rama |
+| `enigma64.fpu`: FADD, FSUB, FMUL, FDIV, FCMP, conversiones | **listos** | Conectados; cada operacion entra por la tabla de vectores `VEC_*` |
+| Raiz cuadrada y oraculo (Integrante 6) | **pendiente** | `FSQRT` sale en ambar y solo ensena el valor de referencia; se conecta sola cuando la etiqueta aparezca en la biblioteca |
+| Constante de Brun y bateria de pruebas (Integrante 7) | **pendiente** | Figuran como pendientes en la hoja de ruta del panel y pasan a verde al llegar sus archivos |
 | `enigma64.perifericos` | **opcional** | Un banco de registros provisional en `servicios/mmio.py` sostiene los valores; el adaptador prefiere el modulo real en cuanto exista |
 
 **Para el Integrante 3:** el contrato esta en `servicios/puertos.py` → `PuertoCPU`.
@@ -127,6 +133,16 @@ El adaptador engancha por pato, asi que valen tanto `paso/ejecutar/estado` como
 `step/run/state`, y las clases `CPU`, `UnidadControl`, `ControlUnit` o
 `Procesador`. Nada mas fusionar, la pestana deja de estar en gris; no hay que
 tocar ningun panel.
+
+**Para el Integrante 6:** `AdaptadorFPU.CATALOGO["FSQRT"]` lista las etiquetas
+que busca en el ensamblador de la biblioteca (`VEC_FSQRT`, `FSQRT`,
+`FPU_FSQRT`, `FPU_SQRT`, `FPU_RAIZ`, `FRAIZ`). La convencion es la del resto:
+operando en R1, resultado en R5. Si la etiqueta se llama de otra forma basta
+con agregarla a esa tupla.
+
+**La FPU corre aparte.** `EmuladorFPUEnigma64` trae su propia RAM y su propia
+CPU, asi que una operacion de punto flotante no cambia la memoria ni los
+registros que muestran las demas pestanas.
 
 ---
 
@@ -140,6 +156,7 @@ Los paneles se coordinan publicando estos eventos, definidos en `core/bus.py`:
 | `bus.senal` | panel de memoria | mapa, traza |
 | `registros.cambiados` | panel de registros | traza |
 | `alu.ejecutada` | panel de la ALU | traza |
+| `fpu.ejecutada` | panel de la FPU | traza |
 | `cargador.programa_cargado` | panel del cargador | mapa, traza |
 | `cargador.carga_rechazada` | panel del cargador | traza |
 | `cpu.avanzo` / `cpu.reiniciada` | panel de la CPU | traza |

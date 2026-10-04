@@ -24,8 +24,9 @@ python -m enigma64.ui.mockups.generar_mockups
 | `07_panel_cpu.svg` | La Unidad de Control con sus cinco fases y los micro-registros (estado encendido, el que se vera al fusionar la rama del Integrante 3) |
 | `08_panel_mmio.svg` | Visor/editor de los cinco controladores mapeados en memoria |
 | `09_panel_algoritmos.svg` | Los algoritmos de la Tarea 9 con su traduccion manual a lenguaje de maquina |
+| `10_panel_fpu.svg` | La calculadora reactiva de la FPU y el visor IEEE 754 con sus tres campos y el bit implicito |
 
-Los bocetos 01 a 05 y 07 a 09 estan enmarcados como **ventanas de un solo modulo**,
+Los bocetos 01 a 05 y 07 a 10 estan enmarcados como **ventanas de un solo modulo**,
 porque asi es como se demuestra cada componente por separado. La insignia
 "MODULO INDEPENDIENTE" y la orden `python -m enigma64.ui.paneles.…` aparecen en
 la cabecera de cada uno.

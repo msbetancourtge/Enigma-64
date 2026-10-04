@@ -21,7 +21,7 @@ from typing import Optional
 
 from ..core.bus import BusEventos, BusNulo
 from ..core.tema import COMPUTADOR, EMPRESA, MARGEN, PALETA, aplicar_tema, mono, sans
-from ..core.widgets import Insignia, MarcaNoctua, Tarjeta
+from ..core.widgets import Insignia, MarcaNoctua, MarcoDesplazable, Tarjeta
 
 
 class PanelBase(tk.Frame):
@@ -43,6 +43,9 @@ class PanelBase(tk.Frame):
     CLAVE_SERVICIO = ""
     #: Tamano minimo razonable cuando se abre suelto.
     TAMANO_SUELTO = (820, 640)
+    #: True para los paneles mas altos que un portatil de 768 lineas: al
+    #: abrirse sueltos van dentro de un marco desplazable en vez de recortarse.
+    DESPLAZABLE_SUELTO = False
 
     def __init__(self, maestro, servicio=None, bus: Optional[BusEventos] = None,
                  **kwargs) -> None:
@@ -141,6 +144,9 @@ class PanelBase(tk.Frame):
         aplicar_tema(raiz)
         raiz.title(f"{COMPUTADOR} · {cls.TITULO} · {EMPRESA}")
         ancho, alto = cls.TAMANO_SUELTO
+        if cls.DESPLAZABLE_SUELTO:
+            ancho = min(ancho, raiz.winfo_screenwidth() - 40)
+            alto = min(alto, raiz.winfo_screenheight() - 90)
         raiz.geometry(f"{ancho}x{alto}")
         raiz.minsize(min(ancho, 640), min(alto, 480))
         raiz.configure(bg=PALETA["abismo"])
@@ -150,8 +156,17 @@ class PanelBase(tk.Frame):
 
         _barra_suelta(raiz, cls)
 
-        panel = cls(raiz, servicio=servicio, bus=BusNulo())
-        panel.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        maestro = raiz
+        if cls.DESPLAZABLE_SUELTO:
+            marco = MarcoDesplazable(raiz)
+            marco.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+            maestro = marco.interior
+
+        panel = cls(maestro, servicio=servicio, bus=BusNulo())
+        if cls.DESPLAZABLE_SUELTO:
+            panel.pack(fill="both", expand=True)
+        else:
+            panel.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         panel.preparar_demo()
 
         raiz.mainloop()

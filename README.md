@@ -57,7 +57,8 @@ Enigma-64/
 │   ├── ui/                        Interfaz gráfica modular (Tkinter / TTK)
 │   │   ├── shell/ventana.py       Shell principal y cuaderno de módulos
 │   │   ├── paneles/panel_memoria.py Grilla interactiva de RAM (8 bancos) y editor de bits
-│   │   └── paneles/panel_mmio.py  Terminal CRT y visualizador de registros MMIO
+│   │   ├── paneles/panel_mmio.py  Terminal CRT y visualizador de registros MMIO
+│   │   └── paneles/panel_fpu.py   Calculadora reactiva de la FPU y visor IEEE 754
 │   └── gui/
 │       ├── __init__.py
 │       └── panel_registros.py     Panel en vivo de registros y banco de pruebas ALU
@@ -75,6 +76,7 @@ Enigma-64/
     ├── test_fmul.py               Pruebas de FMUL (IEEE 754 binary64) contra el oráculo de Python
     ├── test_fconv.py              Pruebas de conversiones INT-FLOAT y mesa de vectores FPU
     ├── test_ui_aislamiento.py     Pruebas estáticas de desacoplamiento de capas (AST)
+    ├── test_ui_fpu.py             Pruebas del panel de la FPU, su adaptador y el formato IEEE 754
     ├── test_ui_modulos_nuevos.py  Pruebas de interfaces de servicios y adaptadores
     ├── test_ui_nucleo.py          Pruebas del núcleo de interfaz y bus de eventos
     ├── test_ui_paneles.py         Pruebas funcionales de los paneles gráficos
@@ -619,6 +621,24 @@ python -m unittest tests.test_fmul -v
 
 ---
 
+# FPU: Panel Interactivo y Visor IEEE 754 (Integrante 5)
+
+**`enigma64/ui/paneles/panel_fpu.py`** — Pestaña **FPU** de la interfaz. También se abre sola:
+
+```bash
+python -m enigma64.ui.paneles.panel_fpu
+```
+
+- **Calculadora reactiva.** No hay botón de ejecutar: al escribir un operando o cambiar de operación, la rutina vuelve a correr. Los operandos se escriben en decimal (`10.5`, `1e-308`, `inf`, `nan`) o como patrón IEEE 754 (`0x4025000000000000`).
+- **Las cuentas las hace la biblioteca del equipo.** Cada operación entra por la tabla `FPU_VECTORES` (`VEC_FADD`, `VEC_FSUB`, `VEC_FMUL`, `VEC_FDIV`, `VEC_FCMP`, `VEC_INT_TO_FLOAT`, `VEC_FLOAT_TO_INT`) y corre sobre la CPU de Enigma-64. Se muestran los ciclos de reloj consumidos.
+- **Contraste con la norma.** Junto al resultado aparece lo que responde el IEEE 754 del anfitrión y una insignia que dice si coinciden.
+- **Visor IEEE 754.** Desglosa el operando A, el B o el resultado en el bit 63 de signo, los 11 bits de exponente, los 52 de mantisa y el bit implícito, usando `FPU_DESEMPAQUETAR`. Las celdas de los operandos son pulsables.
+- **Entregas pendientes.** `FSQRT` (Integrante 6) figura en el selector como pendiente y se conecta sola cuando su etiqueta aparezca en la biblioteca; el oráculo, la constante de Brun y la batería de pruebas (Integrantes 6 y 7) se marcan en la hoja de ruta del panel.
+
+La capa de servicios (`AdaptadorFPU` en `enigma64/ui/servicios/adaptadores.py`) es la única que importa `enigma64.fpu`; el módulo de la FPU no se modifica.
+
+---
+
 # FPU: Conversiones de Formato y Mesa de Entrada Canónica (Integrante 4)
 
 ## Qué incluye
@@ -679,7 +699,7 @@ Luego se abre un Pull Request para revisión e integración de cambios.
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
 ```bash
-# Suite completa (355 pruebas: unitarias y GUI)
+# Suite completa (424 pruebas: unitarias y GUI)
 python -m pytest
 
 # O mediante unittest estándar (182 pruebas de hardware sin GUI)
