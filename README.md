@@ -50,6 +50,10 @@ Enigma-64/
 │   ├── cargador.py                Cargador de ejecutables (.e64, .bin) y manipulador de bits
 │   ├── perifericos.py             Subsistema MMIO y controlador de pantalla CRT
 │   ├── programas.py               Definición y compilación de programas oficiales de prueba
+│   ├── fpu.py                     EmuladorFPUEnigma64, vector jump table y utilidades IEEE 754
+│   ├── fpu.s                      Núcleo FPU: FADD, FSUB, empaquetado y desempaquetado
+│   ├── fmul.s                     Multiplicación FMUL (IEEE 754 binary64) y MUL128
+│   ├── fconv.s                    Conversiones INT-FLOAT, FLOAT-INT y tabla canónica FPU_VECTORES
 │   ├── ui/                        Interfaz gráfica modular (Tkinter / TTK)
 │   │   ├── shell/ventana.py       Shell principal y cuaderno de módulos
 │   │   ├── paneles/panel_memoria.py Grilla interactiva de RAM (8 bancos) y editor de bits
@@ -57,7 +61,7 @@ Enigma-64/
 │   └── gui/
 │       ├── __init__.py
 │       └── panel_registros.py     Panel en vivo de registros y banco de pruebas ALU
-├── programas/                     Archivos binarios ejecutables (.bin, .hex, .e64)
+├── programas/                     Archivos binarios (.bin, .hex, .e64) y biblioteca fpu_lib.*
 ├── scripts/                       Scripts utilitarios (generación automatizada de binarios)
 └── tests/                         Suite de pruebas automatizadas
     ├── conftest.py                Configuración global de entorno para pytest
@@ -67,7 +71,9 @@ Enigma-64/
     ├── test_cargador.py           Pruebas de carga, formatos y manipulación de bits
     ├── test_perifericos.py        Pruebas de MMIO y controlador de pantalla
     ├── test_algoritmos.py         Pruebas de ejecución de algoritmos oficiales
+    ├── test_fpu.py                Pruebas de FADD, FSUB, desempaquetar y empaquetar
     ├── test_fmul.py               Pruebas de FMUL (IEEE 754 binary64) contra el oráculo de Python
+    ├── test_fconv.py              Pruebas de conversiones INT-FLOAT y mesa de vectores FPU
     ├── test_ui_aislamiento.py     Pruebas estáticas de desacoplamiento de capas (AST)
     ├── test_ui_modulos_nuevos.py  Pruebas de interfaces de servicios y adaptadores
     ├── test_ui_nucleo.py          Pruebas del núcleo de interfaz y bus de eventos
@@ -613,6 +619,45 @@ python -m unittest tests.test_fmul -v
 
 ---
 
+# FPU: Conversiones de Formato y Mesa de Entrada Canónica (Integrante 4)
+
+## Qué incluye
+
+- **`enigma64/fconv.s`** — Subrutinas en ensamblador de Enigma-64:
+  - `FPU_VECTORES`: Mesa de entrada / tabla de salto canónica fija de 7 entradas (`JMP` de 5 bytes en saltos fijos de `+0x05`), permitiendo a los programas de usuario invocar cualquier servicio de la FPU de forma canónica desacoplada de la implementación interna.
+  - `FPU_INT_TO_FLOAT` (`INT64_TO_FLOAT64`): Conversión de enteros de 64 bits con signo en complemento a dos (R1) a formato IEEE 754 de doble precisión binary64 (R5). Gestiona el caso cero, el caso crítico `INT64_MIN` ($-2^{63}$), normalización y redondeo al par más cercano (*roundTiesToEven*) para enteros que exceden 53 bits de significando.
+  - `FPU_FLOAT_TO_INT` (`FLOAT64_TO_INT64`): Conversión de flotantes IEEE 754 binary64 (R1) a enteros de 64 bits con signo (R5), implementando truncamiento hacia cero ($[-1.0, 1.0) \to 0$), soporte para enteros de hasta 63 bits y el límite exacto $-2^{63}$.
+- **`enigma64/fpu.py`** — Integración en `EmuladorFPUEnigma64` con métodos `int_to_float()`, `int_to_float_bits()`, `float_to_int()`, `ejecutar_vector()` y constantes de vector `VECTOR_*`.
+- **`programas/fpu_lib.s`**, **`fpu_lib.bin`** (1425 bytes), **`fpu_lib.hex`** — Biblioteca binaria unificada completa que compila la tabla `FPU_VECTORES`, `fconv.s`, `fpu.s` y `fmul.s` en un único módulo distribuible.
+- **`docs/informe_integrante4_conversiones_enlace.md`** — Informe técnico completo sobre diseño, microarquitectura, convenciones ABI y pruebas.
+
+## Pruebas (`tests/test_fconv.py`)
+
+19 pruebas automatizadas (111 aserciones directas) que validan el comportamiento contra IEEE 754 y el oráculo nativo:
+
+| Prueba | Qué verifica |
+|---|---|
+| `test_int_to_float_cero` | Conversión de `0` a `+0.0` (`0x0000000000000000`) |
+| `test_int_to_float_basicos` | Enteros pequeños positivos y negativos ($\pm 1, \pm 2, \dots, \pm 100$) |
+| `test_int_to_float_potencias_de_dos` | Potencias exactas de 2 ($2^0, 2^1, \dots, 2^{62}$, $-2^{63}$) |
+| `test_int_to_float_grandes_exactos` | Enteros grandes en el rango exacto $[2^{52}, 2^{53}]$ |
+| `test_int_to_float_redondeo_ties_to_even` | Redondeo al par más cercano para enteros $> 2^{53}$ (verificación de bits G, R, S) |
+| `test_int_to_float_limites` | Extremos `INT64_MAX` ($2^{63}-1$) y `INT64_MIN` ($-2^{63}$) |
+| `test_float_to_int_truncamiento` | Truncamiento hacia cero ($1.99 \to 1$, $-1.99 \to -1$, $0.75 \to 0$) |
+| `test_float_to_int_extremos` | Ceros con signo, números subnormales, $\pm\infty$ y NaN saturando a 0 |
+| `test_float_to_int_limite_int64_min` | Conversión exacta de $-9223372036854775808.0 \to -2^{63}$ |
+| `test_identidad_int_float_int` | Preservación exacta de la identidad $\text{int}(\text{float}(x)) == x$ en $[-2^{53}, 2^{53}]$ |
+| `test_mesa_vectores_offsets` | Estructura y distancias exactas de 5 bytes en `FPU_VECTORES` |
+| `test_mesa_vectores_ejecucion` | Invocación de rutinas saltando a través de los vectores canónicos |
+
+Para correr solo estas pruebas:
+
+```bash
+python -m pytest tests/test_fconv.py -v
+```
+
+---
+
 # Flujo de trabajo con Git
 
 Nunca se trabaja directo sobre `main`. `main` debe estar siempre ejecutable.
@@ -634,9 +679,9 @@ Luego se abre un Pull Request para revisión e integración de cambios.
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
 ```bash
-# Suite completa (336 pruebas: unitarias y GUI)
+# Suite completa (355 pruebas: unitarias y GUI)
 python -m pytest
 
-# O mediante unittest estándar (163 pruebas de hardware sin GUI)
+# O mediante unittest estándar (182 pruebas de hardware sin GUI)
 python -m unittest discover -s tests
 ```
