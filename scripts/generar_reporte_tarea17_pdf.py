@@ -308,17 +308,17 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
     historia.append(Paragraph("<b>EQUIPO DE DESARROLLO (AUTORES):</b>", estilos["PortadaMetadatos"]))
     historia.append(Spacer(1, 0.2 * cm))
 
-    integrantes_info = [
-        "<b>Tomás Felipe Garzón Gómez</b> — Integrante 1 (FPU Núcleo & FADD/FSUB)",
-        "<b>Juan Sebastián Umaña Camacho</b> — Integrante 2 (FPU Multiplicación FMUL de 128 bits)",
-        "<b>Michael Stiven Betancourt Gelves</b> — Integrante 3 (FPU División FDIV & Comparador FCMP)",
-        "<b>Deibyd Santiago Barragán Gaitán</b> — Integrante 4 (FPU Conversiones INT/FLOAT & Mesa de Vectores)",
-        "<b>Maicol Sebastián Olarte Ramírez</b> — Integrante 5 (GUI & Panel Interactivo FPU en Tkinter)",
-        "<b>Juan Luis Vergara Novoa</b> — Integrante 6 (Algoritmo Raíz Cuadrada Newton-Raphson & Oráculo)",
-        "<b>Alejandro Argüello Muñoz</b> — Integrante 7 (Constante de Brun & Batería Completa de Pruebas)",
+    autores = [
+        "Tomás Felipe Garzón Gómez",
+        "Juan Sebastián Umaña Camacho",
+        "Michael Stiven Betancourt Gelves",
+        "Deibyd Santiago Barragán Gaitán",
+        "Maicol Sebastián Olarte Ramírez",
+        "Juan Luis Vergara Novoa",
+        "Alejandro Argüello Muñoz",
     ]
-    for integ in integrantes_info:
-        historia.append(Paragraph(integ, estilos["PortadaMetadatos"]))
+    for autor in autores:
+        historia.append(Paragraph(autor, estilos["PortadaMetadatos"]))
 
     historia.append(Spacer(1, 0.8 * cm))
     historia.append(Paragraph("<b>DOCENTE TITULAR:</b>", estilos["PortadaMetadatos"]))
@@ -454,8 +454,8 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
     # =========================================================================
     historia.append(Paragraph("3. DISEÑO DE LA SOLUCIÓN Y ARQUITECTURA DEL SISTEMA", estilos["H1"]))
     historia.append(Paragraph(
-        "La solución se estructuró mediante un modelo modular multicapa donde cada integrante asumió un componente canónico, "
-        "integrados finalmente a través de la Mesa de Vectores en el archivo consolidado <code>programas/fpu_lib.s</code>.",
+        "La solución se estructuró mediante una arquitectura modular multicapa donde cada componente canónico fue "
+        "rigurosamente desacoplado e integrado a través de la Mesa de Vectores en el archivo consolidado <code>programas/fpu_lib.s</code>.",
         estilos["Parrafo"]
     ))
 
@@ -470,19 +470,18 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
         [Paragraph("Vector", estilos["TablaCabecera"]),
          Paragraph("Offset", estilos["TablaCabecera"]),
          Paragraph("Instrucción Salto", estilos["TablaCabecera"]),
-         Paragraph("Servicio Matemático IEEE 754", estilos["TablaCabecera"]),
-         Paragraph("Integrante Responsable", estilos["TablaCabecera"])],
-        [Paragraph("<b>VEC_FADD</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x00", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FADD</code>", estilos["TablaCelda"]), Paragraph("Suma flotante IEEE 754 (R5 = R1 + R2)", estilos["TablaCelda"]), Paragraph("Integrante 1", estilos["TablaCeldaCentro"])],
-        [Paragraph("<b>VEC_FSUB</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x05", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FSUB</code>", estilos["TablaCelda"]), Paragraph("Resta flotante IEEE 754 (R5 = R1 − R2)", estilos["TablaCelda"]), Paragraph("Integrante 1", estilos["TablaCeldaCentro"])],
-        [Paragraph("<b>VEC_FMUL</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x0A", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FMUL</code>", estilos["TablaCelda"]), Paragraph("Multiplicación IEEE 754 (R5 = R1 × R2)", estilos["TablaCelda"]), Paragraph("Integrante 2", estilos["TablaCeldaCentro"])],
-        [Paragraph("<b>VEC_FDIV</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x0F", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FDIV</code>", estilos["TablaCelda"]), Paragraph("División IEEE 754 (R5 = R1 / R2)", estilos["TablaCelda"]), Paragraph("Integrante 3", estilos["TablaCeldaCentro"])],
-        [Paragraph("<b>VEC_FCMP</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x14", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FCMP</code>", estilos["TablaCelda"]), Paragraph("Comparación de orden (−1, 0, 1, 2)", estilos["TablaCelda"]), Paragraph("Integrante 3", estilos["TablaCeldaCentro"])],
-        [Paragraph("<b>VEC_INT_TO_FLOAT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x19", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_INT_TO_FLOAT</code>", estilos["TablaCelda"]), Paragraph("Conversión Entero 64b → Float 64b", estilos["TablaCelda"]), Paragraph("Integrante 4", estilos["TablaCeldaCentro"])],
-        [Paragraph("<b>VEC_FLOAT_TO_INT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x1E", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_FLOAT_TO_INT</code>", estilos["TablaCelda"]), Paragraph("Conversión Float 64b → Entero truncado", estilos["TablaCelda"]), Paragraph("Integrante 4", estilos["TablaCeldaCentro"])],
-        [Paragraph("<b>VEC_FSQRT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x23", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FSQRT</code>", estilos["TablaCelda"]), Paragraph("Raíz Cuadrada por Newton-Raphson", estilos["TablaCelda"]), Paragraph("Integrante 6", estilos["TablaCeldaCentro"])],
-        [Paragraph("<b>VEC_FBRUN</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x28", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_BRUN</code>", estilos["TablaCelda"]), Paragraph("Estimación de Constante de Brun B₂", estilos["TablaCelda"]), Paragraph("Integrante 7", estilos["TablaCeldaCentro"])],
+         Paragraph("Servicio Matemático IEEE 754", estilos["TablaCabecera"])],
+        [Paragraph("<b>VEC_FADD</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x00", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FADD</code>", estilos["TablaCelda"]), Paragraph("Suma flotante IEEE 754 (R5 = R1 + R2)", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FSUB</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x05", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FSUB</code>", estilos["TablaCelda"]), Paragraph("Resta flotante IEEE 754 (R5 = R1 − R2)", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FMUL</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x0A", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FMUL</code>", estilos["TablaCelda"]), Paragraph("Multiplicación IEEE 754 (R5 = R1 × R2)", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FDIV</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x0F", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FDIV</code>", estilos["TablaCelda"]), Paragraph("División IEEE 754 (R5 = R1 / R2)", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FCMP</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x14", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FCMP</code>", estilos["TablaCelda"]), Paragraph("Comparación de orden (−1, 0, 1, 2)", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_INT_TO_FLOAT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x19", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_INT_TO_FLOAT</code>", estilos["TablaCelda"]), Paragraph("Conversión Entero 64b → Float 64b", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FLOAT_TO_INT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x1E", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_FLOAT_TO_INT</code>", estilos["TablaCelda"]), Paragraph("Conversión Float 64b → Entero truncado", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FSQRT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x23", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FSQRT</code>", estilos["TablaCelda"]), Paragraph("Raíz Cuadrada por Newton-Raphson", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FBRUN</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x28", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_BRUN</code>", estilos["TablaCelda"]), Paragraph("Estimación de Constante de Brun B₂", estilos["TablaCelda"])],
     ]
-    t_vectores = Table(datos_vectores, colWidths=[3.2 * cm, 1.6 * cm, 3.8 * cm, 5.7 * cm, 2.4 * cm])
+    t_vectores = Table(datos_vectores, colWidths=[3.4 * cm, 1.8 * cm, 4.0 * cm, 7.5 * cm])
     t_vectores.setStyle(TableStyle([
         ("LINEABOVE", (0, 0), (-1, 0), 1, black),
         ("LINEBELOW", (0, 0), (-1, 0), 1, black),
@@ -567,16 +566,16 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
 
     arbol_codigo = (
         "enigma64/\n"
-        "├── fpu.s                 Núcleo FPU: FPU_DESEMPAQUETAR, FPU_EMPAQUETAR, FADD, FSUB (Int. 1)\n"
-        "├── fmul.s                Multiplicación IEEE 754 con producto de 128 bits y subnormales (Int. 2)\n"
-        "├── fdiv.s                División larga de mantisas con manejo de excepciones (Int. 3)\n"
-        "├── fcmp.s                Comparador formal de orden IEEE 754 y clasificación de NaNs (Int. 3)\n"
-        "├── fconv.s               Conversiones INT64 <-> FLOAT64 y Mesa de Entrada Canónica (Int. 4)\n"
-        "├── fsqrt.s               Raíz cuadrada iterativa de Newton-Raphson (Ricardo Peña, pág. 26) (Int. 6)\n"
-        "├── fbrun.s               Test de primalidad y estimación de la Constante de Brun (Int. 7)\n"
+        "├── fpu.s                 Núcleo FPU: FPU_DESEMPAQUETAR, FPU_EMPAQUETAR, FADD, FSUB\n"
+        "├── fmul.s                Multiplicación IEEE 754 con producto de 128 bits y subnormales\n"
+        "├── fdiv.s                División larga de mantisas con manejo de excepciones\n"
+        "├── fcmp.s                Comparador formal de orden IEEE 754 y clasificación de NaNs\n"
+        "├── fconv.s               Conversiones INT64 <-> FLOAT64 y Mesa de Entrada Canónica\n"
+        "├── fsqrt.s               Raíz cuadrada iterativa de Newton-Raphson (Peña, pág. 26)\n"
+        "├── fbrun.s               Test de primalidad y estimación de la Constante de Brun\n"
         "├── fpu.py                Emulador FPU, API de alto nivel y compilación consolidada\n"
-        "├── oraculo_ieee754.py    Oráculo matemático de validación bit a bit y métricas ULP (Int. 6 y 7)\n"
-        "└── ui/paneles/panel_fpu.py Interfaz gráfica interactiva y calculadora reactiva (Int. 5)\n"
+        "├── oraculo_ieee754.py    Oráculo matemático de validación bit a bit y métricas ULP\n"
+        "└── ui/paneles/panel_fpu.py Interfaz gráfica interactiva y calculadora reactiva\n"
         "programas/\n"
         "├── fpu_lib.s/.bin/.hex   Biblioteca consolidada con las 9 entradas canónicas (3141 bytes)\n"
         "├── constante_brun.s/.bin Programa ejecutable de usuario para la Constante de Brun (3203 bytes)\n"
@@ -759,7 +758,7 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
         estilos["Parrafo"]
     ))
 
-    historia.append(Paragraph("5.6. Escenario 6: Validación Visual e Interactiva mediante el Panel FPU (Integrante 5)", estilos["H2"]))
+    historia.append(Paragraph("5.6. Escenario 6: Validación Visual e Interactiva mediante el Panel FPU", estilos["H2"]))
     historia.append(Paragraph(
         "La interfaz gráfica del emulador Enigma-64 incorpora una pestaña reactiva de telemetría y calculadora FPU:",
         estilos["Parrafo"]
@@ -837,7 +836,7 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
         "exhaustiva de cada subrutina, certificando que los algoritmos de Newton-Raphson y de la Constante de Brun alcanzan precisiones dentro de "
         "tolerancias estrictas de 1 a 4 ULPs.<br/>"
         "3. <b>Disciplina de Interfaz y Mesa Canónica:</b> La implementación de la tabla de vectores <code>FPU_VECTORES</code> desacopló eficazmente "
-        "el software de aplicación de las direcciones físicas de memoria, facilitando la integración limpia entre los 7 integrantes del grupo.<br/>"
+        "el software de aplicación de las direcciones físicas de memoria, garantizando independencia de relocalización y una arquitectura limpia y modular.<br/>"
         "4. <b>Robustez Operativa:</b> La suite automatizada de 471 pruebas garantiza que el emulador Enigma-64 opera como una plataforma estable, "
         "determinista y lista para soportar compiladores de lenguajes de alto nivel.",
         estilos["Parrafo"]
