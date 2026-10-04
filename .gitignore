@@ -64,7 +64,6 @@ venv/
 .DS_Store
 
 # Documents
-/docs/
 task.txt
 ./CLAUDE.md
 CLAUDE.md

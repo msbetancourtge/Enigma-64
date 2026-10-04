@@ -684,6 +684,41 @@ python -m pytest tests/test_fconv.py -v
 
 ---
 
+# FPU: Constante de Brun & Batería de Pruebas (Integrante 7)
+
+**`enigma64/fbrun.s`** y **`programas/constante_brun.s`** — Implementación en ensamblador de la estimación de la **Constante de Brun** ($B_2$, primos gemelos) y suite integral de pruebas del sistema FPU.
+
+## Qué incluye
+
+* **Test de primalidad entera (`FPU_ES_PRIMO`):** Criba rápida de divisores impares sobre la ALU entera nativa de Enigma-64 (`DIV`, `MUL`, `SUB`, `CMP`, `JP`).
+* **Estimación de la Constante de Brun (`FPU_BRUN` / `FBRUN`):**
+  * Bucle secuencial de búsqueda de pares de primos gemelos $(p, p+2)$: $(3, 5), (5, 7), (11, 13), (17, 19), (29, 31)\dots$
+  * Conversión entera a punto flotante (`FPU_INT_TO_FLOAT` / `VEC_INT_TO_FLOAT`).
+  * Cálculo de recíprocos $\frac{1.0}{p}$ y $\frac{1.0}{p+2}$ (`FDIV` / `VEC_FDIV`).
+  * Acumulación en precisión doble IEEE 754 (`FADD` / `VEC_FADD`).
+* **Mesa de Entrada Canónica:** Publicación del **Vector 8** (`VEC_FBRUN` en el desplazamiento `+0x28`) de la tabla `FPU_VECTORES`.
+* **Programa ejecutable oficial (`programas/constante_brun.s`):**
+  * Lee el número de pares objetivo $K$ desde `0x00205000`.
+  * Escribe la estimación $B_2$ en `0x00205008`, la cantidad de pares procesados en `0x00205010` y el último primo gemelo en `0x00205018`.
+  * Disponible en binario crudo (`.bin`), volcado (`.hex`) y ejecutable estructurado (`.e64`).
+* **Batería de Pruebas Unitarias y de Integración (`tests/test_bateria_integracion.py` y `tests/test_fbrun.py`):**
+  * Pruebas exhaustivas de división `FDIV` (operaciones normales, división por cero, infinitos, NaN, subnormales y contraste con el oráculo).
+  * Pruebas de comparación `FCMP` (orden estricto, ceros con signo $+0.0 \equiv -0.0$, NaNs desordenados).
+  * Pruebas de estabilidad de marco de pila (`ENTER`/`LEAVE`) e invarianza de `SP`/`BP`.
+  * Despacho y validación funcional de los 9 vectores de `FPU_VECTORES`.
+
+## Cómo probar
+
+```bash
+# Pruebas de la Constante de Brun
+python -m pytest tests/test_fbrun.py -v
+
+# Batería completa de integración y robustez FPU
+python -m pytest tests/test_bateria_integracion.py -v
+```
+
+---
+
 # Flujo de trabajo con Git
 
 Nunca se trabaja directo sobre `main`. `main` debe estar siempre ejecutable.
