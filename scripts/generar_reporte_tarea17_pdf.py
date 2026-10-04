@@ -116,27 +116,27 @@ def construir_estilos():
     estilos["PortadaUniversidad"] = ParagraphStyle(
         "PortadaUniversidad",
         fontName="Times-Bold",
-        fontSize=14.5,
-        leading=18.5,
+        fontSize=18.0,
+        leading=22.0,
         alignment=TA_CENTER,
         spaceAfter=4,
     )
     estilos["PortadaFacultad"] = ParagraphStyle(
         "PortadaFacultad",
         fontName="Times-Roman",
-        fontSize=10.5,
-        leading=14.5,
+        fontSize=12.0,
+        leading=16.0,
         alignment=TA_CENTER,
-        spaceAfter=12,
+        spaceAfter=14,
     )
     estilos["PortadaTitulo"] = ParagraphStyle(
         "PortadaTitulo",
         fontName="Times-Bold",
-        fontSize=16.0,
-        leading=20.5,
+        fontSize=17.0,
+        leading=22.0,
         alignment=TA_CENTER,
-        spaceBefore=8,
-        spaceAfter=8,
+        spaceBefore=10,
+        spaceAfter=12,
     )
     estilos["PortadaSubtitulo"] = ParagraphStyle(
         "PortadaSubtitulo",
@@ -149,10 +149,10 @@ def construir_estilos():
     estilos["PortadaMetadatos"] = ParagraphStyle(
         "PortadaMetadatos",
         fontName="Times-Roman",
-        fontSize=9.2,
-        leading=13.0,
+        fontSize=10.0,
+        leading=14.5,
         alignment=TA_CENTER,
-        spaceAfter=3,
+        spaceAfter=4,
     )
     estilos["H1"] = ParagraphStyle(
         "H1",
@@ -282,30 +282,25 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
     # =========================================================================
     # PÁGINA 1: PORTADA FORMAL ACADÉMICA
     # =========================================================================
-    historia.append(Spacer(1, 0.6 * cm))
+    historia.append(Spacer(1, 1.2 * cm))
     historia.append(Paragraph("UNIVERSIDAD NACIONAL DE COLOMBIA", estilos["PortadaUniversidad"]))
     historia.append(Paragraph(
-        "FACULTAD DE INGENIERÍA — DEPARTAMENTO DE INGENIERÍA DE SISTEMAS E INDUSTRIAL<br/>"
-        "ASIGNATURA: LENGUAJES DE PROGRAMACIÓN (2026-2)",
+        "FACULTAD DE INGENIERÍA<br/>"
+        "DEPARTAMENTO DE INGENIERÍA DE SISTEMAS E INDUSTRIAL<br/>"
+        "LENGUAJES DE PROGRAMACIÓN",
         estilos["PortadaFacultad"]
     ))
-    historia.append(HRFlowable(width="100%", thickness=1.5, color="black", spaceAfter=16, spaceBefore=2))
+    historia.append(HRFlowable(width="100%", thickness=1.5, color="black", spaceAfter=25, spaceBefore=4))
 
-    historia.append(Spacer(1, 0.5 * cm))
+    historia.append(Spacer(1, 1.0 * cm))
     historia.append(Paragraph(
-        "REPORTE TÉCNICO FORMAL — TAREA 17:<br/>"
-        "ARITMÉTICA DE PUNTO FLOTANTE IEEE 754 (BINARY64)<br/>"
-        "PARA EL COMPUTADOR ENIGMA-64",
+        "TAREA 17 — UNIDAD DE PUNTO FLOTANTE (FPU):<br/>"
+        "ENIGMA-64",
         estilos["PortadaTitulo"]
     ))
-    historia.append(Paragraph(
-        "Emulador de FPU en Ensamblador Puro, Mesa Canónica de Vectores, Estimación de Raíz Cuadrada por "
-        "Newton-Raphson, Constante de Brun y Batería Integral de Pruebas",
-        estilos["PortadaSubtitulo"]
-    ))
 
-    historia.append(Spacer(1, 0.8 * cm))
-    historia.append(Paragraph("<b>EQUIPO DE DESARROLLO (AUTORES):</b>", estilos["PortadaMetadatos"]))
+    historia.append(Spacer(1, 1.5 * cm))
+    historia.append(Paragraph("<b>AUTORES:</b>", estilos["PortadaMetadatos"]))
     historia.append(Spacer(1, 0.2 * cm))
 
     autores = [
@@ -320,11 +315,8 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
     for autor in autores:
         historia.append(Paragraph(autor, estilos["PortadaMetadatos"]))
 
-    historia.append(Spacer(1, 0.8 * cm))
-    historia.append(Paragraph("<b>DOCENTE TITULAR:</b>", estilos["PortadaMetadatos"]))
-    historia.append(Paragraph("Jorge Eduardo Ortiz Triviño (Profesor Asociado DISI)", estilos["PortadaMetadatos"]))
-
-    historia.append(Spacer(1, 0.8 * cm))
+    historia.append(Spacer(1, 1.2 * cm))
+    historia.append(Paragraph("<b>Docente:</b> Jorge Eduardo Ortiz Triviño", estilos["PortadaMetadatos"]))
     historia.append(Paragraph("Bogotá D.C., Colombia — Octubre de 2026", estilos["PortadaMetadatos"]))
     historia.append(PageBreak())
 
