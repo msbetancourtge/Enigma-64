@@ -38,6 +38,7 @@ _RUTA_FCONV_S = os.path.join(os.path.dirname(__file__), "fconv.s")
 _RUTA_FDIV_S = os.path.join(os.path.dirname(__file__), "fdiv.s")
 _RUTA_FCMP_S = os.path.join(os.path.dirname(__file__), "fcmp.s")
 _RUTA_FSQRT_S = os.path.join(os.path.dirname(__file__), "fsqrt.s")
+_RUTA_FBRUN_S = os.path.join(os.path.dirname(__file__), "fbrun.s")
 
 with open(_RUTA_FPU_S, "r", encoding="utf-8") as _f:
     _CODIGO_NUCLEO_ASM: str = _f.read()
@@ -57,9 +58,13 @@ with open(_RUTA_FCMP_S, "r", encoding="utf-8") as _f:
 with open(_RUTA_FSQRT_S, "r", encoding="utf-8") as _f:
     _CODIGO_FSQRT_ASM: str = _f.read()
 
+with open(_RUTA_FBRUN_S, "r", encoding="utf-8") as _f:
+    _CODIGO_FBRUN_ASM: str = _f.read()
+
 CODIGO_FPU_ASM: str = (
     f"{_CODIGO_NUCLEO_ASM}\n{_CODIGO_FMUL_ASM}\n{_CODIGO_FCONV_ASM}\n"
-    f"{_CODIGO_FDIV_ASM}\n{_CODIGO_FCMP_ASM}\n{_CODIGO_FSQRT_ASM}"
+    f"{_CODIGO_FDIV_ASM}\n{_CODIGO_FCMP_ASM}\n{_CODIGO_FSQRT_ASM}\n"
+    f"{_CODIGO_FBRUN_ASM}"
 )
 
 # Desplazamientos fijos de la Tabla de Vectores de la FPU (5 bytes por JMP)
@@ -71,6 +76,7 @@ VECTOR_FCMP: int = 0x14
 VECTOR_INT_TO_FLOAT: int = 0x19
 VECTOR_FLOAT_TO_INT: int = 0x1E
 VECTOR_FSQRT: int = 0x23
+VECTOR_FBRUN: int = 0x28
 
 
 
@@ -384,4 +390,82 @@ class EmuladorFPUEnigma64:
 
         res_u64, _ = self.ram.mem_read(self.DIRECCION_VARIABLES + 16, 8)
         return res_u64 or 0
+
+    def dividir(self, a: float | int, b: float | int) -> float:
+        """Ejecuta FDIV en Enigma-64 y devuelve el flotante resultante."""
+        return self._ejecutar_binario_fpu(a, b, subrutina="FDIV")
+
+    def dividir_bits(self, a: float | int, b: float | int) -> int:
+        """Ejecuta FDIV en Enigma-64 y devuelve el patrón IEEE 754 de 64 bits."""
+        return self._ejecutar_binario_fpu_u64(a, b, subrutina="FDIV")
+
+    def comparar(self, a: float | int, b: float | int) -> int:
+        """
+        Ejecuta FCMP en Enigma-64.
+        Devuelve -1 si A < B, 0 si A == B, 1 si A > B, o 2 si unordered (NaN).
+        """
+        res_u64 = self._ejecutar_binario_fpu_u64(a, b, subrutina="FCMP")
+        if res_u64 == 0xFFFFFFFFFFFFFFFF:
+            return -1
+        return res_u64
+
+    def constante_brun(self, num_pares: int = 5) -> float:
+        """Ejecuta FPU_BRUN en Enigma-64 y devuelve la estimación B2 como flotante."""
+        return ieee64_a_float(self.constante_brun_bits(num_pares))
+
+    def constante_brun_bits(self, num_pares: int = 5) -> int:
+        """
+        Ejecuta FPU_BRUN en Enigma-64 para num_pares de primos gemelos.
+        Devuelve el patrón IEEE 754 de 64 bits de la constante B2.
+        """
+        harness = f"""
+        JMP HARNESS_START
+        HARNESS_START:
+            ADDI SP, R0, 0x0020
+            SHL SP, SP, 16
+            ADDI SP, SP, 0x4000
+            ADDI BP, SP, 0
+
+            ADDI R4, R0, 0x0020
+            SHL R4, R4, 16
+            ADDI R4, R4, 0x5000
+            LOAD R1, [R4 + 0]
+            CALL FPU_BRUN
+
+            ADDI R4, R0, 0x0020
+            SHL R4, R4, 16
+            ADDI R4, R4, 0x5000
+            STORE R5, [R4 + 8]
+            STORE R1, [R4 + 16]
+            STORE R2, [R4 + 24]
+            HLT
+        """
+        self._preparar_entorno(harness)
+        self.ram.mem_write(self.DIRECCION_VARIABLES + 0, num_pares, 8)
+        # Escalado dinámico de ciclos según cantidad de pares (aprox. 20,000 ciclos/par)
+        ciclos_limite = max(100000, num_pares * 35000)
+        self.cpu.ejecutar(max_ciclos=ciclos_limite)
+
+        res_u64, _ = self.ram.mem_read(self.DIRECCION_VARIABLES + 8, 8)
+        return res_u64 or 0
+
+    def ejecutar_programa_brun(self, num_pares: int = 5) -> dict[str, Any]:
+        """
+        Ejecuta la estimación de Brun y retorna un diccionario con:
+          - 'b2_float': valor float de B2
+          - 'b2_bits': patrón IEEE 754 de 64 bits
+          - 'pares_calculados': cantidad efectiva de pares sumados
+          - 'ultimo_primo': último p primo gemelo procesado
+          - 'ciclos': ciclos de CPU consumidos
+        """
+        b2_bits = self.constante_brun_bits(num_pares)
+        pares_calc, _ = self.ram.mem_read(self.DIRECCION_VARIABLES + 16, 8)
+        ultimo_p, _ = self.ram.mem_read(self.DIRECCION_VARIABLES + 24, 8)
+        return {
+            "b2_float": ieee64_a_float(b2_bits),
+            "b2_bits": b2_bits,
+            "pares_calculados": pares_calc or 0,
+            "ultimo_primo": ultimo_p or 0,
+            "ciclos": self.cpu.ciclos,
+        }
 

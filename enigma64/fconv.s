@@ -25,6 +25,7 @@
 ;   Vector 5 (+0x19): JMP FPU_INT_TO_FLOAT  (Conversión INT -> FLOAT - Integrante 4)
 ;   Vector 6 (+0x1E): JMP FPU_FLOAT_TO_INT  (Conversión FLOAT -> INT - Integrante 4)
 ;   Vector 7 (+0x23): JMP FSQRT             (Raíz Cuadrada - Integrante 6)
+;   Vector 8 (+0x28): JMP FPU_BRUN          (Constante de Brun - Integrante 7)
 ; ------------------------------------------------------------------------------
 FPU_VECTORES:
 VEC_FADD:
@@ -43,6 +44,8 @@ VEC_FLOAT_TO_INT:
     JMP FPU_FLOAT_TO_INT
 VEC_FSQRT:
     JMP FSQRT
+VEC_FBRUN:
+    JMP FPU_BRUN
 
 ; ------------------------------------------------------------------------------
 ; SUBRUTINA: FPU_INT_TO_FLOAT (alias INT64_TO_FLOAT64)

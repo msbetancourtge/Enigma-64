@@ -516,6 +516,173 @@ class OraculoIEEE754:
             f"({bits_a_float(esperado_bits)}), distancia = {distancia} ULPs."
         )
 
+    # -------------------------------------------------------------------------
+    # Métodos Oráculo para la Constante de Brun B2 (Integrante 7)
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def es_primo(n: int) -> bool:
+        """Determina con precisión matemática si un entero es primo."""
+        if n < 2:
+            return False
+        if n == 2:
+            return True
+        if n % 2 == 0:
+            return False
+        d = 3
+        while d * d <= n:
+            if n % d == 0:
+                return False
+            d += 2
+        return True
+
+    @classmethod
+    def generar_primos_gemelos(cls, num_pares: int) -> List[Tuple[int, int]]:
+        """Genera los primeros num_pares de números primos gemelos (p, p+2)."""
+        if num_pares <= 0:
+            return []
+        pares = []
+        p = 3
+        while len(pares) < num_pares:
+            if cls.es_primo(p) and cls.es_primo(p + 2):
+                pares.append((p, p + 2))
+            p += 2
+        return pares
+
+    @classmethod
+    def oraculo_constante_brun(cls, num_pares: int) -> Dict[str, Any]:
+        """
+        Calcula la estimación de referencia de la constante de Brun B2
+        utilizando la aritmética canónica IEEE 754 de 64 bits de Python.
+        """
+        pares = cls.generar_primos_gemelos(num_pares)
+        suma_float = 0.0
+        terminos = []
+        for p, q in pares:
+            ter_p = 1.0 / float(p)
+            ter_q = 1.0 / float(q)
+            termino_par = ter_p + ter_q
+            suma_float += termino_par
+            terminos.append({
+                "p": p,
+                "q": q,
+                "ter_p": ter_p,
+                "ter_q": ter_q,
+                "termino_par": termino_par,
+                "suma_parcial": suma_float,
+            })
+        bits_b2 = float_a_bits(suma_float)
+        ultimo_p = pares[-1][0] if pares else 0
+        return {
+            "num_pares": num_pares,
+            "pares": pares,
+            "terminos": terminos,
+            "b2_float": suma_float,
+            "b2_bits": bits_b2,
+            "hex_b2": f"0x{bits_b2:016X}",
+            "ultimo_p": ultimo_p,
+        }
+
+    @classmethod
+    def validar_constante_brun(
+        cls, num_pares: int, obtenido_bits: int, max_ulps: int = 15
+    ) -> Tuple[bool, str]:
+        """
+        Valida el resultado obtenido de FPU_BRUN en Enigma-64 contra el
+        oráculo matemático de referencia.
+        """
+        if num_pares <= 0:
+            if obtenido_bits == 0:
+                return True, "Correcto: B2 para 0 pares es 0.0."
+            return False, f"Esperado 0.0 para num_pares={num_pares}, obtenido 0x{obtenido_bits:016X}"
+
+        esperado = cls.oraculo_constante_brun(num_pares)
+        esperado_bits = esperado["b2_bits"]
+
+        distancia = cls.distancia_ulps(obtenido_bits, esperado_bits)
+        if distancia <= max_ulps:
+            return True, (
+                f"Correcto: B2({num_pares} pares) coincide con oráculo dentro de "
+                f"tolerancia ({distancia} ULPs <= {max_ulps} ULPs). "
+                f"Obtenido: {bits_a_float(obtenido_bits)}, Esperado: {esperado['b2_float']}"
+            )
+
+        return False, (
+            f"Discrepancia en B2({num_pares} pares): obtenido 0x{obtenido_bits:016X} "
+            f"({bits_a_float(obtenido_bits)}), esperado 0x{esperado_bits:016X} "
+            f"({esperado['b2_float']}), distancia = {distancia} ULPs."
+        )
+
+    # -------------------------------------------------------------------------
+    # Métodos Oráculo para División FDIV y Comparación FCMP (Integrante 3)
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def oraculo_fdiv(a_bits: int, b_bits: int) -> int:
+        """Calcula el resultado IEEE 754 esperado de A / B en binary64."""
+        desglose_a = descomponer_ieee754(a_bits)
+        desglose_b = descomponer_ieee754(b_bits)
+
+        signo = (a_bits >> 63) ^ (b_bits >> 63)
+        signo_shift = signo << 63
+
+        if desglose_a.es_nan:
+            return (a_bits & MASK64) | QUIET_NAN_BIT
+        if desglose_b.es_nan:
+            return (b_bits & MASK64) | QUIET_NAN_BIT
+
+        # 0 / 0 o inf / inf -> NaN
+        if (desglose_a.es_cero and desglose_b.es_cero) or (desglose_a.es_inf and desglose_b.es_inf):
+            return CANONICAL_NAN
+
+        # División por cero: x / 0 = inf con signo
+        if desglose_b.es_cero:
+            return POS_INFINITY | signo_shift
+
+        # x / inf = 0 con signo
+        if desglose_b.es_inf:
+            return POS_ZERO | signo_shift
+
+        # inf / x = inf con signo
+        if desglose_a.es_inf:
+            return POS_INFINITY | signo_shift
+
+        # 0 / x = 0 con signo
+        if desglose_a.es_cero:
+            return POS_ZERO | signo_shift
+
+        fa = bits_a_float(a_bits)
+        fb = bits_a_float(b_bits)
+        try:
+            return float_a_bits(fa / fb)
+        except OverflowError:
+            return POS_INFINITY | signo_shift
+
+    @staticmethod
+    def oraculo_fcmp(a_bits: int, b_bits: int) -> int:
+        """
+        Calcula el valor esperado de FCMP:
+        -1 si A < B, 0 si A == B, 1 si A > B, 2 si unordered (NaN).
+        """
+        desglose_a = descomponer_ieee754(a_bits)
+        desglose_b = descomponer_ieee754(b_bits)
+
+        if desglose_a.es_nan or desglose_b.es_nan:
+            return 2
+
+        # +0.0 y -0.0 son iguales
+        if desglose_a.es_cero and desglose_b.es_cero:
+            return 0
+
+        fa = bits_a_float(a_bits)
+        fb = bits_a_float(b_bits)
+        if fa < fb:
+            return -1
+        elif fa > fb:
+            return 1
+        else:
+            return 0
+
 
 # ==============================================================================
 # 5. GENERADOR DE CASOS DE PRUEBA FORMALES
