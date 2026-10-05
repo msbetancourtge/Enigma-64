@@ -64,7 +64,7 @@ class NumberedCanvas(canvas.Canvas):
             # Encabezado formal superior (páginas > 1)
             self.drawString(
                 m_izq, m_sup,
-                "Universidad Nacional de Colombia · Lenguajes de Programación · Tarea 17: FPU Enigma-64"
+                "Universidad Nacional de Colombia * Lenguajes de Programación * Tarea 17: FPU Enigma-64"
             )
             self.line(m_izq, m_sup - 4, m_der, m_sup - 4)
 
@@ -241,6 +241,16 @@ def construir_estilos():
         leading=9.8,
         alignment=TA_CENTER,
     )
+    estilos["Referencia"] = ParagraphStyle(
+        "Referencia",
+        fontName="Times-Roman",
+        fontSize=9.2,
+        leading=13.5,
+        alignment=TA_JUSTIFY,
+        leftIndent=24,
+        firstLineIndent=-24,
+        spaceAfter=10,
+    )
     return estilos
 
 
@@ -294,7 +304,7 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
 
     historia.append(Spacer(1, 1.0 * cm))
     historia.append(Paragraph(
-        "TAREA 17 — UNIDAD DE PUNTO FLOTANTE (FPU):<br/>"
+        "TAREA 17  -  UNIDAD DE PUNTO FLOTANTE (FPU):<br/>"
         "ENIGMA-64",
         estilos["PortadaTitulo"]
     ))
@@ -317,7 +327,7 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
 
     historia.append(Spacer(1, 1.2 * cm))
     historia.append(Paragraph("<b>Docente:</b> Jorge Eduardo Ortiz Triviño", estilos["PortadaMetadatos"]))
-    historia.append(Paragraph("Bogotá D.C., Colombia — Octubre de 2026", estilos["PortadaMetadatos"]))
+    historia.append(Paragraph("Bogotá D.C., Colombia  -  Octubre de 2026", estilos["PortadaMetadatos"]))
     historia.append(PageBreak())
 
     # =========================================================================
@@ -335,10 +345,10 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
     historia.append(Paragraph("1.1. Representación de Números en Punto Flotante IEEE 754 Doble Precisión (Binary64)", estilos["H2"]))
     historia.append(Paragraph(
         "En el formato Binary64, una palabra de 64 bits se descompone en tres campos canónicos contiguos:<br/>"
-        "• <b>Signo (s, bit 63):</b> 1 bit donde 0 representa valores positivos y 1 denota valores negativos.<br/>"
-        "• <b>Exponente sesgado (e, bits 62..52):</b> 11 bits con un sesgo (<i>bias</i>) fijo de <b>1023</b>, "
-        "abarcando exponentes no sesgados en el rango [−1022, +1023].<br/>"
-        "• <b>Mantisa fraccionaria (f, bits 51..0):</b> 52 bits explícitos. Para números normales, existe un bit implícito "
+        "- <b>Signo (s, bit 63):</b> 1 bit donde 0 representa valores positivos y 1 denota valores negativos.<br/>"
+        "- <b>Exponente sesgado (e, bits 62..52):</b> 11 bits con un sesgo (<i>bias</i>) fijo de <b>1023</b>, "
+        "abarcando exponentes no sesgados en el rango [-1022, +1023].<br/>"
+        "- <b>Mantisa fraccionaria (f, bits 51..0):</b> 52 bits explícitos. Para números normales, existe un bit implícito "
         "unitario (1.f), totalizando 53 bits de precisión efectiva (~15.9 dígitos decimales).",
         estilos["Parrafo"]
     ))
@@ -349,11 +359,11 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
          Paragraph("Fracción (f)", estilos["TablaCabecera"]),
          Paragraph("Valor Matemático Representado", estilos["TablaCabecera"]),
          Paragraph("Ejemplo Hexadecimal (64b)", estilos["TablaCabecera"])],
-        [Paragraph("Cero (+0 / −0)", estilos["TablaCelda"]), Paragraph("0 (todos 0)", estilos["TablaCeldaCentro"]), Paragraph("0 (todos 0)", estilos["TablaCeldaCentro"]), Paragraph("(−1)ˢ × 0.0", estilos["TablaCelda"]), Paragraph("<code>0x0000000000000000</code>", estilos["TablaCelda"])],
-        [Paragraph("Subnormal", estilos["TablaCelda"]), Paragraph("0 (todos 0)", estilos["TablaCeldaCentro"]), Paragraph("f ≠ 0", estilos["TablaCeldaCentro"]), Paragraph("(−1)ˢ × 2⁻¹⁰²² × (0.f)", estilos["TablaCelda"]), Paragraph("<code>0x0000000000000001</code>", estilos["TablaCelda"])],
-        [Paragraph("Normal", estilos["TablaCelda"]), Paragraph("1 ≤ e ≤ 2046", estilos["TablaCeldaCentro"]), Paragraph("Cualquiera", estilos["TablaCeldaCentro"]), Paragraph("(−1)ˢ × 2ᵉ⁻¹⁰²³ × (1.f)", estilos["TablaCelda"]), Paragraph("<code>0x3FF0000000000000</code> (+1.0)", estilos["TablaCelda"])],
-        [Paragraph("Infinito (+∞ / −∞)", estilos["TablaCelda"]), Paragraph("2047 (todos 1)", estilos["TablaCeldaCentro"]), Paragraph("0 (todos 0)", estilos["TablaCeldaCentro"]), Paragraph("(−1)ˢ × ∞", estilos["TablaCelda"]), Paragraph("<code>0x7FF0000000000000</code> (+∞)", estilos["TablaCelda"])],
-        [Paragraph("NaN (Not a Number)", estilos["TablaCelda"]), Paragraph("2047 (todos 1)", estilos["TablaCeldaCentro"]), Paragraph("f ≠ 0", estilos["TablaCeldaCentro"]), Paragraph("Indeterminado (qNaN / sNaN)", estilos["TablaCelda"]), Paragraph("<code>0x7FF8000000000000</code> (qNaN)", estilos["TablaCelda"])],
+        [Paragraph("Cero (+0 / -0)", estilos["TablaCelda"]), Paragraph("0 (todos 0)", estilos["TablaCeldaCentro"]), Paragraph("0 (todos 0)", estilos["TablaCeldaCentro"]), Paragraph("(-1)<sup>s</sup> * 0.0", estilos["TablaCelda"]), Paragraph("<code>0x0000000000000000</code>", estilos["TablaCelda"])],
+        [Paragraph("Subnormal", estilos["TablaCelda"]), Paragraph("0 (todos 0)", estilos["TablaCeldaCentro"]), Paragraph("f != 0", estilos["TablaCeldaCentro"]), Paragraph("(-1)<sup>s</sup> * 2<sup>-1022</sup> * (0.f)", estilos["TablaCelda"]), Paragraph("<code>0x0000000000000001</code>", estilos["TablaCelda"])],
+        [Paragraph("Normal", estilos["TablaCelda"]), Paragraph("1 &lt;= e &lt;= 2046", estilos["TablaCeldaCentro"]), Paragraph("Cualquiera", estilos["TablaCeldaCentro"]), Paragraph("(-1)<sup>s</sup> * 2<sup>e-1023</sup> * (1.f)", estilos["TablaCelda"]), Paragraph("<code>0x3FF0000000000000</code> (+1.0)", estilos["TablaCelda"])],
+        [Paragraph("Infinito (+Inf / -Inf)", estilos["TablaCelda"]), Paragraph("2047 (todos 1)", estilos["TablaCeldaCentro"]), Paragraph("0 (todos 0)", estilos["TablaCeldaCentro"]), Paragraph("(-1)<sup>s</sup> * Inf", estilos["TablaCelda"]), Paragraph("<code>0x7FF0000000000000</code> (+Inf)", estilos["TablaCelda"])],
+        [Paragraph("NaN (Not a Number)", estilos["TablaCelda"]), Paragraph("2047 (todos 1)", estilos["TablaCeldaCentro"]), Paragraph("f != 0", estilos["TablaCeldaCentro"]), Paragraph("Indeterminado (qNaN / sNaN)", estilos["TablaCelda"]), Paragraph("<code>0x7FF8000000000000</code> (qNaN)", estilos["TablaCelda"])],
     ]
     t_ieee = Table(datos_ieee, colWidths=[2.7 * cm, 2.5 * cm, 2.3 * cm, 4.4 * cm, 4.8 * cm])
     t_ieee.setStyle(TableStyle([
@@ -374,14 +384,14 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
         "1. <b>Suma y Resta (FADD / FSUB):</b> Desempaquetado de operandos, igualación de exponentes mediante corrimiento "
         "a la derecha de la mantisa de menor magnitud, suma/resta con signo de las mantisas alineadas, normalización por corrimiento "
         "a la izquierda/derecha y redondeo formal hacia el par más cercano (<i>roundTiesToEven</i>).<br/>"
-        "2. <b>Multiplicación (FMUL):</b> Signo resultante por XOR (<i>S = S<sub>A</sub> ⊕ S<sub>B</sub></i>). Suma de exponentes "
-        "con corrección de sesgo (<i>E<sub>R</sub> = E<sub>A</sub> + E<sub>B</sub> − 1023</i>). Multiplicación completa de mantisas de "
-        "53 × 53 bits (producto de hasta 106 bits) descompuesta en cuatro multiplicaciones de 32 bits en la subrutina <code>FPU_MUL128</code>, "
+        "2. <b>Multiplicación (FMUL):</b> Signo resultante por XOR (<i>S = S<sub>A</sub>  XOR  S<sub>B</sub></i>). Suma de exponentes "
+        "con corrección de sesgo (<i>E<sub>R</sub> = E<sub>A</sub> + E<sub>B</sub> - 1023</i>). Multiplicación completa de mantisas de "
+        "53 * 53 bits (producto de hasta 106 bits) descompuesta en cuatro multiplicaciones de 32 bits en la subrutina <code>FPU_MUL128</code>, "
         "con extracción rigurosa de bits Guard, Round y Sticky.<br/>"
-        "3. <b>División (FDIV):</b> Signo <i>S = S<sub>A</sub> ⊕ S<sub>B</sub></i>, resta de exponentes (<i>E<sub>R</sub> = E<sub>A</sub> − E<sub>B</sub> + 1023</i>). "
+        "3. <b>División (FDIV):</b> Signo <i>S = S<sub>A</sub>  XOR  S<sub>B</sub></i>, resta de exponentes (<i>E<sub>R</sub> = E<sub>A</sub> - E<sub>B</sub> + 1023</i>). "
         "División larga entera binaria de mantisas de 64 bits con detección de residuo exacto para bit Sticky y detección formal de división por cero.<br/>"
         "4. <b>Comparación (FCMP):</b> Distinción de NaNs (retorna código no ordenado 2), orden estricto de signos, comparación de magnitudes y "
-        "reconocimiento de equivalencia <code>+0.0 == −0.0</code> (retorna 0).<br/>"
+        "reconocimiento de equivalencia <code>+0.0 == -0.0</code> (retorna 0).<br/>"
         "5. <b>Conversiones (FPU_INT_TO_FLOAT / FPU_FLOAT_TO_INT):</b> Detección de signo, búsqueda del MSB, empaquetado sesgado y truncamiento.",
         estilos["Parrafo"]
     ))
@@ -394,21 +404,21 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
     historia.append(Paragraph(
         "En la página 26 del libro <i>De Euclides a JAVA: historia de los algoritmos y de los lenguajes de programación</i> "
         "(Ricardo Peña, 2006), se documenta el método iterativo clásico para la extracción de la raíz cuadrada de un número real "
-        "<i>A > 0</i> resolviendo la ecuación no lineal <i>f(x) = x<sup>2</sup> − A = 0</i>. Aplicando la derivada <i>f'(x) = 2x</i>:<br/>"
-        "&nbsp;&nbsp;&nbsp;&nbsp;<b>x<sub>k+1</sub> = ½ · (x<sub>k</sub> + A / x<sub>k</sub>)</b><br/>"
+        "<i>A > 0</i> resolviendo la ecuación no lineal <i>f(x) = x<sup>2</sup> - A = 0</i>. Aplicando la derivada <i>f'(x) = 2x</i>:<br/>"
+        "&nbsp;&nbsp;&nbsp;&nbsp;<b>x<sub>k+1</sub> = 0.5 * (x<sub>k</sub> + A / x<sub>k</sub>)</b><br/>"
         "El método goza de convergencia cuadrática (duplica la cantidad de cifras exactas en cada ciclo). Para garantizar convergencia "
-        "en 4–5 iteraciones sobre punto flotante de 64 bits, se calcula analíticamente la semilla inicial a partir del exponente IEEE 754: "
-        "<i>e<sub>0</sub> = ⌊(E<sub>A</sub> − 1023) / 2⌋</i>, ensamblando <i>x<sub>0</sub> = (e<sub>0</sub> + 1023) ≪ 52</i>.",
+        "en 4-5 iteraciones sobre punto flotante de 64 bits, se calcula analíticamente la semilla inicial a partir del exponente IEEE 754: "
+        "<i>e<sub>0</sub> = floor((E<sub>A</sub> - 1023) / 2)</i>, ensamblando <i>x<sub>0</sub> = (e<sub>0</sub> + 1023) &lt;&lt; 52</i>.",
         estilos["Parrafo"]
     ))
 
-    historia.append(Paragraph("1.4. Teoría y Convergencia de la Constante de Brun (B₂)", estilos["H2"]))
+    historia.append(Paragraph("1.4. Teoría y Convergencia de la Constante de Brun (B<sub>2</sub>)", estilos["H2"]))
     historia.append(Paragraph(
         "En 1919, el matemático noruego Viggo Brun demostró que la suma de los recíprocos de los números primos gemelos "
-        "(pares de primos de la forma <i>(p, p+2)</i>) converge hacia una constante matemática finita denominada <b>Constante de Brun (B₂)</b>:<br/>"
-        "&nbsp;&nbsp;&nbsp;&nbsp;<b>B₂ = ∑<sub>(p, p+2) ∈ ℙ</sub> (1/p + 1/(p+2)) = (1/3 + 1/5) + (1/5 + 1/7) + (1/11 + 1/13) + … ≈ 1.90216058…</b><br/>"
+        "(pares de primos de la forma <i>(p, p+2)</i>) converge hacia una constante matemática finita denominada <b>Constante de Brun (B<sub>2</sub>)</b>:<br/>"
+        "&nbsp;&nbsp;&nbsp;&nbsp;<b>B<sub>2</sub> = SUM<sub>(p, p+2) en Primos</sub> (1/p + 1/(p+2)) = (1/3 + 1/5) + (1/5 + 1/7) + (1/11 + 1/13) + ... ~ 1.90216058...</b><br/>"
         "A diferencia de la serie armónica clásica de los números primos que diverge, la serie de Brun converge de forma sumamente lenta. "
-        "Desde la óptica de la ingeniería computacional, la estimación de <i>B₂</i> representa un banco de pruebas de esfuerzo extremo (<i>stress test</i>): "
+        "Desde la óptica de la ingeniería computacional, la estimación de <i>B<sub>2</sub></i> representa un banco de pruebas de esfuerzo extremo (<i>stress test</i>): "
         "requiere ejecutar miles de divisiones flotantes (1/p y 1/(p+2)), acumulaciones repetitivas con redondeo inexacto y cientos de llamadas "
         "anidadas a subrutinas evaluando la estabilidad absoluta del puntero de pila.",
         estilos["Parrafo"]
@@ -435,8 +445,8 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
         "3. <b>Mesa Canónica de Vectores Desacoplada:</b> Para permitir que programas de usuario ejecuten servicios de la FPU sin conocer las "
         "direcciones de memoria internas de los autores, se requiere una tabla de salto fija (<i>Jump Table</i>) de 9 entradas canónicas.<br/>"
         "4. <b>Fidelidad Absoluta al Estándar IEEE 754:</b> La emulación debe gestionar minuciosamente casos límite: división por cero (retornando "
-        "infinito con signo XOR), ceros con signo (donde <code>+0.0 == −0.0</code> pero <code>1/(+0) = +∞</code> y <code>1/(−0) = −∞</code>), "
-        "indeterminaciones (<code>0/0</code> y <code>∞/∞</code> produciendo NaN canónico) y comparaciones no ordenadas con NaNs.",
+        "infinito con signo XOR), ceros con signo (donde <code>+0.0 == -0.0</code> pero <code>1/(+0) = +Inf</code> y <code>1/(-0) = -Inf</code>), "
+        "indeterminaciones (<code>0/0</code> y <code>Inf/Inf</code> produciendo NaN canónico) y comparaciones no ordenadas con NaNs.",
         estilos["Parrafo"]
     ))
     historia.append(PageBreak())
@@ -464,14 +474,14 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
          Paragraph("Instrucción Salto", estilos["TablaCabecera"]),
          Paragraph("Servicio Matemático IEEE 754", estilos["TablaCabecera"])],
         [Paragraph("<b>VEC_FADD</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x00", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FADD</code>", estilos["TablaCelda"]), Paragraph("Suma flotante IEEE 754 (R5 = R1 + R2)", estilos["TablaCelda"])],
-        [Paragraph("<b>VEC_FSUB</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x05", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FSUB</code>", estilos["TablaCelda"]), Paragraph("Resta flotante IEEE 754 (R5 = R1 − R2)", estilos["TablaCelda"])],
-        [Paragraph("<b>VEC_FMUL</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x0A", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FMUL</code>", estilos["TablaCelda"]), Paragraph("Multiplicación IEEE 754 (R5 = R1 × R2)", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FSUB</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x05", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FSUB</code>", estilos["TablaCelda"]), Paragraph("Resta flotante IEEE 754 (R5 = R1 - R2)", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FMUL</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x0A", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FMUL</code>", estilos["TablaCelda"]), Paragraph("Multiplicación IEEE 754 (R5 = R1 * R2)", estilos["TablaCelda"])],
         [Paragraph("<b>VEC_FDIV</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x0F", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FDIV</code>", estilos["TablaCelda"]), Paragraph("División IEEE 754 (R5 = R1 / R2)", estilos["TablaCelda"])],
-        [Paragraph("<b>VEC_FCMP</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x14", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FCMP</code>", estilos["TablaCelda"]), Paragraph("Comparación de orden (−1, 0, 1, 2)", estilos["TablaCelda"])],
-        [Paragraph("<b>VEC_INT_TO_FLOAT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x19", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_INT_TO_FLOAT</code>", estilos["TablaCelda"]), Paragraph("Conversión Entero 64b → Float 64b", estilos["TablaCelda"])],
-        [Paragraph("<b>VEC_FLOAT_TO_INT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x1E", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_FLOAT_TO_INT</code>", estilos["TablaCelda"]), Paragraph("Conversión Float 64b → Entero truncado", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FCMP</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x14", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FCMP</code>", estilos["TablaCelda"]), Paragraph("Comparación de orden (-1, 0, 1, 2)", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_INT_TO_FLOAT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x19", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_INT_TO_FLOAT</code>", estilos["TablaCelda"]), Paragraph("Conversión Entero 64b -&gt; Float 64b", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FLOAT_TO_INT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x1E", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_FLOAT_TO_INT</code>", estilos["TablaCelda"]), Paragraph("Conversión Float 64b -&gt; Entero truncado", estilos["TablaCelda"])],
         [Paragraph("<b>VEC_FSQRT</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x23", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FSQRT</code>", estilos["TablaCelda"]), Paragraph("Raíz Cuadrada por Newton-Raphson", estilos["TablaCelda"])],
-        [Paragraph("<b>VEC_FBRUN</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x28", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_BRUN</code>", estilos["TablaCelda"]), Paragraph("Estimación de Constante de Brun B₂", estilos["TablaCelda"])],
+        [Paragraph("<b>VEC_FBRUN</b>", estilos["TablaCeldaCentro"]), Paragraph("+0x28", estilos["TablaCeldaCentro"]), Paragraph("<code>JMP FPU_BRUN</code>", estilos["TablaCelda"]), Paragraph("Estimación de Constante de Brun B<sub>2</sub>", estilos["TablaCelda"])],
     ]
     t_vectores = Table(datos_vectores, colWidths=[3.4 * cm, 1.8 * cm, 4.0 * cm, 7.5 * cm])
     t_vectores.setStyle(TableStyle([
@@ -523,13 +533,13 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
          Paragraph("Identificador", estilos["TablaCabecera"]),
          Paragraph("Tipo / Formato", estilos["TablaCabecera"]),
          Paragraph("Propósito y Uso en la Subrutina", estilos["TablaCabecera"])],
-        [Paragraph("<code>[BP − 8]</code>", estilos["TablaCeldaCentro"]), Paragraph("K_target", estilos["TablaCelda"]), Paragraph("Entero 64 bits", estilos["TablaCeldaCentro"]), Paragraph("Cantidad de pares de primos gemelos solicitada.", estilos["TablaCelda"])],
-        [Paragraph("<code>[BP − 16]</code>", estilos["TablaCeldaCentro"]), Paragraph("K_count", estilos["TablaCelda"]), Paragraph("Entero 64 bits", estilos["TablaCeldaCentro"]), Paragraph("Contador de pares gemelos procesados hasta el momento.", estilos["TablaCelda"])],
-        [Paragraph("<code>[BP − 24]</code>", estilos["TablaCeldaCentro"]), Paragraph("p_candidato", estilos["TablaCelda"]), Paragraph("Entero 64 bits", estilos["TablaCeldaCentro"]), Paragraph("Candidato impar actual evaluado (inicia en 3).", estilos["TablaCelda"])],
-        [Paragraph("<code>[BP − 32]</code>", estilos["TablaCeldaCentro"]), Paragraph("B2_acum", estilos["TablaCelda"]), Paragraph("IEEE 754 (64 bits)", estilos["TablaCeldaCentro"]), Paragraph("Acumulador flotante de la constante de Brun.", estilos["TablaCelda"])],
-        [Paragraph("<code>[BP − 40]</code>", estilos["TablaCeldaCentro"]), Paragraph("const_1_0", estilos["TablaCelda"]), Paragraph("IEEE 754 (64 bits)", estilos["TablaCeldaCentro"]), Paragraph("Constante flotante 1.0 (0x3FF0000000000000) para divisiones.", estilos["TablaCelda"])],
-        [Paragraph("<code>[BP − 48]</code>", estilos["TablaCeldaCentro"]), Paragraph("rec_p", estilos["TablaCelda"]), Paragraph("IEEE 754 (64 bits)", estilos["TablaCeldaCentro"]), Paragraph("Recíproco 1.0 / p devuelto por FDIV.", estilos["TablaCelda"])],
-        [Paragraph("<code>[BP − 56]</code>", estilos["TablaCeldaCentro"]), Paragraph("rec_q", estilos["TablaCelda"]), Paragraph("IEEE 754 (64 bits)", estilos["TablaCeldaCentro"]), Paragraph("Recíproco 1.0 / (p+2) devuelto por FDIV.", estilos["TablaCelda"])],
+        [Paragraph("<code>[BP - 8]</code>", estilos["TablaCeldaCentro"]), Paragraph("K_target", estilos["TablaCelda"]), Paragraph("Entero 64 bits", estilos["TablaCeldaCentro"]), Paragraph("Cantidad de pares de primos gemelos solicitada.", estilos["TablaCelda"])],
+        [Paragraph("<code>[BP - 16]</code>", estilos["TablaCeldaCentro"]), Paragraph("K_count", estilos["TablaCelda"]), Paragraph("Entero 64 bits", estilos["TablaCeldaCentro"]), Paragraph("Contador de pares gemelos procesados hasta el momento.", estilos["TablaCelda"])],
+        [Paragraph("<code>[BP - 24]</code>", estilos["TablaCeldaCentro"]), Paragraph("p_candidato", estilos["TablaCelda"]), Paragraph("Entero 64 bits", estilos["TablaCeldaCentro"]), Paragraph("Candidato impar actual evaluado (inicia en 3).", estilos["TablaCelda"])],
+        [Paragraph("<code>[BP - 32]</code>", estilos["TablaCeldaCentro"]), Paragraph("B2_acum", estilos["TablaCelda"]), Paragraph("IEEE 754 (64 bits)", estilos["TablaCeldaCentro"]), Paragraph("Acumulador flotante de la constante de Brun.", estilos["TablaCelda"])],
+        [Paragraph("<code>[BP - 40]</code>", estilos["TablaCeldaCentro"]), Paragraph("const_1_0", estilos["TablaCelda"]), Paragraph("IEEE 754 (64 bits)", estilos["TablaCeldaCentro"]), Paragraph("Constante flotante 1.0 (0x3FF0000000000000) para divisiones.", estilos["TablaCelda"])],
+        [Paragraph("<code>[BP - 48]</code>", estilos["TablaCeldaCentro"]), Paragraph("rec_p", estilos["TablaCelda"]), Paragraph("IEEE 754 (64 bits)", estilos["TablaCeldaCentro"]), Paragraph("Recíproco 1.0 / p devuelto por FDIV.", estilos["TablaCelda"])],
+        [Paragraph("<code>[BP - 56]</code>", estilos["TablaCeldaCentro"]), Paragraph("rec_q", estilos["TablaCelda"]), Paragraph("IEEE 754 (64 bits)", estilos["TablaCeldaCentro"]), Paragraph("Recíproco 1.0 / (p+2) devuelto por FDIV.", estilos["TablaCelda"])],
     ]
     t_pila = Table(datos_pila, colWidths=[3.2 * cm, 2.5 * cm, 3.5 * cm, 7.5 * cm])
     t_pila.setStyle(TableStyle([
@@ -558,33 +568,33 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
 
     arbol_codigo = (
         "enigma64/\n"
-        "├── fpu.s                 Núcleo FPU: FPU_DESEMPAQUETAR, FPU_EMPAQUETAR, FADD, FSUB\n"
-        "├── fmul.s                Multiplicación IEEE 754 con producto de 128 bits y subnormales\n"
-        "├── fdiv.s                División larga de mantisas con manejo de excepciones\n"
-        "├── fcmp.s                Comparador formal de orden IEEE 754 y clasificación de NaNs\n"
-        "├── fconv.s               Conversiones INT64 <-> FLOAT64 y Mesa de Entrada Canónica\n"
-        "├── fsqrt.s               Raíz cuadrada iterativa de Newton-Raphson (Peña, pág. 26)\n"
-        "├── fbrun.s               Test de primalidad y estimación de la Constante de Brun\n"
-        "├── fpu.py                Emulador FPU, API de alto nivel y compilación consolidada\n"
-        "├── oraculo_ieee754.py    Oráculo matemático de validación bit a bit y métricas ULP\n"
-        "└── ui/paneles/panel_fpu.py Interfaz gráfica interactiva y calculadora reactiva\n"
+        "|-- fpu.s                 Núcleo FPU: FPU_DESEMPAQUETAR, FPU_EMPAQUETAR, FADD, FSUB\n"
+        "|-- fmul.s                Multiplicación IEEE 754 con producto de 128 bits y subnormales\n"
+        "|-- fdiv.s                División larga de mantisas con manejo de excepciones\n"
+        "|-- fcmp.s                Comparador formal de orden IEEE 754 y clasificación de NaNs\n"
+        "|-- fconv.s               Conversiones INT64 <-> FLOAT64 y Mesa de Entrada Canónica\n"
+        "|-- fsqrt.s               Raíz cuadrada iterativa de Newton-Raphson (Peña, pág. 26)\n"
+        "|-- fbrun.s               Test de primalidad y estimación de la Constante de Brun\n"
+        "|-- fpu.py                Emulador FPU, API de alto nivel y compilación consolidada\n"
+        "|-- oraculo_ieee754.py    Oráculo matemático de validación bit a bit y métricas ULP\n"
+        "\-- ui/paneles/panel_fpu.py Interfaz gráfica interactiva y calculadora reactiva\n"
         "programas/\n"
-        "├── fpu_lib.s/.bin/.hex   Biblioteca consolidada con las 9 entradas canónicas (3141 bytes)\n"
-        "├── constante_brun.s/.bin Programa ejecutable de usuario para la Constante de Brun (3203 bytes)\n"
-        "└── raiz_cuadrada.s       Programa ejecutable de usuario para Raíz Cuadrada de Peña"
+        "|-- fpu_lib.s/.bin/.hex   Biblioteca consolidada con las 9 entradas canónicas (3141 bytes)\n"
+        "|-- constante_brun.s/.bin Programa ejecutable de usuario para la Constante de Brun (3203 bytes)\n"
+        "\-- raiz_cuadrada.s       Programa ejecutable de usuario para Raíz Cuadrada de Peña"
     )
     historia.append(crear_tabla_codigo(arbol_codigo, estilos, ancho=16.7 * cm))
     historia.append(Paragraph("Listado 2: Árbol de archivos y responsabilidades técnicas del subsistema FPU.", estilos["Epigrafe"]))
 
     historia.append(Paragraph("4.2. Convención de Llamada (ABI) y Disciplina de Registros", estilos["H2"]))
     historia.append(Paragraph(
-        "• <b>Registros Volátiles (Caller-Saved):</b> <code>R1</code>, <code>R2</code>, <code>R3</code>, <code>R4</code> y <code>R5</code>. "
+        "- <b>Registros Volátiles (Caller-Saved):</b> <code>R1</code>, <code>R2</code>, <code>R3</code>, <code>R4</code> y <code>R5</code>. "
         "Las subrutinas pueden modificarlos libremente como operandos y acumuladores temporales.<br/>"
-        "• <b>Registros de Retorno:</b> <code>R5</code> entrega el resultado primario flotante (64b). En <code>FPU_BRUN</code>, "
+        "- <b>Registros de Retorno:</b> <code>R5</code> entrega el resultado primario flotante (64b). En <code>FPU_BRUN</code>, "
         "<code>R1</code> retorna la cantidad de pares gemelos y <code>R2</code> el último primo evaluado.<br/>"
-        "• <b>Registros Callee-Saved:</b> <code>BP</code> (Base Pointer) y <code>SP</code> (Stack Pointer). Deben ser restaurados "
+        "- <b>Registros Callee-Saved:</b> <code>BP</code> (Base Pointer) y <code>SP</code> (Stack Pointer). Deben ser restaurados "
         "idénticamente mediante <code>ENTER</code> y <code>LEAVE</code> antes de ejecutar <code>RET</code>.<br/>"
-        "• <b>Alineación de Bus:</b> Toda lectura y escritura en memoria física de 64 bits debe realizarse en direcciones múltiplos de 8.",
+        "- <b>Alineación de Bus:</b> Toda lectura y escritura en memoria física de 64 bits debe realizarse en direcciones múltiplos de 8.",
         estilos["Parrafo"]
     ))
 
@@ -647,7 +657,7 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
         [Paragraph("FSUB", estilos["TablaCeldaCentro"]), Paragraph("<code>4024000000000000</code> (10.0)", estilos["TablaCelda"]), Paragraph("<code>4008000000000000</code> (3.0)", estilos["TablaCelda"]), Paragraph("<code>401C000000000000</code>", estilos["TablaCelda"]), Paragraph("7.0", estilos["TablaCeldaCentro"]), Paragraph("0 ULP (Exacto)", estilos["TablaCeldaCentro"])],
         [Paragraph("FMUL", estilos["TablaCeldaCentro"]), Paragraph("<code>3FB999999999999A</code> (0.1)", estilos["TablaCelda"]), Paragraph("<code>3FC999999999999A</code> (0.2)", estilos["TablaCelda"]), Paragraph("<code>3F947AE147AE147C</code>", estilos["TablaCelda"]), Paragraph("0.02", estilos["TablaCeldaCentro"]), Paragraph("0 ULP (Exacto)", estilos["TablaCeldaCentro"])],
         [Paragraph("FDIV", estilos["TablaCeldaCentro"]), Paragraph("<code>3FF0000000000000</code> (1.0)", estilos["TablaCelda"]), Paragraph("<code>4008000000000000</code> (3.0)", estilos["TablaCelda"]), Paragraph("<code>3FD5555555555555</code>", estilos["TablaCelda"]), Paragraph("0.3333333333333333", estilos["TablaCeldaCentro"]), Paragraph("0 ULP (Exacto)", estilos["TablaCeldaCentro"])],
-        [Paragraph("FCMP", estilos["TablaCeldaCentro"]), Paragraph("<code>4000000000000000</code> (2.0)", estilos["TablaCelda"]), Paragraph("<code>4014000000000000</code> (5.0)", estilos["TablaCelda"]), Paragraph("<code>FFFFFFFFFFFFFFFF</code>", estilos["TablaCelda"]), Paragraph("−1 (A < B)", estilos["TablaCeldaCentro"]), Paragraph("Exacto", estilos["TablaCeldaCentro"])],
+        [Paragraph("FCMP", estilos["TablaCeldaCentro"]), Paragraph("<code>4000000000000000</code> (2.0)", estilos["TablaCelda"]), Paragraph("<code>4014000000000000</code> (5.0)", estilos["TablaCelda"]), Paragraph("<code>FFFFFFFFFFFFFFFF</code>", estilos["TablaCelda"]), Paragraph("-1 (A < B)", estilos["TablaCeldaCentro"]), Paragraph("Exacto", estilos["TablaCeldaCentro"])],
     ]
     t_esc1 = Table(datos_esc1, colWidths=[1.8 * cm, 3.8 * cm, 3.8 * cm, 3.3 * cm, 2.5 * cm, 1.5 * cm])
     t_esc1.setStyle(TableStyle([
@@ -678,8 +688,8 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
         [Paragraph("Cuadrado exacto", estilos["TablaCelda"]), Paragraph("16.0", estilos["TablaCeldaCentro"]), Paragraph("<code>4030000000000000</code>", estilos["TablaCelda"]), Paragraph("<code>4010000000000000</code>", estilos["TablaCelda"]), Paragraph("4.0", estilos["TablaCeldaCentro"]), Paragraph("0 ULP", estilos["TablaCeldaCentro"])],
         [Paragraph("Cuadrado exacto", estilos["TablaCelda"]), Paragraph("144.0", estilos["TablaCeldaCentro"]), Paragraph("<code>4062000000000000</code>", estilos["TablaCelda"]), Paragraph("<code>4028000000000000</code>", estilos["TablaCelda"]), Paragraph("12.0", estilos["TablaCeldaCentro"]), Paragraph("0 ULP", estilos["TablaCeldaCentro"])],
         [Paragraph("Fraccionario", estilos["TablaCelda"]), Paragraph("0.25", estilos["TablaCeldaCentro"]), Paragraph("<code>3FD0000000000000</code>", estilos["TablaCelda"]), Paragraph("<code>3FE0000000000000</code>", estilos["TablaCelda"]), Paragraph("0.5", estilos["TablaCeldaCentro"]), Paragraph("0 ULP", estilos["TablaCeldaCentro"])],
-        [Paragraph("Irracional (Pi)", estilos["TablaCelda"]), Paragraph("π (3.14159265...)", estilos["TablaCeldaCentro"]), Paragraph("<code>400921FB54442D18</code>", estilos["TablaCelda"]), Paragraph("<code>3FFC46A2529D36F6</code>", estilos["TablaCelda"]), Paragraph("1.7724538509055159", estilos["TablaCeldaCentro"]), Paragraph("≤ 1 ULP", estilos["TablaCeldaCentro"])],
-        [Paragraph("Irracional (Euler)", estilos["TablaCelda"]), Paragraph("e (2.71828182...)", estilos["TablaCeldaCentro"]), Paragraph("<code>4005BF0A8B145769</code>", estilos["TablaCelda"]), Paragraph("<code>3FFA5FEBEBC2978D</code>", estilos["TablaCelda"]), Paragraph("1.6487212707001282", estilos["TablaCeldaCentro"]), Paragraph("≤ 1 ULP", estilos["TablaCeldaCentro"])],
+        [Paragraph("Irracional (Pi)", estilos["TablaCelda"]), Paragraph("pi (3.14159265...)", estilos["TablaCeldaCentro"]), Paragraph("<code>400921FB54442D18</code>", estilos["TablaCelda"]), Paragraph("<code>3FFC46A2529D36F6</code>", estilos["TablaCelda"]), Paragraph("1.7724538509055159", estilos["TablaCeldaCentro"]), Paragraph("&lt;= 1 ULP", estilos["TablaCeldaCentro"])],
+        [Paragraph("Irracional (Euler)", estilos["TablaCelda"]), Paragraph("e (2.71828182...)", estilos["TablaCeldaCentro"]), Paragraph("<code>4005BF0A8B145769</code>", estilos["TablaCelda"]), Paragraph("<code>3FFA5FEBEBC2978D</code>", estilos["TablaCelda"]), Paragraph("1.6487212707001282", estilos["TablaCeldaCentro"]), Paragraph("&lt;= 1 ULP", estilos["TablaCeldaCentro"])],
     ]
     t_esc2 = Table(datos_esc2, colWidths=[2.6 * cm, 2.5 * cm, 3.4 * cm, 3.4 * cm, 3.3 * cm, 1.5 * cm])
     t_esc2.setStyle(TableStyle([
@@ -694,7 +704,7 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
     historia.append(Paragraph("Tabla 5: Resultados experimentales del Escenario 2 (Raíz Cuadrada por Newton-Raphson).", estilos["Epigrafe"]))
 
     # Escenario 3
-    historia.append(Paragraph("5.3. Escenario 3: Estimación de la Constante de Brun (B₂) sobre la CPU de Enigma-64", estilos["H2"]))
+    historia.append(Paragraph("5.3. Escenario 3: Estimación de la Constante de Brun (B<sub>2</sub>) sobre la CPU de Enigma-64", estilos["H2"]))
     historia.append(Paragraph(
         "Se ejecutó el programa en ensamblador <code>FPU_BRUN</code> directamente sobre la CPU y memoria RAM de Enigma-64 para "
         "diferentes cantidades de pares gemelos, registrando ciclos FSM y patrones binarios:",
@@ -705,8 +715,8 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
         [Paragraph("Pares K", estilos["TablaCabecera"]),
          Paragraph("Pares de Primos Gemelos", estilos["TablaCabecera"]),
          Paragraph("Último p", estilos["TablaCabecera"]),
-         Paragraph("Patrón B₂ en RAM (Hex)", estilos["TablaCabecera"]),
-         Paragraph("Valor Estimado B₂", estilos["TablaCabecera"]),
+         Paragraph("Patrón B<sub>2</sub> en RAM (Hex)", estilos["TablaCabecera"]),
+         Paragraph("Valor Estimado B<sub>2</sub>", estilos["TablaCabecera"]),
          Paragraph("Ciclos FSM", estilos["TablaCabecera"])],
         [Paragraph("<b>K = 1</b>", estilos["TablaCeldaCentro"]), Paragraph("(3, 5)", estilos["TablaCelda"]), Paragraph("3", estilos["TablaCeldaCentro"]), Paragraph("<code>3FE1111111111111</code>", estilos["TablaCelda"]), Paragraph("0.5333333333333333", estilos["TablaCeldaCentro"]), Paragraph("17,950", estilos["TablaCeldaCentro"])],
         [Paragraph("<b>K = 2</b>", estilos["TablaCeldaCentro"]), Paragraph("(3, 5), (5, 7)", estilos["TablaCelda"]), Paragraph("5", estilos["TablaCeldaCentro"]), Paragraph("<code>3FEC09C09C09C09B</code>", estilos["TablaCelda"]), Paragraph("0.8761904761904761", estilos["TablaCeldaCentro"]), Paragraph("36,030", estilos["TablaCeldaCentro"])],
@@ -724,7 +734,7 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
     ]))
     historia.append(t_esc3)
-    historia.append(Paragraph("Tabla 6: Resultados experimentales del Escenario 3 (Estimación de la Constante de Brun B₂).", estilos["Epigrafe"]))
+    historia.append(Paragraph("Tabla 6: Resultados experimentales del Escenario 3 (Estimación de la Constante de Brun B<sub>2</sub>).", estilos["Epigrafe"]))
     historia.append(PageBreak())
 
     # =========================================================================
@@ -733,11 +743,11 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
     historia.append(Paragraph("5.4. Escenario 4: Manejo de Excepciones y Casos Especiales IEEE 754", estilos["H2"]))
     historia.append(Paragraph(
         "Se sometió la FPU a condiciones de borde patológicas y operaciones excepcionales:<br/>"
-        "• <b>División por Cero (+1.0 / +0.0):</b> La FPU detecta divisor nulo y devuelve exactamente <code>0x7FF0000000000000</code> (+∞) sin detener el procesador por fallo host.<br/>"
-        "• <b>División por Cero con Signo (−1.0 / +0.0):</b> Aplica signo XOR produciendo <code>0xFFF0000000000000</code> (−∞).<br/>"
-        "• <b>Operaciones Indeterminadas (0.0 / 0.0 e ∞ / ∞):</b> Producen el NaN canónico <code>0x7FF8000000000000</code>.<br/>"
-        "• <b>Equivalencia de Ceros:</b> <code>FCMP(+0.0, −0.0)</code> retorna <code>0</code> (iguales), cumpliendo rigurosamente la norma.<br/>"
-        "• <b>Comparaciones con NaN:</b> <code>FCMP(NaN, 1.0)</code> retorna <code>2</code> (relación no ordenada).",
+        "- <b>División por Cero (+1.0 / +0.0):</b> La FPU detecta divisor nulo y devuelve exactamente <code>0x7FF0000000000000</code> (+Inf) sin detener el procesador por fallo host.<br/>"
+        "- <b>División por Cero con Signo (-1.0 / +0.0):</b> Aplica signo XOR produciendo <code>0xFFF0000000000000</code> (-Inf).<br/>"
+        "- <b>Operaciones Indeterminadas (0.0 / 0.0 e Inf / Inf):</b> Producen el NaN canónico <code>0x7FF8000000000000</code>.<br/>"
+        "- <b>Equivalencia de Ceros:</b> <code>FCMP(+0.0, -0.0)</code> retorna <code>0</code> (iguales), cumpliendo rigurosamente la norma.<br/>"
+        "- <b>Comparaciones con NaN:</b> <code>FCMP(NaN, 1.0)</code> retorna <code>2</code> (relación no ordenada).",
         estilos["Parrafo"]
     ))
 
@@ -835,31 +845,23 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
     ))
 
     # =========================================================================
-    # 7. TRABAJO FUTURO Y RECOMENDACIONES
+    # PÁGINA 9: REFERENCIAS BIBLIOGRÁFICAS (Página Separada)
     # =========================================================================
-    historia.append(Spacer(1, 0.15 * cm))
-    historia.append(Paragraph("7. TRABAJO FUTURO Y RECOMENDACIONES", estilos["H1"]))
-    historia.append(Paragraph(
-        "Se recomienda adoptar la Mesa Canónica de Vectores como la interfaz estándar para el futuro generador de código del compilador, "
-        "así como explorar la implementación de funciones trascendentes adicionales (seno, coseno y logaritmo) mediante series de Taylor o CORDIC.",
-        estilos["Parrafo"]
-    ))
-
-    # =========================================================================
-    # REFERENCIAS BIBLIOGRÁFICAS
-    # =========================================================================
-    historia.append(Spacer(1, 0.15 * cm))
+    historia.append(PageBreak())
+    historia.append(Spacer(1, 0.4 * cm))
     historia.append(Paragraph("REFERENCIAS BIBLIOGRÁFICAS", estilos["H1"]))
+    historia.append(HRFlowable(width="100%", thickness=1.0, color="black", spaceAfter=18, spaceBefore=4))
+
     referencias = [
         "[1] Peña, R. (2006). <i>De Euclides a JAVA: historia de los algoritmos y de los lenguajes de programación</i> (pág. 26). Ediciones Nívola.",
         "[2] IEEE Computer Society. (2008). <i>IEEE Standard for Floating-Point Arithmetic (IEEE Std 754-2008)</i>. IEEE.",
-        "[3] Brun, V. (1919). La série 1/5 + 1/7 + 1/11 + 1/13 + ... où les dénominateurs sont nombres premiers jumeaux est convergente ou finie. <i>Bulletin des Sciences Mathématiques</i>, 43, 100–104, 124–128.",
+        "[3] Brun, V. (1919). La série 1/5 + 1/7 + 1/11 + 1/13 + ... où les dénominateurs sont nombres premiers jumeaux est convergente ou finie. <i>Bulletin des Sciences Mathématiques</i>, 43, 100-104, 124-128.",
         "[4] Hennessy, J. L., & Patterson, D. A. (2019). <i>Computer Architecture: A Quantitative Approach</i> (6th ed.). Morgan Kaufmann.",
-        "[5] Goldberg, D. (1991). What Every Computer Scientist Should Know About Floating-Point Arithmetic. <i>ACM Computing Surveys</i>, 23(1), 5–48.",
-        "[6] Ortiz Triviño, J. E. (2026). <i>Lineamientos Operativos y Lista Oficial de Tareas — Lenguajes de Programación</i>. Universidad Nacional de Colombia.",
+        "[5] Goldberg, D. (1991). What Every Computer Scientist Should Know About Floating-Point Arithmetic. <i>ACM Computing Surveys</i>, 23(1), 5-48.",
+        "[6] Ortiz Triviño, J. E. (2026). <i>Lineamientos Operativos y Lista Oficial de Tareas - Lenguajes de Programación</i>. Universidad Nacional de Colombia.",
     ]
     for ref in referencias:
-        historia.append(Paragraph(ref, estilos["Parrafo"]))
+        historia.append(Paragraph(ref, estilos["Referencia"]))
 
     # Construir documento
     doc.build(historia, canvasmaker=NumberedCanvas)
