@@ -229,3 +229,35 @@ class PuertoMMIO(Protocol):
     def escribir(self, base: int, desplazamiento: int, valor: int) -> None: ...
 
     def reiniciar(self) -> None: ...
+
+
+# ---------------------------------------------------------------------------
+# Unidad de punto flotante
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class PuertoFPU(Protocol):
+    """
+    Lo que la interfaz necesita de la biblioteca de punto flotante.
+
+    Todos los valores viajan como patrones crudos de 64 bits. El panel no sabe
+    que la FPU son subrutinas en ensamblador ni por que vector se entra.
+    """
+
+    disponible: bool
+    motivo: str
+
+    def operaciones_por_familia(self) -> Dict[str, Sequence[str]]: ...
+
+    def descripcion(self, operacion: str) -> Dict[str, Any]: ...
+
+    def es_unaria(self, operacion: str) -> bool: ...
+
+    def esta_conectada(self, operacion: str) -> bool: ...
+
+    def hoja_de_ruta(self) -> List[Dict[str, Any]]: ...
+
+    def descomponer(self, patron: int) -> Dict[str, Any]: ...
+
+    def ejecutar(self, operacion: str, a: int, b: int = 0) -> Dict[str, Any]: ...

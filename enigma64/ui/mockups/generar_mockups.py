@@ -776,6 +776,118 @@ def panel_algoritmos() -> pathlib.Path:
     return L.guardar("09_panel_algoritmos.svg")
 
 
+def panel_fpu() -> pathlib.Path:
+    L = Lienzo(900, 640, "Enigma-64 - Panel de la FPU")
+    top = _ventana_suelta(L, "Unidad de punto flotante",
+                          "python -m enigma64.ui.paneles.panel_fpu")
+    y = L.tarjeta(14, top + 14, 872, 640 - top - 28, "Unidad de punto flotante",
+                  "IEEE 754 doble precision  ·  enigma64.fpu", P["cian"])
+
+    # Selector de operacion: en ambar apagado, la rutina que aun no se entrego.
+    L.texto(30, y + 6, "OPERACION", P["texto_debil"], 8, SANS, True)
+    familias = [("Aritmeticas", ["FADD", "FSUB", "FMUL", "FDIV", "FSQRT"]),
+                ("Comparacion", ["FCMP"]),
+                ("Conversiones", ["I2F", "F2I"])]
+    fy = y + 20
+    for familia, ops in familias:
+        L.texto(30, fy + 14, familia, P["texto_debil"], 8.5)
+        x = 140
+        for op in ops:
+            activo = op == "FADD"
+            color = P["alerta"] if op == "FSQRT" else P["texto_tenue"]
+            L.rect(x, fy, 52, 20, P["ambar"] if activo else P["abismo"],
+                   P["ambar"] if activo else P["borde"], radio=4)
+            L.texto(x + 26, fy + 14, op, P["abismo"] if activo else color,
+                    9, MONO, True, "middle")
+            x += 58
+        fy += 25
+
+    # Calculadora reactiva: no hay boton de ejecutar.
+    L.linea(28, fy + 6, 870, fy + 6)
+    L.campo(30, fy + 32, 410, "Operando A  ·  decimal o patron 0x", "0.1")
+    L.campo(458, fy + 32, 410, "Operando B  ·  decimal o patron 0x", "0.2")
+    L.texto(30, fy + 74, "0x3FB999999999999A  ·  normal", P["texto_debil"], 8.5, MONO)
+    L.texto(458, fy + 74, "0x3FC999999999999A  ·  normal", P["texto_debil"], 8.5, MONO)
+
+    L.rect(30, fy + 88, 838, 70, P["abismo"], P["borde"], radio=6)
+    L.texto(44, fy + 114, "0.1  +  0.2  =", P["texto_debil"], 10, MONO, True)
+    L.texto(160, fy + 115, "0.3", P["cian"], 15, MONO, True)
+    L.insignia(672, fy + 98, 182, "COINCIDE CON IEEE 754", P["ok"])
+    L.texto(44, fy + 134, "0x3FD3333333333334   ·   595 ciclos de reloj   ·   VEC_FADD",
+            P["texto_tenue"], 9.5, MONO)
+    L.texto(44, fy + 150, "IEEE 754 del anfitrion: 0.30000000000000004",
+            P["texto_debil"], 9.5, MONO)
+
+    condiciones = [("CERO", P["ok"], False), ("NEGATIVO", P["violeta"], False),
+                   ("SUBNORMAL", P["alerta"], False), ("INFINITO", P["alerta"], False),
+                   ("NaN", P["fallo"], False), ("INEXACTO", P["cian"], True)]
+    for i, (nombre, color, encendido) in enumerate(condiciones):
+        L.led(30 + i * 112, fy + 180, nombre, color, encendido)
+
+    # Visor IEEE 754: 1 + 11 + 52 celdas, mas el bit implicito sin almacenar.
+    vy = fy + 206
+    L.texto(30, vy, "VISOR IEEE 754", P["texto_debil"], 8, SANS, True)
+    x = 140
+    for texto, activo in (("Operando A", True), ("Operando B", False),
+                          ("Resultado", False)):
+        L.rect(x, vy - 13, 84, 20, P["cian"] if activo else P["abismo"],
+               P["cian"] if activo else P["borde"], radio=4)
+        L.texto(x + 42, vy + 1, texto, P["abismo"] if activo else P["texto_tenue"],
+                8.5, SANS, True, "middle")
+        x += 90
+
+    patron = 0x3FB999999999999A
+    celda, cy = 12.3, vy + 34
+    x = 30.0
+    for nombre, alto, bajo, color in (("S", 63, 63, P["violeta"]),
+                                      ("EXPONENTE  ·  11 bits", 62, 52, P["ambar"]),
+                                      ("MANTISA  ·  52 bits", 51, 0, P["cian"])):
+        if bajo == 0:
+            L.rect(x, cy, celda - 1, 26, P["elevado"], P["texto_tenue"])
+            L.texto(x + celda / 2, cy + 17, "1", P["texto"], 8, MONO, True, "middle")
+            L.texto(x + celda / 2, cy + 50, "bit implicito", P["texto_tenue"], 7,
+                    SANS, False, "middle")
+            x += celda + 8
+        L.texto(x, cy - 6, nombre, color, 8, SANS, True)
+        L.texto(x + celda / 2, cy + 38, str(alto), P["texto_debil"], 7, MONO,
+                False, "middle")
+        for indice in range(alto, bajo - 1, -1):
+            encendido = (patron >> indice) & 1
+            L.rect(x, cy, celda - 1, 26, color if encendido else P["abismo"],
+                   color if encendido else P["borde"])
+            L.texto(x + celda / 2, cy + 17, str(encendido),
+                    P["abismo"] if encendido else P["texto_debil"], 8, MONO, True,
+                    "middle")
+            x += celda
+        if bajo != alto:
+            L.texto(x - celda / 2, cy + 38, str(bajo), P["texto_debil"], 7, MONO,
+                    False, "middle")
+        x += 8
+
+    dy = cy + 70
+    for i, (rotulo, color, valor) in enumerate((
+            ("Signo", P["violeta"], "0   →  positivo"),
+            ("Exponente", P["ambar"], "0x3FB = 1019   →  1019 - 1023 = -4"),
+            ("Mantisa", P["cian"], "0x999999999999A   →  con el bit implicito 1:  "
+                                   "0x1999999999999A"),
+            ("Valor", P["texto"], "+1.6 x 2^-4  =  0.1   (normal)"))):
+        L.texto(30, dy + i * 16, rotulo, color, 8.5, SANS, True)
+        L.texto(140, dy + i * 16, valor, P["texto_tenue"], 9.5, MONO)
+
+    ry = dy + 80
+    L.texto(30, ry, "RUTINAS DE LA BIBLIOTECA", P["texto_debil"], 8, SANS, True)
+    x = 30
+    for texto, conectada in (("FADD", True), ("FSUB", True), ("FMUL", True),
+                             ("FDIV", True), ("FSQRT", False), ("FCMP", True),
+                             ("I2F", True), ("F2I", True), ("ORACULO", False),
+                             ("CONSTANTE DE BRUN", False),
+                             ("BATERIA DE PRUEBAS", False)):
+        w = 16 + len(texto) * 8
+        L.insignia(x, ry + 10, w, texto, P["ok"] if conectada else P["alerta"], 20)
+        x += w + 4
+    return L.guardar("10_panel_fpu.svg")
+
+
 def sistema_diseno() -> pathlib.Path:
     L = Lienzo(1000, 660, "Enigma-64 - Sistema de diseno Noctua")
     L.rect(0, 0, 1000, 92, P["abismo"])
@@ -835,7 +947,7 @@ def sistema_diseno() -> pathlib.Path:
 def generar_todo() -> List[pathlib.Path]:
     return [shell_completo(), panel_memoria(), panel_registros(), panel_alu(),
             panel_cargador(), panel_mapa(), sistema_diseno(), panel_cpu(),
-            panel_mmio(), panel_algoritmos()]
+            panel_mmio(), panel_algoritmos(), panel_fpu()]
 
 
 if __name__ == "__main__":

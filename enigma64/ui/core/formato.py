@@ -10,6 +10,9 @@ Autor: Integrante 5 Maicol Sebastian Olarte Ramirez - Interfaz de usuario
 
 from __future__ import annotations
 
+import math
+import struct
+
 MASCARA_64 = 0xFFFFFFFFFFFFFFFF
 BIT_63 = 0x8000000000000000
 
@@ -135,6 +138,99 @@ def con_signo(valor: int) -> int:
 def decimal_agrupado(valor: int) -> str:
     """Decimal con separador de miles, para cifras largas."""
     return f"{valor:,}".replace(",", " ")
+
+
+# ---------------------------------------------------------------------------
+# Punto flotante IEEE 754 de doble precision (binary64)
+# ---------------------------------------------------------------------------
+
+SESGO_IEEE754 = 1023
+EXPONENTE_MAX_IEEE754 = 0x7FF
+MASCARA_FRACCION = 0x000FFFFFFFFFFFFF
+
+#: Constantes con nombre que se pueden escribir en un campo de operando.
+_ESPECIALES_IEEE754 = {
+    "inf": 0x7FF0000000000000, "+inf": 0x7FF0000000000000,
+    "infinito": 0x7FF0000000000000, "+infinito": 0x7FF0000000000000,
+    "-inf": 0xFFF0000000000000, "-infinito": 0xFFF0000000000000,
+    "nan": 0x7FF8000000000000,
+    "pi": 0x400921FB54442D18, "e": 0x4005BF0A8B145769,
+}
+
+
+def flotante_a_bits(valor: float) -> int:
+    """El patron de 64 bits con el que IEEE 754 guarda un flotante."""
+    return struct.unpack(">Q", struct.pack(">d", float(valor)))[0]
+
+
+def bits_a_flotante(patron: int) -> float:
+    """Lee un patron de 64 bits como flotante IEEE 754 de doble precision."""
+    return struct.unpack(">d", struct.pack(">Q", patron & MASCARA_64))[0]
+
+
+def parsear_ieee754(texto: str) -> int:
+    """
+    Interpreta el texto de un operando de la FPU y devuelve su patron de 64 bits.
+
+        10.5 / -3 / 1e-308      -> el flotante mas cercano
+        0x4025000000000000      -> el patron IEEE 754 tal cual (tambien 0b...)
+        inf / -inf / nan / pi   -> constantes con nombre
+
+    Escribir el patron en hexadecimal es la unica forma de llegar a los NaN
+    con carga util y a los subnormales exactos, por eso se acepta.
+    """
+    if texto is None:
+        raise ValorInvalido("no se recibio ningun valor")
+    limpio = texto.strip().replace("_", "").replace(" ", "").lower()
+    if not limpio:
+        raise ValorInvalido("el campo esta vacio")
+
+    if limpio in _ESPECIALES_IEEE754:
+        return _ESPECIALES_IEEE754[limpio]
+
+    if limpio.startswith(("0x", "0b", "$")):
+        patron = parsear_entero(limpio)
+        if patron > MASCARA_64:
+            raise ValorInvalido(f"{texto!r} no cabe en 64 bits")
+        return patron
+
+    try:
+        return flotante_a_bits(float(limpio))
+    except (ValueError, OverflowError):
+        raise ValorInvalido(f"{texto!r} no es un numero de punto flotante") from None
+
+
+def campos_ieee754(patron: int) -> dict:
+    """Separa un patron binary64 en signo (1), exponente (11) y fraccion (52)."""
+    patron &= MASCARA_64
+    exponente = (patron >> 52) & EXPONENTE_MAX_IEEE754
+    return {
+        "signo": patron >> 63,
+        "exponente": exponente,
+        "fraccion": patron & MASCARA_FRACCION,
+        # El bit implicito no se almacena: vale 1 salvo en ceros y subnormales.
+        "implicito": 0 if exponente == 0 else 1,
+    }
+
+
+def clasificar_ieee754(patron: int) -> str:
+    """Clase del valor: cero, subnormal, normal, infinito o NaN."""
+    campos = campos_ieee754(patron)
+    if campos["exponente"] == EXPONENTE_MAX_IEEE754:
+        return "infinito" if campos["fraccion"] == 0 else "NaN"
+    if campos["exponente"] == 0:
+        return "cero" if campos["fraccion"] == 0 else "subnormal"
+    return "normal"
+
+
+def texto_flotante(patron: int) -> str:
+    """El valor decimal mas corto que identifica al flotante, con su signo."""
+    valor = bits_a_flotante(patron)
+    if math.isnan(valor):
+        return "NaN"
+    if math.isinf(valor):
+        return "+inf" if valor > 0 else "-inf"
+    return repr(valor)
 
 
 def ascii_imprimible(byte: int) -> str:

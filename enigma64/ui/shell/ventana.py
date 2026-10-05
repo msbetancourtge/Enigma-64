@@ -8,7 +8,7 @@ conocen entre si; cuando uno tiene que reaccionar a otro lo hace por el bus.
 Distribucion, pensada para que quepa en un portatil de 1366x768:
 
     izquierda   cuaderno con una pestana por modulo (memoria, registros,
-                ALU, cargador). Solo se ve un modulo a la vez, que es
+                ALU, FPU, cargador). Solo se ve un modulo a la vez, que es
                 exactamente como pidio el profesor que se demostraran.
     derecha     columna de contexto: el mapa de memoria y la traza del bus,
                 visibles siempre para poder seguir lo que hace el modulo
@@ -35,6 +35,7 @@ from ..paneles.panel_alu import PanelALU
 from ..paneles.panel_cargador import PanelCargador
 from ..paneles.panel_consola import PanelConsola
 from ..paneles.panel_cpu import PanelCPU
+from ..paneles.panel_fpu import PanelFPU
 from ..paneles.panel_mapa import PanelMapa
 from ..paneles.panel_memoria import PanelMemoria
 from ..paneles.panel_mmio import PanelMMIO
@@ -46,6 +47,7 @@ PESTANAS = (
     (PanelMemoria, "memoria", "Memoria RAM"),
     (PanelRegistros, "registros", "Registros"),
     (PanelALU, "alu", "ALU"),
+    (PanelFPU, "fpu", "FPU"),
     (PanelCargador, "cargador", "Cargador"),
     (PanelCPU, "cpu", "Unidad de Control"),
     (PanelMMIO, "mmio", "I/O mapeada"),

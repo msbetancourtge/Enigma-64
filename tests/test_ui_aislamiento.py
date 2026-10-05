@@ -24,7 +24,7 @@ ARCHIVOS_PANEL = sorted(
 )
 
 #: Modulos de hardware del equipo que un panel no debe importar directamente.
-MODULOS_HARDWARE = {"memoria", "registros", "alu", "cargador"}
+MODULOS_HARDWARE = {"memoria", "registros", "alu", "cargador", "fpu"}
 
 
 def _importaciones(ruta: pathlib.Path):

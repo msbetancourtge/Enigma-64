@@ -58,6 +58,9 @@ class Evento:
     ALGORITMO_CARGADO = "algoritmos.cargado"
     ALGORITMO_VERIFICADO = "algoritmos.verificado"
 
+    # Unidad de punto flotante
+    FPU_EJECUTADA = "fpu.ejecutada"
+
     # Navegacion y traza (Integrante 5)
     IR_A_DIRECCION = "ui.ir_a_direccion"
     TRAZA = "ui.traza"

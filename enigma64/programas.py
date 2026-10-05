@@ -333,6 +333,57 @@ PROGRAMAS_OFICIALES: Dict[str, DefinicionPrograma] = {
     "fibonacci": PROGRAMA_FIBONACCI,
 }
 
+# ---------------------------------------------------------------------------
+# Algoritmo Oficial de la Tarea 17 (Numeral 3): Constante de Brun B2
+# ---------------------------------------------------------------------------
+_RUTA_BRUN_BIN = os.path.join(
+    os.path.dirname(__file__), "..", "programas", "constante_brun.bin"
+)
+if os.path.exists(_RUTA_BRUN_BIN):
+    with open(_RUTA_BRUN_BIN, "rb") as _f:
+        BYTES_BRUN: bytes = _f.read()
+else:
+    BYTES_BRUN: bytes = b""
+
+PROGRAMA_BRUN = DefinicionPrograma(
+    nombre="constante_brun",
+    descripcion="Estimacion de la Constante de Brun B2 (Primos Gemelos)",
+    bytes_codigo=BYTES_BRUN,
+    direccion_base=0x00200000,
+    entry_point=0x00200000,
+    entradas_ram={
+        0x00205000: 5,  # K = 5 pares
+    },
+    salidas_esperadas_ram={
+        0x00205008: 0x3FF38E3510A6A83B,  # B2 con 5 pares en IEEE 754
+        0x00205010: 5,                   # 5 pares calculados
+        0x00205018: 29,                  # Ultimo primo gemelo procesado
+    },
+    lineas_ensamblador=[
+        "MAIN:",
+        "ADDI SP, R0, 0x0020",
+        "SHL SP, SP, 16",
+        "ADDI SP, SP, 0x4000",
+        "ADDI BP, SP, 0",
+        "ADDI R4, R0, 0x0020",
+        "SHL R4, R4, 16",
+        "ADDI R4, R4, 0x5000",
+        "LOAD R1, [R4 + 0]",
+        "CALL FPU_BRUN",
+        "ADDI R4, R0, 0x0020",
+        "SHL R4, R4, 16",
+        "ADDI R4, R4, 0x5000",
+        "STORE R5, [R4 + 8]",
+        "STORE R1, [R4 + 16]",
+        "STORE R2, [R4 + 24]",
+        "HLT",
+    ],
+)
+
+PROGRAMAS_TAREA17: Dict[str, DefinicionPrograma] = {
+    "constante_brun": PROGRAMA_BRUN,
+}
+
 
 # ===========================================================================
 # 3. Utilidades de Exportacion y Carga en Disco

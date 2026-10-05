@@ -50,14 +50,23 @@ Enigma-64/
 │   ├── cargador.py                Cargador de ejecutables (.e64, .bin) y manipulador de bits
 │   ├── perifericos.py             Subsistema MMIO y controlador de pantalla CRT
 │   ├── programas.py               Definición y compilación de programas oficiales de prueba
+│   ├── fpu.py                     EmuladorFPUEnigma64, vector jump table y utilidades IEEE 754
+│   ├── fpu.s                      Núcleo FPU: FADD, FSUB, empaquetado y desempaquetado
+│   ├── fmul.s                     Multiplicación FMUL (IEEE 754 binary64) y MUL128
+│   ├── fdiv.s                     División FDIV (IEEE 754 binary64) con guarda y pegajoso
+│   ├── fcmp.s                     Comparador FCMP quieto de flotantes IEEE 754
+│   ├── fconv.s                    Conversiones INT-FLOAT, FLOAT-INT y tabla canónica FPU_VECTORES
+│   ├── fsqrt.s                    Raíz cuadrada FSQRT (Newton-Raphson, Ricardo Peña pág. 26)
+│   ├── oraculo_ieee754.py         Módulo utilitario de validación IEEE 754 y oráculo de referencia
 │   ├── ui/                        Interfaz gráfica modular (Tkinter / TTK)
 │   │   ├── shell/ventana.py       Shell principal y cuaderno de módulos
 │   │   ├── paneles/panel_memoria.py Grilla interactiva de RAM (8 bancos) y editor de bits
-│   │   └── paneles/panel_mmio.py  Terminal CRT y visualizador de registros MMIO
+│   │   ├── paneles/panel_mmio.py  Terminal CRT y visualizador de registros MMIO
+│   │   └── paneles/panel_fpu.py   Calculadora reactiva de la FPU y visor IEEE 754
 │   └── gui/
 │       ├── __init__.py
 │       └── panel_registros.py     Panel en vivo de registros y banco de pruebas ALU
-├── programas/                     Archivos binarios ejecutables (.bin, .hex, .e64)
+├── programas/                     Archivos binarios (.bin, .hex, .e64) y biblioteca fpu_lib.*
 ├── scripts/                       Scripts utilitarios (generación automatizada de binarios)
 └── tests/                         Suite de pruebas automatizadas
     ├── conftest.py                Configuración global de entorno para pytest
@@ -67,7 +76,13 @@ Enigma-64/
     ├── test_cargador.py           Pruebas de carga, formatos y manipulación de bits
     ├── test_perifericos.py        Pruebas de MMIO y controlador de pantalla
     ├── test_algoritmos.py         Pruebas de ejecución de algoritmos oficiales
+    ├── test_fpu.py                Pruebas de FADD, FSUB, desempaquetar y empaquetar
+    ├── test_fmul.py               Pruebas de FMUL (IEEE 754 binary64) contra el oráculo de Python
+    ├── test_fconv.py              Pruebas de conversiones INT-FLOAT y mesa de vectores FPU
+    ├── test_oraculo.py            Pruebas del oráculo de validación IEEE 754 y simulación Newton
+    ├── test_fsqrt.py              Pruebas de FSQRT (Newton-Raphson) en la CPU contra el oráculo
     ├── test_ui_aislamiento.py     Pruebas estáticas de desacoplamiento de capas (AST)
+    ├── test_ui_fpu.py             Pruebas del panel de la FPU, su adaptador y el formato IEEE 754
     ├── test_ui_modulos_nuevos.py  Pruebas de interfaces de servicios y adaptadores
     ├── test_ui_nucleo.py          Pruebas del núcleo de interfaz y bus de eventos
     ├── test_ui_paneles.py         Pruebas funcionales de los paneles gráficos
@@ -364,6 +379,7 @@ Debe terminar en `Ran 81 tests ... OK`. Cobertura:
 | **Cargador & Bits** | `TestCargaFormatos` | Carga de binarios planos (.bin), serialización/deserialización .e64 Big-Endian, reubicación dinámica de direcciones y parser de volcados en texto |
 | **Cargador & Bits** | `TestContextoHardware` | Sincronización de registros tras la carga (PC=entry_point, SP=0xEFFFFFFF, SR=0x1, R0=0, R5=entry_point) y detención/reanudación de CPU |
 | **Cargador & Bits** | `TestSubrutinaFirmware` | Transferencia de datos entre buffers emulando la subrutina en 0x00001000 con parámetros R1, R2, R3 y retorno en R5 |
+| **FPU — FMUL** | `TestFMULEnigma64` | Tabla de 24 casos en hex, 300 casos aleatorios bit a bit contra el oráculo IEEE 754 de Python, conmutatividad, peor caso de ciclos y producto de 128 bits de `FPU_MUL128` (ver sección FMUL) |
 
 
 Para correr solo las pruebas de memoria:
@@ -548,6 +564,161 @@ en un diccionario con hexadecimal, decimal con signo y las siete banderas.
 
 ---
 
+# FPU: Multiplicación de Punto Flotante (FMUL)
+
+## Qué incluye
+
+- **`enigma64/fmul.s`** — Subrutina `FMUL` en ensamblador de Enigma-64: `R5 = R1 × R2` en IEEE 754 binary64, con redondeo al par más cercano, subnormales en entrada y salida, y casos especiales (NaN, ±Inf, ±0, 0 × Inf). Incluye las auxiliares `FPU_MUL128` (producto 64 × 64 → 128 bits con cuatro productos parciales de 32 bits, porque `MUL` solo conserva los 64 bits bajos) y `FPU_NORMALIZAR_SUBNORMAL`. Reutiliza `FPU_DESEMPAQUETAR` y `FPU_EMPAQUETAR` de `fpu.s`.
+- **`enigma64/fpu.py`** — Ensambla `fpu.s` + `fmul.s` como una sola unidad y expone `EmuladorFPUEnigma64.multiplicar()` (devuelve `float`) y `multiplicar_bits()` (devuelve el patrón de 64 bits).
+- **`docs/informe_integrante2_fmul.md`** — Diseño, asignación de registros, oráculo y limitaciones.
+
+## Pruebas (`tests/test_fmul.py`)
+
+Cada prueba ejecuta `FMUL` sobre la CPU oficial y compara el resultado bit a bit contra el oráculo de Python (`struct` + `*`, que es IEEE 754 binary64 con redondeo al par más cercano).
+
+| Prueba | Qué verifica |
+|---|---|
+| `test_tabla_casos` | 24 casos con entradas y salida esperada en hexadecimal (tabla siguiente) |
+| `test_tabla_concuerda_con_oraculo` | Que los valores esperados de la tabla coinciden con el oráculo (NaN se compara con `math.isnan`) |
+| `test_multiplicar_flotantes` | La interfaz con `float`: `6.0 × 7.0 = 42.0`, `−0.75 × 8.0 = −6.0`, `0.1 × 3.0` |
+| `test_conmutatividad` | `A × B == B × A` en normales, subnormales y extremos |
+| `test_aleatorio_contra_oraculo` | 300 casos con semilla fija: bits aleatorios, valores cercanos a 1, zona de subdesbordamiento y subnormal × grande |
+| `test_ciclos_peor_caso` | Subnormal × subnormal termina en menos de 10 000 ciclos de la FSM |
+| `test_mul128` | `FPU_MUL128` entrega el producto exacto de 128 bits en `R5:R4` |
+
+Casos de `test_tabla_casos`:
+
+| # | Caso | A | B | Esperado |
+|:-:|---|---|---|---|
+| 1 | normal × normal: 1.5 × 2.5 | `3FF8000000000000` | `4004000000000000` | `400E000000000000` |
+| 2 | signo: −3.0 × 4.0 | `C008000000000000` | `4010000000000000` | `C028000000000000` |
+| 3 | signo: −2.0 × −0.5 | `C000000000000000` | `BFE0000000000000` | `3FF0000000000000` |
+| 4 | identidad: 1.0 × π | `3FF0000000000000` | `400921FB54442D18` | `400921FB54442D18` |
+| 5 | potencias de 2: 2^10 × 2^−3 | `4090000000000000` | `3FC0000000000000` | `4060000000000000` |
+| 6 | normalización (producto ≥ 2): 1.75 × 1.75 | `3FFC000000000000` | `3FFC000000000000` | `4008800000000000` |
+| 7 | redondeo inexacto: 0.1 × 0.2 | `3FB999999999999A` | `3FC999999999999A` | `3F947AE147AE147C` |
+| 8 | +0 × 5.0 | `0000000000000000` | `4014000000000000` | `0000000000000000` |
+| 9 | −0 × 5.0 | `8000000000000000` | `4014000000000000` | `8000000000000000` |
+| 10 | +Inf × −2.0 | `7FF0000000000000` | `C000000000000000` | `FFF0000000000000` |
+| 11 | −Inf × −Inf | `FFF0000000000000` | `FFF0000000000000` | `7FF0000000000000` |
+| 12 | 0 × Inf (operación inválida) | `0000000000000000` | `7FF0000000000000` | `7FF8000000000000` |
+| 13 | NaN × 1.0 (propaga carga útil) | `7FF8000000000123` | `3FF0000000000000` | `7FF8000000000123` |
+| 14 | sNaN × 1.0 (se silencia) | `7FF0000000000001` | `3FF0000000000000` | `7FF8000000000001` |
+| 15 | overflow: MAX × 2.0 | `7FEFFFFFFFFFFFFF` | `4000000000000000` | `7FF0000000000000` |
+| 16 | overflow: 1e200 × −1e200 | `6974E718D7D7625A` | `E974E718D7D7625A` | `FFF0000000000000` |
+| 17 | underflow a subnormal: 2^−1022 × 0.5 | `0010000000000000` | `3FE0000000000000` | `0008000000000000` |
+| 18 | underflow a cero: 1e−200 × 1e−200 | `16687E92154EF7AC` | `16687E92154EF7AC` | `0000000000000000` |
+| 19 | subnormal × normal: 2^−1074 × 2^60 | `0000000000000001` | `43B0000000000000` | `0090000000000000` |
+| 20 | empate al par, sube: (1+2^−52) × 1.5 | `3FF0000000000001` | `3FF8000000000000` | `3FF8000000000002` |
+| 21 | empate al par, baja: (1+3·2^−52) × 1.5 | `3FF0000000000003` | `3FF8000000000000` | `3FF8000000000004` |
+| 22 | empate subnormal: 2^−1074 × 0.5 | `0000000000000001` | `3FE0000000000000` | `0000000000000000` |
+| 23 | empate subnormal: 3·2^−1074 × 0.5 | `0000000000000003` | `3FE0000000000000` | `0000000000000002` |
+| 24 | subnormal que redondea al menor normal | `000FFFFFFFFFFFFF` | `3FF0000000000001` | `0010000000000000` |
+
+En el caso 12 el oráculo de Python (x86) da `FFF8000000000000`. Los dos son NaN silenciosos: IEEE 754 no fija el signo de un NaN, y FMUL devuelve el NaN canónico positivo.
+
+Para correr solo estas pruebas:
+
+```bash
+python -m pytest tests/test_fmul.py -v
+# o con unittest estándar
+python -m unittest tests.test_fmul -v
+```
+
+---
+
+# FPU: Panel Interactivo y Visor IEEE 754 (Integrante 5)
+
+**`enigma64/ui/paneles/panel_fpu.py`** — Pestaña **FPU** de la interfaz. También se abre sola:
+
+```bash
+python -m enigma64.ui.paneles.panel_fpu
+```
+
+- **Calculadora reactiva.** No hay botón de ejecutar: al escribir un operando o cambiar de operación, la rutina vuelve a correr. Los operandos se escriben en decimal (`10.5`, `1e-308`, `inf`, `nan`) o como patrón IEEE 754 (`0x4025000000000000`).
+- **Las cuentas las hace la biblioteca del equipo.** Cada operación entra por la tabla `FPU_VECTORES` (`VEC_FADD`, `VEC_FSUB`, `VEC_FMUL`, `VEC_FDIV`, `VEC_FCMP`, `VEC_INT_TO_FLOAT`, `VEC_FLOAT_TO_INT`) y corre sobre la CPU de Enigma-64. Se muestran los ciclos de reloj consumidos.
+- **Contraste con la norma.** Junto al resultado aparece lo que responde el IEEE 754 del anfitrión y una insignia que dice si coinciden.
+- **Visor IEEE 754.** Desglosa el operando A, el B o el resultado en el bit 63 de signo, los 11 bits de exponente, los 52 de mantisa y el bit implícito, usando `FPU_DESEMPAQUETAR`. Las celdas de los operandos son pulsables.
+- **Entregas pendientes.** `FSQRT` (Integrante 6) figura en el selector como pendiente y se conecta sola cuando su etiqueta aparezca en la biblioteca; el oráculo, la constante de Brun y la batería de pruebas (Integrantes 6 y 7) se marcan en la hoja de ruta del panel.
+
+La capa de servicios (`AdaptadorFPU` en `enigma64/ui/servicios/adaptadores.py`) es la única que importa `enigma64.fpu`; el módulo de la FPU no se modifica.
+
+---
+
+# FPU: Conversiones de Formato y Mesa de Entrada Canónica (Integrante 4)
+
+## Qué incluye
+
+- **`enigma64/fconv.s`** — Subrutinas en ensamblador de Enigma-64:
+  - `FPU_VECTORES`: Mesa de entrada / tabla de salto canónica fija de 7 entradas (`JMP` de 5 bytes en saltos fijos de `+0x05`), permitiendo a los programas de usuario invocar cualquier servicio de la FPU de forma canónica desacoplada de la implementación interna.
+  - `FPU_INT_TO_FLOAT` (`INT64_TO_FLOAT64`): Conversión de enteros de 64 bits con signo en complemento a dos (R1) a formato IEEE 754 de doble precisión binary64 (R5). Gestiona el caso cero, el caso crítico `INT64_MIN` ($-2^{63}$), normalización y redondeo al par más cercano (*roundTiesToEven*) para enteros que exceden 53 bits de significando.
+  - `FPU_FLOAT_TO_INT` (`FLOAT64_TO_INT64`): Conversión de flotantes IEEE 754 binary64 (R1) a enteros de 64 bits con signo (R5), implementando truncamiento hacia cero ($[-1.0, 1.0) \to 0$), soporte para enteros de hasta 63 bits y el límite exacto $-2^{63}$.
+- **`enigma64/fpu.py`** — Integración en `EmuladorFPUEnigma64` con métodos `int_to_float()`, `int_to_float_bits()`, `float_to_int()`, `ejecutar_vector()` y constantes de vector `VECTOR_*`.
+- **`programas/fpu_lib.s`**, **`fpu_lib.bin`** (1425 bytes), **`fpu_lib.hex`** — Biblioteca binaria unificada completa que compila la tabla `FPU_VECTORES`, `fconv.s`, `fpu.s` y `fmul.s` en un único módulo distribuible.
+- **`docs/informe_integrante4_conversiones_enlace.md`** — Informe técnico completo sobre diseño, microarquitectura, convenciones ABI y pruebas.
+
+## Pruebas (`tests/test_fconv.py`)
+
+19 pruebas automatizadas (111 aserciones directas) que validan el comportamiento contra IEEE 754 y el oráculo nativo:
+
+| Prueba | Qué verifica |
+|---|---|
+| `test_int_to_float_cero` | Conversión de `0` a `+0.0` (`0x0000000000000000`) |
+| `test_int_to_float_basicos` | Enteros pequeños positivos y negativos ($\pm 1, \pm 2, \dots, \pm 100$) |
+| `test_int_to_float_potencias_de_dos` | Potencias exactas de 2 ($2^0, 2^1, \dots, 2^{62}$, $-2^{63}$) |
+| `test_int_to_float_grandes_exactos` | Enteros grandes en el rango exacto $[2^{52}, 2^{53}]$ |
+| `test_int_to_float_redondeo_ties_to_even` | Redondeo al par más cercano para enteros $> 2^{53}$ (verificación de bits G, R, S) |
+| `test_int_to_float_limites` | Extremos `INT64_MAX` ($2^{63}-1$) y `INT64_MIN` ($-2^{63}$) |
+| `test_float_to_int_truncamiento` | Truncamiento hacia cero ($1.99 \to 1$, $-1.99 \to -1$, $0.75 \to 0$) |
+| `test_float_to_int_extremos` | Ceros con signo, números subnormales, $\pm\infty$ y NaN saturando a 0 |
+| `test_float_to_int_limite_int64_min` | Conversión exacta de $-9223372036854775808.0 \to -2^{63}$ |
+| `test_identidad_int_float_int` | Preservación exacta de la identidad $\text{int}(\text{float}(x)) == x$ en $[-2^{53}, 2^{53}]$ |
+| `test_mesa_vectores_offsets` | Estructura y distancias exactas de 5 bytes en `FPU_VECTORES` |
+| `test_mesa_vectores_ejecucion` | Invocación de rutinas saltando a través de los vectores canónicos |
+
+Para correr solo estas pruebas:
+
+```bash
+python -m pytest tests/test_fconv.py -v
+```
+
+---
+
+# FPU: Constante de Brun & Batería de Pruebas (Integrante 7)
+
+**`enigma64/fbrun.s`** y **`programas/constante_brun.s`** — Implementación en ensamblador de la estimación de la **Constante de Brun** ($B_2$, primos gemelos) y suite integral de pruebas del sistema FPU.
+
+## Qué incluye
+
+* **Test de primalidad entera (`FPU_ES_PRIMO`):** Criba rápida de divisores impares sobre la ALU entera nativa de Enigma-64 (`DIV`, `MUL`, `SUB`, `CMP`, `JP`).
+* **Estimación de la Constante de Brun (`FPU_BRUN` / `FBRUN`):**
+  * Bucle secuencial de búsqueda de pares de primos gemelos $(p, p+2)$: $(3, 5), (5, 7), (11, 13), (17, 19), (29, 31)\dots$
+  * Conversión entera a punto flotante (`FPU_INT_TO_FLOAT` / `VEC_INT_TO_FLOAT`).
+  * Cálculo de recíprocos $\frac{1.0}{p}$ y $\frac{1.0}{p+2}$ (`FDIV` / `VEC_FDIV`).
+  * Acumulación en precisión doble IEEE 754 (`FADD` / `VEC_FADD`).
+* **Mesa de Entrada Canónica:** Publicación del **Vector 8** (`VEC_FBRUN` en el desplazamiento `+0x28`) de la tabla `FPU_VECTORES`.
+* **Programa ejecutable oficial (`programas/constante_brun.s`):**
+  * Lee el número de pares objetivo $K$ desde `0x00205000`.
+  * Escribe la estimación $B_2$ en `0x00205008`, la cantidad de pares procesados en `0x00205010` y el último primo gemelo en `0x00205018`.
+  * Disponible en binario crudo (`.bin`), volcado (`.hex`) y ejecutable estructurado (`.e64`).
+* **Batería de Pruebas Unitarias y de Integración (`tests/test_bateria_integracion.py` y `tests/test_fbrun.py`):**
+  * Pruebas exhaustivas de división `FDIV` (operaciones normales, división por cero, infinitos, NaN, subnormales y contraste con el oráculo).
+  * Pruebas de comparación `FCMP` (orden estricto, ceros con signo $+0.0 \equiv -0.0$, NaNs desordenados).
+  * Pruebas de estabilidad de marco de pila (`ENTER`/`LEAVE`) e invarianza de `SP`/`BP`.
+  * Despacho y validación funcional de los 9 vectores de `FPU_VECTORES`.
+
+## Cómo probar
+
+```bash
+# Pruebas de la Constante de Brun
+python -m pytest tests/test_fbrun.py -v
+
+# Batería completa de integración y robustez FPU
+python -m pytest tests/test_bateria_integracion.py -v
+```
+
+---
+
 # Flujo de trabajo con Git
 
 Nunca se trabaja directo sobre `main`. `main` debe estar siempre ejecutable.
@@ -569,9 +740,9 @@ Luego se abre un Pull Request para revisión e integración de cambios.
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
 ```bash
-# Suite completa (310 pruebas: unitarias y GUI)
+# Suite completa (424 pruebas: unitarias y GUI)
 python -m pytest
 
-# O mediante unittest estándar (137 pruebas de hardware sin GUI)
+# O mediante unittest estándar (182 pruebas de hardware sin GUI)
 python -m unittest discover -s tests
 ```

@@ -21,7 +21,7 @@ from typing import Dict, List
 
 from .adaptadores import (
     AdaptadorALU, AdaptadorAlgoritmos, AdaptadorCPU, AdaptadorCargador,
-    AdaptadorMemoria, AdaptadorMMIO, AdaptadorRegistros,
+    AdaptadorFPU, AdaptadorMemoria, AdaptadorMMIO, AdaptadorRegistros,
 )
 
 
@@ -38,6 +38,9 @@ class Maquina:
         self.cargador = AdaptadorCargador(memoria=self.memoria, registros=self.registros)
         self.cpu = AdaptadorCPU(memoria=self.memoria, registros=self.registros)
         self.mmio = AdaptadorMMIO(memoria=self.memoria)
+        # La FPU corre sobre un procesador propio: no recibe ni la RAM ni el
+        # banco compartidos, asi que sus calculos no alteran la maquina.
+        self.fpu = AdaptadorFPU()
         # Servicio compuesto: no es un modulo del equipo, por eso no sale en
         # el informe de modulos de la barra superior.
         self.algoritmos = AdaptadorAlgoritmos(
@@ -56,6 +59,7 @@ class Maquina:
             "cargador": self.cargador,
             "cpu": self.cpu,
             "mmio": self.mmio,
+            "fpu": self.fpu,
         }
 
     def informe(self) -> List[Dict[str, object]]:

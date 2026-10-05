@@ -15,6 +15,10 @@ Autor: Integrante 5 Maicol Sebastian Olarte Ramirez - Interfaz de usuario
 
 from __future__ import annotations
 
+import math
+import pathlib
+import re
+from fractions import Fraction
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from .puertos import (
@@ -68,8 +72,19 @@ except Exception as exc:  # pragma: no cover
     USER_MEM_START = 0x00200000
     _FALLO_CARGADOR = f"{type(exc).__name__}: {exc}"
 
+try:
+    from ...fpu import CODIGO_FPU_ASM, EmuladorFPUEnigma64  # type: ignore
+    _FALLO_FPU = ""
+except Exception as exc:  # pragma: no cover
+    EmuladorFPUEnigma64 = None  # type: ignore
+    CODIGO_FPU_ASM = ""
+    _FALLO_FPU = f"{type(exc).__name__}: {exc}"
+
 from .mapa_memoria import REGIONES
-from ..core.formato import hex64
+from ..core.formato import (
+    MASCARA_64, bits_a_flotante, campos_ieee754, clasificar_ieee754, con_signo,
+    flotante_a_bits, hex64, texto_flotante,
+)
 from .algoritmos import (
     CATALOGO as CATALOGO_ALGORITMOS,
     codigo_maquina as codigo_maquina_algoritmo,
@@ -764,3 +779,394 @@ class AdaptadorAlgoritmos(ServicioBase):
                 "cargar el programa y revisarlo en el volcado de memoria."
             )
         return self.cpu.ejecutar(max_ciclos)
+
+
+# ---------------------------------------------------------------------------
+# Unidad de punto flotante (biblioteca FPU en ensamblador de Enigma-64)
+# ---------------------------------------------------------------------------
+
+#: Raiz del repositorio, para detectar las entregas que aun estan en camino.
+_RAIZ_REPOSITORIO = pathlib.Path(__file__).resolve().parents[3]
+
+
+class AdaptadorFPU(ServicioBase):
+    """
+    Envuelve `enigma64.fpu.EmuladorFPUEnigma64`.
+
+    La FPU del equipo no es aritmetica de Python: son subrutinas en
+    ensamblador de Enigma-64 que corren sobre la CPU del proyecto. El emulador
+    de la FPU trae su propia RAM y su propia CPU, asi que una operacion de
+    punto flotante nunca pisa la memoria ni los registros de la maquina
+    compartida.
+
+    Cada operacion entra por la tabla de vectores canonica (`VEC_FADD`, ...),
+    que es el punto de enlace que publico el Integrante 4.
+
+    El catalogo incluye tambien las rutinas que todavia no se entregaron. Una
+    rutina queda conectada sola en cuanto su etiqueta aparece en el
+    ensamblador de la biblioteca; hasta entonces el panel la muestra como
+    pendiente y solo ensena el valor de referencia.
+    """
+
+    nombre = "Unidad de punto flotante"
+    modulo = "enigma64.fpu"
+
+    #: Presupuesto de ciclos por llamada; el mismo que usa el emulador del equipo.
+    MAX_CICLOS = 50000
+
+    #: clave -> descripcion. `etiquetas` son los puntos de entrada candidatos,
+    #: del preferido al menos preferido.
+    CATALOGO: Dict[str, Dict[str, Any]] = {
+        "FADD": {
+            "simbolo": "+", "familia": "Aritmeticas", "unaria": False,
+            "entrada": "flotante", "salida": "flotante",
+            "etiquetas": ("VEC_FADD", "FADD"), "autor": "Integrante 1",
+            "descripcion": "Suma con alineacion de mantisas y renormalizacion",
+        },
+        "FSUB": {
+            "simbolo": "-", "familia": "Aritmeticas", "unaria": False,
+            "entrada": "flotante", "salida": "flotante",
+            "etiquetas": ("VEC_FSUB", "FSUB"), "autor": "Integrante 1",
+            "descripcion": "Resta: A + (-B)",
+        },
+        "FMUL": {
+            "simbolo": "x", "familia": "Aritmeticas", "unaria": False,
+            "entrada": "flotante", "salida": "flotante",
+            "etiquetas": ("VEC_FMUL", "FMUL"), "autor": "Integrante 2",
+            "descripcion": "Producto de 106 bits con redondeo al par",
+        },
+        "FDIV": {
+            "simbolo": "/", "familia": "Aritmeticas", "unaria": False,
+            "entrada": "flotante", "salida": "flotante",
+            "etiquetas": ("VEC_FDIV", "FDIV"), "autor": "Integrante 3",
+            "descripcion": "Division larga de mantisas con guarda y pegajoso",
+        },
+        "FSQRT": {
+            "simbolo": "sqrt", "familia": "Aritmeticas", "unaria": True,
+            "entrada": "flotante", "salida": "flotante",
+            "etiquetas": ("VEC_FSQRT", "FSQRT", "FPU_FSQRT", "FPU_SQRT",
+                          "FPU_RAIZ", "FRAIZ"),
+            "autor": "Integrante 6",
+            "descripcion": "Raiz cuadrada",
+        },
+        "FCMP": {
+            "simbolo": "?", "familia": "Comparacion", "unaria": False,
+            "entrada": "flotante", "salida": "orden",
+            "etiquetas": ("VEC_FCMP", "FCMP"), "autor": "Integrante 3",
+            "descripcion": "Comparacion quieta: -1, 0, 1 o 2 (sin orden)",
+        },
+        "I2F": {
+            "simbolo": "int->float", "familia": "Conversiones", "unaria": True,
+            "entrada": "entero", "salida": "flotante",
+            "etiquetas": ("VEC_INT_TO_FLOAT", "FPU_INT_TO_FLOAT"),
+            "autor": "Integrante 4",
+            "descripcion": "Entero de 64 bits con signo a binary64",
+        },
+        "F2I": {
+            "simbolo": "float->int", "familia": "Conversiones", "unaria": True,
+            "entrada": "flotante", "salida": "entero",
+            "etiquetas": ("VEC_FLOAT_TO_INT", "FPU_FLOAT_TO_INT"),
+            "autor": "Integrante 4",
+            "descripcion": "binary64 a entero de 64 bits, truncando hacia cero",
+        },
+    }
+
+    FAMILIAS = ("Aritmeticas", "Comparacion", "Conversiones")
+
+    #: Lo que significa cada codigo que FCMP deja en R5.
+    ORDEN_FCMP = {
+        MASCARA_64: "A < B", 0: "A = B", 1: "A > B", 2: "sin orden (NaN)",
+    }
+
+    #: Entregas que no son una rutina de la biblioteca: se detectan por los
+    #: archivos que traen. (clave, titulo, autor, patrones de archivo)
+    ENTREGAS = (
+        ("oraculo", "Oraculo", "Integrante 6",
+         ("enigma64/*oracul*.py", "tests/*oracul*.py")),
+        ("brun", "Constante de Brun", "Integrante 7",
+         ("programas/*brun*", "enigma64/*brun*")),
+        ("bateria", "Bateria de pruebas", "Integrante 7",
+         ("tests/*brun*.py", "tests/*bateria*.py")),
+    )
+
+    def __init__(self, emulador: Optional[Any] = None,
+                 codigo_asm: Optional[str] = None,
+                 raiz: Optional[pathlib.Path] = None) -> None:
+        if emulador is None and EmuladorFPUEnigma64 is not None:
+            emulador = EmuladorFPUEnigma64()
+        super().__init__(disponible=emulador is not None, motivo=_FALLO_FPU)
+        self.emulador = emulador
+        self.raiz = raiz if raiz is not None else _RAIZ_REPOSITORIO
+        codigo = CODIGO_FPU_ASM if codigo_asm is None else codigo_asm
+        self._etiquetas_asm = set(
+            re.findall(r"^[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*:", codigo, re.MULTILINE)
+        )
+
+    # -- catalogo -----------------------------------------------------------
+
+    def operaciones(self) -> Sequence[str]:
+        return tuple(self.CATALOGO)
+
+    def operaciones_por_familia(self) -> Dict[str, Sequence[str]]:
+        return {
+            familia: tuple(clave for clave, datos in self.CATALOGO.items()
+                           if datos["familia"] == familia)
+            for familia in self.FAMILIAS
+        }
+
+    def descripcion(self, operacion: str) -> Dict[str, Any]:
+        clave = operacion.upper()
+        if clave not in self.CATALOGO:
+            raise ValueError(f"operacion de la FPU desconocida: {operacion!r}")
+        datos = dict(self.CATALOGO[clave])
+        datos["clave"] = clave
+        datos["punto_entrada"] = self.punto_entrada(clave)
+        datos["conectada"] = datos["punto_entrada"] is not None
+        return datos
+
+    def punto_entrada(self, operacion: str) -> Optional[str]:
+        """Etiqueta por la que se llama a la rutina, o None si aun no existe."""
+        for etiqueta in self.CATALOGO[operacion.upper()]["etiquetas"]:
+            if etiqueta in self._etiquetas_asm:
+                return etiqueta
+        return None
+
+    def esta_conectada(self, operacion: str) -> bool:
+        return self.disponible and self.punto_entrada(operacion) is not None
+
+    def es_unaria(self, operacion: str) -> bool:
+        return bool(self.CATALOGO[operacion.upper()]["unaria"])
+
+    def hoja_de_ruta(self) -> List[Dict[str, Any]]:
+        """
+        Estado de cada pieza de la FPU: las rutinas de la biblioteca y las
+        entregas que la acompanan. Es lo que pinta el panel para que se vea de
+        un vistazo que esta conectado y que falta.
+        """
+        piezas = [
+            {
+                "clave": clave, "titulo": clave, "autor": datos["autor"],
+                "conectada": self.esta_conectada(clave),
+            }
+            for clave, datos in self.CATALOGO.items()
+        ]
+        for clave, titulo, autor, patrones in self.ENTREGAS:
+            piezas.append({
+                "clave": clave, "titulo": titulo, "autor": autor,
+                "conectada": self._hay_archivos(patrones) or (
+                    clave == "brun" and any("BRUN" in e.upper()
+                                            for e in self._etiquetas_asm)),
+            })
+        return piezas
+
+    def _hay_archivos(self, patrones: Sequence[str]) -> bool:
+        try:
+            return any(any(self.raiz.glob(patron)) for patron in patrones)
+        except OSError:  # pragma: no cover - disco no accesible
+            return False
+
+    # -- descomposicion IEEE 754 --------------------------------------------
+
+    def descomponer(self, patron: int) -> Dict[str, Any]:
+        """
+        Separa un patron binary64 en sus campos ejecutando FPU_DESEMPAQUETAR
+        en la CPU de Enigma-64. La mantisa que devuelve la rutina ya trae el
+        bit implicito en la posicion 52.
+        """
+        self.exigir()
+        patron &= MASCARA_64
+        signo, exponente, mantisa = self.emulador.desempaquetar(patron)
+        campos = campos_ieee754(patron)
+        clase = clasificar_ieee754(patron)
+        # En ceros y subnormales el exponente efectivo es 1 - sesgo, no 0 - sesgo.
+        exponente_real = None
+        if clase in ("normal", "subnormal"):
+            exponente_real = (exponente if exponente else 1) - 1023
+        return {
+            "patron": patron,
+            "hex": hex64(patron),
+            "signo": signo,
+            "exponente": exponente,
+            "mantisa": mantisa,
+            "fraccion": campos["fraccion"],
+            "implicito": (mantisa >> 52) & 1,
+            "exponente_real": exponente_real,
+            "clase": clase,
+            "texto": texto_flotante(patron),
+            "ciclos": self._ciclos(),
+        }
+
+    # -- ejecucion ----------------------------------------------------------
+
+    def ejecutar(self, operacion: str, a: int, b: int = 0) -> Dict[str, Any]:
+        """
+        Ejecuta una rutina de la FPU sobre patrones de 64 bits.
+
+        `a` y `b` son siempre patrones crudos: un binary64 para las entradas
+        flotantes y un entero en complemento a 2 para INT -> FLOAT.
+
+        El resultado trae ademas el valor de referencia calculado con la
+        aritmetica IEEE 754 del anfitrion, para poder contrastar la rutina.
+        Si la rutina aun no se entrego, `conectada` es False, `resultado` es
+        None y solo viaja la referencia.
+        """
+        self.exigir()
+        datos = self.descripcion(operacion)
+        clave = datos["clave"]
+        a &= MASCARA_64
+        b = 0 if datos["unaria"] else b & MASCARA_64
+
+        referencia = self._referencia(clave, a, b)
+        salida: Dict[str, Any] = {
+            "operacion": clave,
+            "simbolo": datos["simbolo"],
+            "autor": datos["autor"],
+            "unaria": datos["unaria"],
+            "tipo_entrada": datos["entrada"],
+            "tipo_salida": datos["salida"],
+            "a": a,
+            "b": b,
+            "conectada": datos["conectada"],
+            "punto_entrada": datos["punto_entrada"],
+            "resultado": None,
+            "hex": "",
+            "texto": "",
+            "ciclos": 0,
+            "referencia": referencia,
+            "texto_referencia": (
+                "" if referencia is None
+                else self._texto_salida(datos["salida"], referencia)),
+            "coincide": None,
+            "inexacto": None,
+        }
+        if not datos["conectada"]:
+            return salida
+
+        resultado = self.emulador.ejecutar_vector(datos["punto_entrada"], a, b)
+        if not self._se_detuvo():
+            raise RuntimeError(
+                f"{clave} no termino en {self.MAX_CICLOS} ciclos de reloj")
+        resultado &= MASCARA_64
+
+        salida.update({
+            "resultado": resultado,
+            "hex": hex64(resultado),
+            "texto": self._texto_salida(datos["salida"], resultado),
+            "ciclos": self._ciclos(),
+            "coincide": self._coinciden(datos["salida"], resultado, referencia),
+            "inexacto": self._es_inexacto(clave, a, b, resultado),
+        })
+        return salida
+
+    # -- lectura del emulador -----------------------------------------------
+
+    def _ciclos(self) -> int:
+        return int(getattr(getattr(self.emulador, "cpu", None), "ciclos", 0) or 0)
+
+    def _se_detuvo(self) -> bool:
+        return bool(getattr(getattr(self.emulador, "cpu", None), "detenido", True))
+
+    # -- referencia del anfitrion -------------------------------------------
+
+    def _texto_salida(self, tipo: str, patron: int) -> str:
+        if tipo == "flotante":
+            return texto_flotante(patron)
+        if tipo == "entero":
+            return str(con_signo(patron))
+        return self.ORDEN_FCMP.get(patron, f"codigo {con_signo(patron)}")
+
+    @staticmethod
+    def _coinciden(tipo: str, resultado: int, referencia: Optional[int]
+                   ) -> Optional[bool]:
+        if referencia is None:
+            return None
+        if tipo == "flotante" and clasificar_ieee754(referencia) == "NaN":
+            # Cualquier NaN es una respuesta valida: la carga util es libre.
+            return clasificar_ieee754(resultado) == "NaN"
+        return resultado == referencia
+
+    @staticmethod
+    def _referencia(clave: str, a: int, b: int) -> Optional[int]:
+        """
+        Lo que dice la aritmetica IEEE 754 del anfitrion. Devuelve None cuando
+        el estandar no fija un unico resultado (FLOAT -> INT fuera de rango).
+        """
+        if clave == "I2F":
+            return flotante_a_bits(float(con_signo(a)))
+
+        x, y = bits_a_flotante(a), bits_a_flotante(b)
+
+        if clave == "F2I":
+            if math.isnan(x) or math.isinf(x):
+                return None
+            entero = math.trunc(x)
+            if not -(1 << 63) <= entero < (1 << 63):
+                return None
+            return entero & MASCARA_64
+
+        if clave == "FCMP":
+            if math.isnan(x) or math.isnan(y):
+                return 2
+            return MASCARA_64 if x < y else (1 if x > y else 0)
+
+        if clave == "FADD":
+            valor = x + y
+        elif clave == "FSUB":
+            valor = x - y
+        elif clave == "FMUL":
+            valor = x * y
+        elif clave == "FDIV":
+            if y == 0.0 and not math.isnan(x) and not math.isnan(y):
+                # Python lanza ZeroDivisionError; IEEE 754 responde infinito
+                # con el signo XOR de los operandos, o NaN si es 0/0.
+                negativo = (a ^ b) >> 63
+                valor = math.nan if x == 0.0 else (-math.inf if negativo else math.inf)
+            else:
+                valor = x / y
+        elif clave == "FSQRT":
+            if math.isnan(x) or x == 0.0:
+                valor = x                       # sqrt(-0) = -0
+            elif x < 0.0:
+                valor = math.nan
+            else:
+                valor = math.sqrt(x)
+        else:  # pragma: no cover - el catalogo y esta funcion van a la par
+            return None
+        return flotante_a_bits(valor)
+
+    @staticmethod
+    def _es_inexacto(clave: str, a: int, b: int, resultado: int) -> Optional[bool]:
+        """
+        True si el resultado tuvo que redondearse. Se decide con aritmetica
+        racional exacta; None cuando la pregunta no aplica (NaN, infinitos,
+        comparaciones).
+        """
+        if clave in ("FCMP",):
+            return None
+        if clave == "F2I":
+            x = bits_a_flotante(a)
+            if math.isnan(x) or math.isinf(x):
+                return None
+            return Fraction(x) != con_signo(resultado)
+
+        r = bits_a_flotante(resultado)
+        if math.isnan(r) or math.isinf(r):
+            return None
+        if clave == "I2F":
+            return Fraction(r) != con_signo(a)
+
+        x, y = bits_a_flotante(a), bits_a_flotante(b)
+        if any(math.isnan(v) or math.isinf(v) for v in (x, y)):
+            return None
+        fx, fy, fr = Fraction(x), Fraction(y), Fraction(r)
+        if clave == "FADD":
+            return fx + fy != fr
+        if clave == "FSUB":
+            return fx - fy != fr
+        if clave == "FMUL":
+            return fx * fy != fr
+        if clave == "FDIV":
+            return None if fy == 0 else fx / fy != fr
+        if clave == "FSQRT":
+            return None if fx < 0 else fr * fr != fx
+        return None  # pragma: no cover
