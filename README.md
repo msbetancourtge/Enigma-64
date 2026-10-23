@@ -437,6 +437,7 @@ Hasta ahora la única forma de combinar código de varios archivos era concatena
 - **`CargadorEnigma.cargar_archivo`** reconoce la firma `EOBJ` y enlaza el módulo antes de cargarlo, así la pestaña **Cargador** de la interfaz también acepta `.obj`.
 - **`python -m enigma64.enlazador`** — analizador y enlazador de línea de comandos.
 - **`enigma64/enlazador/ejemplos.py`** — dos módulos de ejemplo (`principal.obj`, `libmat.obj`) que usan los cinco tipos de marca.
+- Informe técnico completo en [`docs/integrantes/informe_integrante3_enlazador_cargador.md`](docs/integrantes/informe_integrante3_enlazador_cargador.md): restricciones del ISA, formato, decisiones de diseño, verificación con el código del equipo y pendientes.
 
 ## Formato del archivo `.obj`
 
