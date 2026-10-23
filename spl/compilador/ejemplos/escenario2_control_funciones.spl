@@ -1,0 +1,55 @@
+// ============================================================================
+// ESCENARIO 2: Estructuras de Control, Iteración, Selección y Desambiguación
+// Lenguaje de Alto Nivel para Enigma-64 (SPL)
+// ============================================================================
+
+function float calcular_promedio(float notas[10], int total) {
+    float acumulador = 0.0;
+    int indice = 0;
+    
+    // Bucle while con condición
+    while (indice < total) {
+        acumulador = acumulador + notas[indice];
+        indice = indice + 1;
+    }
+    
+    // Bucle do-while
+    do {
+        if (acumulador > 100.0) {
+            break;
+        }
+    } while (false);
+    
+    // Bucle for
+    for (int i = 0; i < 5; i = i + 1) {
+        if (i == 2) {
+            continue;
+        }
+    }
+    
+    return acumulador / total;
+}
+
+function void despachar_comando(int codigo_operacion) {
+    // Selección múltiple switch-case-default
+    switch (codigo_operacion) {
+        case 1:
+            // Desambiguación: los identificadores comparten prefijos con palabras clave
+            int if_variable = 10;
+            float while_contador = 3.14159;
+            int for_limite = 100;
+            break;
+        case 2:
+            bool status_flag = true;
+            break;
+        default:
+            return;
+    }
+    
+    // Selección simple if-then-else
+    if (codigo_operacion >= 0) then {
+        int resultado_ok = 1;
+    } else {
+        int resultado_error = -1;
+    }
+}

@@ -63,6 +63,9 @@ e implementado en la Tarea 10 del curso Lenguajes de Programación G2 2026-2.
 - [SPL: Analizador Léxico del Ensamblador (Integrante 2)](#spl-analizador-léxico-del-ensamblador-integrante-2)
   - [Qué incluye](#qué-incluye-9)
   - [Cómo usar](#cómo-usar)
+- [SPL: Analizador Léxico del Compilador (Integrante 4)](#spl-analizador-léxico-del-compilador-integrante-4)
+  - [Qué incluye](#qué-incluye-10)
+  - [Cómo usar](#cómo-usar-1)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 
 ## Especificación de la máquina
@@ -132,10 +135,11 @@ Enigma-64/
 │       ├── __init__.py
 │       └── panel_registros.py     Panel en vivo de registros y banco de pruebas ALU
 ├── programas/                     Archivos binarios (.bin, .hex, .e64) y biblioteca fpu_lib.*
-├── spl/                           Herramientas y preprocesador SPL (Simple Programming Language)
+├── spl/                           Herramientas y subsistema SPL (Simple Programming Language)
 │   ├── include/enigma64.h
 │   ├── preprocesador/             Lexer, motor de directivas y CLI
-│   └── ensamblador/               Analizador léxico del ensamblador (PLY), CLI y ejemplos
+│   ├── ensamblador/               Analizador léxico del ensamblador (PLY), CLI y ejemplos
+│   └── compilador/                Analizador léxico base del compilador (PLY), tablas y CLI
 ├── scripts/                       Scripts utilitarios, compilación y pruebas manuales
 │   ├── generar_binarios.py        Generador automatizado de ejecutables (.bin, .hex, .e64)
 │   ├── generar_reporte_tarea17_pdf.py Generador del informe técnico formal en PDF
@@ -800,6 +804,37 @@ echo "loop: JMP loop" | python -m spl.ensamblador
 python -m pytest tests/test_spl/test_lexer_ensamblador.py -v
 ```
 
+# SPL: Analizador Léxico del Compilador (Integrante 4)
+
+## Qué incluye
+
+* **`spl/compilador/lexer.py`:** Tokenizador del lenguaje de alto nivel imperativo para Enigma-64 construido con `ply.lex`. Reconoce las palabras reservadas de control (`if`, `then`, `else`, `switch`, `case`, `default`, `while`, `do`, `for`, `continue`, `function`, `return`, `break`), los tipos primitivos (`int` de 64 bits, `float` IEEE 754 Binary64, `void`, `char`, `bool`, `const`), los tipos de datos abstractos y estructuras (`struct`, `tda`, `typedef`, `sizeof`), los delimitadores dimensionales para arreglos unidimensionales y matrices multidimensionales (`[` y `]`), bloques (`{` y `}`), y acceso a miembros (`.` y `->`).
+* **Desambiguación e Integración con Tablas de Símbolos:** Identifica identificadores (`ID`) distinguiéndolos de palabras clave con prefijos compartidos (`if_cond`, `while_cnt`), e interactúa nativamente con `GestorTablasSimbolos` (`spl/compilador/tablas.py`, Integrante 6) deduplicando identificadores en `tablaID` con índices base 1.
+* **Tolerancia y reporte de errores:** Detecta y reporta errores léxicos (`ErrorLexico`) indicando línea y columna sin abortar el análisis.
+* **`spl/compilador/ejemplos/`:** 3 programas de prueba correspondientes a los escenarios formales del taller:
+  * `escenario1_tda_matrices.spl`: Tipos abstractos `struct`/`tda`, vectores y matrices multidimensionales.
+  * `escenario2_control_funciones.spl`: Estructuras de control, funciones y desambiguación.
+  * `escenario3_errores_recuperacion.spl`: Detección y recuperación ante errores léxicos intencionales.
+* Tabla maestra de códigos, justificación del paradigma imperativo y documentación técnica en [`docs/integrantes/informe_integrante4_vocabulario_compilador.md`](docs/integrantes/informe_integrante4_vocabulario_compilador.md).
+
+## Cómo usar
+
+```bash
+# Tokenización de programa de alto nivel con reporte tabular y estado de tablas
+python -m spl.compilador spl/compilador/ejemplos/escenario1_tda_matrices.spl
+
+# Ocultando el volcado de tablas
+python -m spl.compilador spl/compilador/ejemplos/escenario2_control_funciones.spl --sin-tablas
+
+# Desde la entrada estándar
+echo "struct Punto { float x; float y; };" | python -m spl.compilador
+
+# Pruebas unitarias del compilador (18 pruebas)
+python -m pytest tests/test_spl/test_lexer_compilador.py -v
+```
+
+---
+
 # Flujo de trabajo con Git
 
 Nunca se trabaja directo sobre `main`. `main` debe estar siempre ejecutable.
@@ -821,7 +856,7 @@ Luego se abre un Pull Request para revisión e integración de cambios.
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
 ```bash
-# Suite completa (424 pruebas: unitarias y GUI)
+# Suite completa (669 pruebas: unitarias y GUI)
 python -m pytest
 
 # O mediante unittest estándar (182 pruebas de hardware sin GUI)

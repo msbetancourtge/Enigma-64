@@ -1,0 +1,21 @@
+// ============================================================================
+// ESCENARIO 3: Detección de Errores Léxicos y Recuperación sin Detener Análisis
+// Lenguaje de Alto Nivel para Enigma-64 (SPL)
+// ============================================================================
+
+int variable_valida = 42;
+
+// Error 1: Caracteres ilegales no pertenecientes al alfabeto de Enigma-64
+int precio@descuento = 100;
+float tasa$interes = 0.05;
+char caracter_invalido = `a`;
+
+// Error 2: Literales numéricos mal formados
+int binario_corrupto = 0b102;
+int hex_invalido = 0xZZ1;
+float flotante_mal = 12abc;
+
+// El analizador debe recuperarse inmediatamente y continuar reconociendo tokens válidos:
+function int fin_del_programa() {
+    return variable_valida;
+}
