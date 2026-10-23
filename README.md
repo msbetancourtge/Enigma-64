@@ -5,6 +5,66 @@ A Von Neumann-Like Computer with Compiler and a Programming Language
 Emulador del computador **Enigma-64** de **Noctua Systems**, diseñado en la Tarea 9
 e implementado en la Tarea 10 del curso Lenguajes de Programación G2 2026-2.
 
+## Índice
+
+- [Especificación de la máquina](#especificación-de-la-máquina)
+- [Autores](#autores)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [Requisitos](#requisitos)
+- [Cómo ejecutar](#cómo-ejecutar)
+- [Subsistema de Memoria RAM y Buses](#subsistema-de-memoria-ram-y-buses)
+  - [Qué incluye](#qué-incluye)
+  - [API pública](#api-pública)
+    - [Métodos y Propiedades](#métodos-y-propiedades)
+    - [Señales del Bus de Control (`status`)](#señales-del-bus-de-control-status)
+  - [Decisiones de diseño tomadas](#decisiones-de-diseño-tomadas)
+- [Banco de Registros y Unidad Aritmético-Lógica (ALU)](#banco-de-registros-y-unidad-aritmético-lógica-alu)
+  - [Qué incluye](#qué-incluye-1)
+  - [API pública](#api-pública-1)
+    - [BancoRegistros](#bancoregistros)
+    - [ALU](#alu)
+  - [Decisiones de diseño tomadas](#decisiones-de-diseño-tomadas-1)
+  - [Especificaciones y Decisiones de Diseño Arquitectónico](#especificaciones-y-decisiones-de-diseño-arquitectónico)
+- [Cargador de Programas y Manipulación de Memoria Bit a Bit](#cargador-de-programas-y-manipulación-de-memoria-bit-a-bit)
+  - [Qué incluye](#qué-incluye-2)
+  - [API pública](#api-pública-2)
+- [Pruebas](#pruebas)
+  - [Nivel 1 — El paquete se importa](#nivel-1--el-paquete-se-importa)
+  - [Nivel 2 — Suite de pruebas unitarias](#nivel-2--suite-de-pruebas-unitarias)
+  - [Nivel 3 — Panel gráfico](#nivel-3--panel-gráfico)
+  - [Nivel 4 — Trazado del algoritmo del documento](#nivel-4--trazado-del-algoritmo-del-documento)
+- [Unidad de Control (CPU) y Microarquitectura FSM](#unidad-de-control-cpu-y-microarquitectura-fsm)
+  - [Qué incluye](#qué-incluye-3)
+    - [1. FSM de 5 Fases Síncronas](#1-fsm-de-5-fases-síncronas)
+    - [2. Cola FIFO de Prebúsqueda (`PrefetchBuffer`)](#2-cola-fifo-de-prebúsqueda-prefetchbuffer)
+    - [3. Modos y Control de Pila](#3-modos-y-control-de-pila)
+- [Interconexión y Ciclo de Instrucción](#interconexión-y-ciclo-de-instrucción)
+  - [Acceso a Memoria en el Ciclo de Instrucción](#acceso-a-memoria-en-el-ciclo-de-instrucción)
+  - [Integración con la Interfaz Gráfica (GUI)](#integración-con-la-interfaz-gráfica-gui)
+- [Programas Oficiales y Algoritmos de Prueba](#programas-oficiales-y-algoritmos-de-prueba)
+  - [Qué incluye](#qué-incluye-4)
+    - [1. `enigma64/programas.py` y `programas/` — Binarios oficiales de la Tarea 9](#1-enigma64programaspy-y-programas--binarios-oficiales-de-la-tarea-9)
+    - [2. Suite de pruebas de validación formal (`tests/integration/test_algoritmos.py`)](#2-suite-de-pruebas-de-validación-formal-testsintegrationtest_algoritmospy)
+- [Subsistema de Entrada/Salida Mapeada en Memoria (MMIO) y Periféricos](#subsistema-de-entradasalida-mapeada-en-memoria-mmio-y-periféricos)
+  - [Qué incluye](#qué-incluye-5)
+    - [1. `enigma64/perifericos.py` — Controlador básico de pantalla y subsistema MMIO](#1-enigma64perifericospy--controlador-básico-de-pantalla-y-subsistema-mmio)
+    - [2. Grilla visual interactiva de memoria RAM (`enigma64/ui/paneles/panel_memoria.py`)](#2-grilla-visual-interactiva-de-memoria-ram-enigma64uipanelespanel_memoriapy)
+    - [3. Terminal CRT emulada en MMIO (`enigma64/ui/paneles/panel_mmio.py`)](#3-terminal-crt-emulada-en-mmio-enigma64uipanelespanel_mmiopy)
+- [FPU: Multiplicación de Punto Flotante (FMUL)](#fpu-multiplicación-de-punto-flotante-fmul)
+  - [Qué incluye](#qué-incluye-6)
+  - [Pruebas (`tests/fpu/test_fmul.py`)](#pruebas-testsfputest_fmulpy)
+- [FPU: Panel Interactivo y Visor IEEE 754 (Integrante 5)](#fpu-panel-interactivo-y-visor-ieee-754-integrante-5)
+- [FPU: Conversiones de Formato y Mesa de Entrada Canónica (Integrante 4)](#fpu-conversiones-de-formato-y-mesa-de-entrada-canónica-integrante-4)
+  - [Qué incluye](#qué-incluye-7)
+  - [Pruebas (`tests/fpu/test_fconv.py`)](#pruebas-testsfputest_fconvpy)
+- [FPU: Constante de Brun & Batería de Pruebas (Integrante 7)](#fpu-constante-de-brun--batería-de-pruebas-integrante-7)
+  - [Qué incluye](#qué-incluye-8)
+  - [Cómo probar](#cómo-probar)
+- [SPL: Analizador Léxico del Ensamblador (Integrante 2)](#spl-analizador-léxico-del-ensamblador-integrante-2)
+  - [Qué incluye](#qué-incluye-9)
+  - [Cómo usar](#cómo-usar)
+- [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
+
 ## Especificación de la máquina
 
 | Característica | Valor |
@@ -74,7 +134,8 @@ Enigma-64/
 ├── programas/                     Archivos binarios (.bin, .hex, .e64) y biblioteca fpu_lib.*
 ├── spl/                           Herramientas y preprocesador SPL (Simple Programming Language)
 │   ├── include/enigma64.h
-│   └── preprocesador/             Lexer, motor de directivas y CLI
+│   ├── preprocesador/             Lexer, motor de directivas y CLI
+│   └── ensamblador/               Analizador léxico del ensamblador (PLY), CLI y ejemplos
 ├── scripts/                       Scripts utilitarios, compilación y pruebas manuales
 │   ├── generar_binarios.py        Generador automatizado de ejecutables (.bin, .hex, .e64)
 │   ├── generar_reporte_tarea17_pdf.py Generador del informe técnico formal en PDF
@@ -717,6 +778,27 @@ python -m pytest tests/integration/test_bateria_integracion.py -v
 ```
 
 ---
+
+# SPL: Analizador Léxico del Ensamblador (Integrante 2)
+
+## Qué incluye
+
+* **`spl/ensamblador/lexer.py`:** tokenizador construido con `ply.lex`. Reconoce los 41 mnemónicos del ISA, los registros (`R0`–`R7`, `PC`, `SR`, `RV`, `SP`, `BP`), las directivas `.data .text .org .word .byte`, la definición y el uso de etiquetas, los literales decimales, hexadecimales, binarios y flotantes (con signo), y los separadores `, : [ ] ( ) # + -`. Ignora los comentarios `;`, lleva el conteo de líneas y reporta cada error léxico con su línea y columna sin detener el análisis.
+* **`spl/ensamblador/ejemplos/prueba.asm`:** programa que usa todas las categorías léxicas. Incluye 7 errores intencionales y su salida esperada.
+* Tabla de categorías, decisiones de diseño y manuales en [`docs/integrantes/informe_integrante2_lexer_ensamblador.md`](docs/integrantes/informe_integrante2_lexer_ensamblador.md).
+
+## Cómo usar
+
+```bash
+# Tokens <línea, CATEGORÍA, lexema> y resumen por categoría
+python -m spl.ensamblador spl/ensamblador/ejemplos/prueba.asm
+
+# Desde la entrada estándar
+echo "loop: JMP loop" | python -m spl.ensamblador
+
+# Pruebas (117)
+python -m pytest tests/test_spl/test_lexer_ensamblador.py -v
+```
 
 # Flujo de trabajo con Git
 
