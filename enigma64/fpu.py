@@ -32,13 +32,13 @@ SIGN_BIT: int = 0x8000000000000000
 # Carga del código fuente ensamblador oficial.
 # fpu.s (núcleo + FADD/FSUB), fmul.s (FMUL) y fconv.s (Conversiones y Vectores)
 # se ensamblan conjuntamente como una sola unidad modular de biblioteca.
-_RUTA_FPU_S = os.path.join(os.path.dirname(__file__), "fpu.s")
-_RUTA_FMUL_S = os.path.join(os.path.dirname(__file__), "fmul.s")
-_RUTA_FCONV_S = os.path.join(os.path.dirname(__file__), "fconv.s")
-_RUTA_FDIV_S = os.path.join(os.path.dirname(__file__), "fdiv.s")
-_RUTA_FCMP_S = os.path.join(os.path.dirname(__file__), "fcmp.s")
-_RUTA_FSQRT_S = os.path.join(os.path.dirname(__file__), "fsqrt.s")
-_RUTA_FBRUN_S = os.path.join(os.path.dirname(__file__), "fbrun.s")
+_RUTA_FPU_S = os.path.join(os.path.dirname(__file__), "asm", "fpu.s")
+_RUTA_FMUL_S = os.path.join(os.path.dirname(__file__), "asm", "fmul.s")
+_RUTA_FCONV_S = os.path.join(os.path.dirname(__file__), "asm", "fconv.s")
+_RUTA_FDIV_S = os.path.join(os.path.dirname(__file__), "asm", "fdiv.s")
+_RUTA_FCMP_S = os.path.join(os.path.dirname(__file__), "asm", "fcmp.s")
+_RUTA_FSQRT_S = os.path.join(os.path.dirname(__file__), "asm", "fsqrt.s")
+_RUTA_FBRUN_S = os.path.join(os.path.dirname(__file__), "asm", "fbrun.s")
 
 with open(_RUTA_FPU_S, "r", encoding="utf-8") as _f:
     _CODIGO_NUCLEO_ASM: str = _f.read()

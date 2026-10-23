@@ -870,7 +870,8 @@ def construir_reporte_pdf(pdf_salida: Path, ruta_figura_fpu: Path | None):
 
 def main():
     base_dir = Path(__file__).resolve().parent.parent
-    pdf_salida_oficial = base_dir / "Tarea_17_Reporte_Tecnico_Enigma64.pdf"
+    pdf_salida_oficial = base_dir / "docs" / "reportes" / "Tarea_17_Reporte_Tecnico_Enigma64.pdf"
+    pdf_salida_oficial.parent.mkdir(parents=True, exist_ok=True)
 
     print("Procesando mockup en escala de grises...")
     ruta_figura_fpu = preparar_figura_fpu_bw(base_dir)

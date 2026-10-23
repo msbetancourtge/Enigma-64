@@ -40,7 +40,10 @@ Enigma-64/
 ├── requirements.txt
 ├── environment.yml
 ├── main.py                        Punto de entrada: lanza la interfaz gráfica del emulador
-├── verificacion_manual.py         Script de trazado y verificación del bucle factorial
+├── docs/                          Documentación, reportes técnicos y figuras
+│   ├── reportes/                  Reportes formales en PDF de entregas académicas
+│   ├── integrantes/               Informes técnicos individuales por módulo
+│   └── figuras/                   Mockups y capturas del sistema
 ├── enigma64/                           Paquete principal del emulador
 │   ├── __init__.py                Exportación de la API pública del sistema
 │   ├── registros.py               Banco de registros de 64 bits, punteros y banderas SR
@@ -51,12 +54,14 @@ Enigma-64/
 │   ├── perifericos.py             Subsistema MMIO y controlador de pantalla CRT
 │   ├── programas.py               Definición y compilación de programas oficiales de prueba
 │   ├── fpu.py                     EmuladorFPUEnigma64, vector jump table y utilidades IEEE 754
-│   ├── fpu.s                      Núcleo FPU: FADD, FSUB, empaquetado y desempaquetado
-│   ├── fmul.s                     Multiplicación FMUL (IEEE 754 binary64) y MUL128
-│   ├── fdiv.s                     División FDIV (IEEE 754 binary64) con guarda y pegajoso
-│   ├── fcmp.s                     Comparador FCMP quieto de flotantes IEEE 754
-│   ├── fconv.s                    Conversiones INT-FLOAT, FLOAT-INT y tabla canónica FPU_VECTORES
-│   ├── fsqrt.s                    Raíz cuadrada FSQRT (Newton-Raphson, Ricardo Peña pág. 26)
+│   ├── asm/                       Firmware y rutinas ensamblador oficiales de la FPU
+│   │   ├── fpu.s                  Núcleo FPU: FADD, FSUB, empaquetado y desempaquetado
+│   │   ├── fmul.s                 Multiplicación FMUL (IEEE 754 binary64) y MUL128
+│   │   ├── fdiv.s                 División FDIV (IEEE 754 binary64) con guarda y pegajoso
+│   │   ├── fcmp.s                 Comparador FCMP quieto de flotantes IEEE 754
+│   │   ├── fconv.s                Conversiones INT-FLOAT, FLOAT-INT y tabla canónica FPU_VECTORES
+│   │   ├── fsqrt.s                Raíz cuadrada FSQRT (Newton-Raphson, Ricardo Peña pág. 26)
+│   │   └── fbrun.s                Estimación de la Constante de Brun y test de primalidad
 │   ├── oraculo_ieee754.py         Módulo utilitario de validación IEEE 754 y oráculo de referencia
 │   ├── ui/                        Interfaz gráfica modular (Tkinter / TTK)
 │   │   ├── shell/ventana.py       Shell principal y cuaderno de módulos
@@ -67,26 +72,20 @@ Enigma-64/
 │       ├── __init__.py
 │       └── panel_registros.py     Panel en vivo de registros y banco de pruebas ALU
 ├── programas/                     Archivos binarios (.bin, .hex, .e64) y biblioteca fpu_lib.*
-├── scripts/                       Scripts utilitarios (generación automatizada de binarios)
-└── tests/                         Suite de pruebas automatizadas
+├── spl/                           Herramientas y preprocesador SPL (Simple Programming Language)
+│   ├── include/enigma64.h
+│   └── preprocesador/             Lexer, motor de directivas y CLI
+├── scripts/                       Scripts utilitarios, compilación y pruebas manuales
+│   ├── generar_binarios.py        Generador automatizado de ejecutables (.bin, .hex, .e64)
+│   ├── generar_reporte_tarea17_pdf.py Generador del informe técnico formal en PDF
+│   └── verificacion_manual.py     Script interactivo de trazado y verificación (factorial)
+└── tests/                         Suite de pruebas automatizadas modularizada
     ├── conftest.py                Configuración global de entorno para pytest
-    ├── test_registros_alu.py      Pruebas de banco de registros y operaciones ALU
-    ├── test_memoria.py            Pruebas de memoria física, paginación y alineación
-    ├── test_cpu.py                Pruebas de la CPU, FSM multiciclo y decodificador
-    ├── test_cargador.py           Pruebas de carga, formatos y manipulación de bits
-    ├── test_perifericos.py        Pruebas de MMIO y controlador de pantalla
-    ├── test_algoritmos.py         Pruebas de ejecución de algoritmos oficiales
-    ├── test_fpu.py                Pruebas de FADD, FSUB, desempaquetar y empaquetar
-    ├── test_fmul.py               Pruebas de FMUL (IEEE 754 binary64) contra el oráculo de Python
-    ├── test_fconv.py              Pruebas de conversiones INT-FLOAT y mesa de vectores FPU
-    ├── test_oraculo.py            Pruebas del oráculo de validación IEEE 754 y simulación Newton
-    ├── test_fsqrt.py              Pruebas de FSQRT (Newton-Raphson) en la CPU contra el oráculo
-    ├── test_ui_aislamiento.py     Pruebas estáticas de desacoplamiento de capas (AST)
-    ├── test_ui_fpu.py             Pruebas del panel de la FPU, su adaptador y el formato IEEE 754
-    ├── test_ui_modulos_nuevos.py  Pruebas de interfaces de servicios y adaptadores
-    ├── test_ui_nucleo.py          Pruebas del núcleo de interfaz y bus de eventos
-    ├── test_ui_paneles.py         Pruebas funcionales de los paneles gráficos
-    └── test_ui_visor_ram_mmio.py  Pruebas de visualización de memoria y edición de bits
+    ├── core/                      Pruebas de CPU, ALU, registros, memoria y cargador
+    ├── fpu/                       Pruebas IEEE 754, FADD, FMUL, FDIV, FCMP, FSQRT, Brun y oráculo
+    ├── ui/                        Pruebas de interfaz gráfica, aislamiento AST y eventos
+    ├── test_spl/                  Pruebas del lenguaje y herramientas SPL
+    └── integration/               Pruebas de algoritmos de prueba e integración del sistema
 ```
 
 ## Requisitos
@@ -421,7 +420,7 @@ Secuencia de comprobación manual:
 ## Nivel 4 — Trazado del algoritmo del documento
 
 ```bash
-python verificacion_manual.py
+python scripts/verificacion_manual.py
 ```
 
 Reproduce el bucle del Algoritmo 1 (factorial de 5) usando únicamente el banco de
@@ -526,7 +525,7 @@ en un diccionario con hexadecimal, decimal con signo y las siete banderas.
 - Formatos suministrados: `.bin` (binario crudo), `.hex` (volcado hexadecimal) y `.e64` (ejecutable estructurado con cabecera Magic `ENIG`).
 - Script generador: `python scripts/generar_binarios.py`.
 
-### 2. Suite de pruebas de validación formal (`tests/test_algoritmos.py`)
+### 2. Suite de pruebas de validación formal (`tests/integration/test_algoritmos.py`)
 - 16 pruebas automatizadas que verifican la integridad byte a byte contra la Tarea 9, el respeto de fronteras de memoria, la carga en RAM mediante `CargadorEnigma`, la ejecución paso a paso y la ejecución sobre la `CPU` oficial de la máquina.
 
 ---
@@ -568,11 +567,11 @@ en un diccionario con hexadecimal, decimal con signo y las siete banderas.
 
 ## Qué incluye
 
-- **`enigma64/fmul.s`** — Subrutina `FMUL` en ensamblador de Enigma-64: `R5 = R1 × R2` en IEEE 754 binary64, con redondeo al par más cercano, subnormales en entrada y salida, y casos especiales (NaN, ±Inf, ±0, 0 × Inf). Incluye las auxiliares `FPU_MUL128` (producto 64 × 64 → 128 bits con cuatro productos parciales de 32 bits, porque `MUL` solo conserva los 64 bits bajos) y `FPU_NORMALIZAR_SUBNORMAL`. Reutiliza `FPU_DESEMPAQUETAR` y `FPU_EMPAQUETAR` de `fpu.s`.
+- **`enigma64/asm/fmul.s`** — Subrutina `FMUL` en ensamblador de Enigma-64: `R5 = R1 × R2` en IEEE 754 binary64, con redondeo al par más cercano, subnormales en entrada y salida, y casos especiales (NaN, ±Inf, ±0, 0 × Inf). Incluye las auxiliares `FPU_MUL128` (producto 64 × 64 → 128 bits con cuatro productos parciales de 32 bits, porque `MUL` solo conserva los 64 bits bajos) y `FPU_NORMALIZAR_SUBNORMAL`. Reutiliza `FPU_DESEMPAQUETAR` y `FPU_EMPAQUETAR` de `fpu.s`.
 - **`enigma64/fpu.py`** — Ensambla `fpu.s` + `fmul.s` como una sola unidad y expone `EmuladorFPUEnigma64.multiplicar()` (devuelve `float`) y `multiplicar_bits()` (devuelve el patrón de 64 bits).
-- **`docs/informe_integrante2_fmul.md`** — Diseño, asignación de registros, oráculo y limitaciones.
+- **`docs/integrantes/informe_integrante2_fmul.md`** — Diseño, asignación de registros, oráculo y limitaciones.
 
-## Pruebas (`tests/test_fmul.py`)
+## Pruebas (`tests/fpu/test_fmul.py`)
 
 Cada prueba ejecuta `FMUL` sobre la CPU oficial y compara el resultado bit a bit contra el oráculo de Python (`struct` + `*`, que es IEEE 754 binary64 con redondeo al par más cercano).
 
@@ -620,7 +619,7 @@ En el caso 12 el oráculo de Python (x86) da `FFF8000000000000`. Los dos son NaN
 Para correr solo estas pruebas:
 
 ```bash
-python -m pytest tests/test_fmul.py -v
+python -m pytest tests/fpu/test_fmul.py -v
 # o con unittest estándar
 python -m unittest tests.test_fmul -v
 ```
@@ -649,15 +648,15 @@ La capa de servicios (`AdaptadorFPU` en `enigma64/ui/servicios/adaptadores.py`) 
 
 ## Qué incluye
 
-- **`enigma64/fconv.s`** — Subrutinas en ensamblador de Enigma-64:
+- **`enigma64/asm/fconv.s`** — Subrutinas en ensamblador de Enigma-64:
   - `FPU_VECTORES`: Mesa de entrada / tabla de salto canónica fija de 7 entradas (`JMP` de 5 bytes en saltos fijos de `+0x05`), permitiendo a los programas de usuario invocar cualquier servicio de la FPU de forma canónica desacoplada de la implementación interna.
   - `FPU_INT_TO_FLOAT` (`INT64_TO_FLOAT64`): Conversión de enteros de 64 bits con signo en complemento a dos (R1) a formato IEEE 754 de doble precisión binary64 (R5). Gestiona el caso cero, el caso crítico `INT64_MIN` ($-2^{63}$), normalización y redondeo al par más cercano (*roundTiesToEven*) para enteros que exceden 53 bits de significando.
   - `FPU_FLOAT_TO_INT` (`FLOAT64_TO_INT64`): Conversión de flotantes IEEE 754 binary64 (R1) a enteros de 64 bits con signo (R5), implementando truncamiento hacia cero ($[-1.0, 1.0) \to 0$), soporte para enteros de hasta 63 bits y el límite exacto $-2^{63}$.
 - **`enigma64/fpu.py`** — Integración en `EmuladorFPUEnigma64` con métodos `int_to_float()`, `int_to_float_bits()`, `float_to_int()`, `ejecutar_vector()` y constantes de vector `VECTOR_*`.
 - **`programas/fpu_lib.s`**, **`fpu_lib.bin`** (1425 bytes), **`fpu_lib.hex`** — Biblioteca binaria unificada completa que compila la tabla `FPU_VECTORES`, `fconv.s`, `fpu.s` y `fmul.s` en un único módulo distribuible.
-- **`docs/informe_integrante4_conversiones_enlace.md`** — Informe técnico completo sobre diseño, microarquitectura, convenciones ABI y pruebas.
+- **`docs/integrantes/informe_integrante4_conversiones_enlace.md`** — Informe técnico completo sobre diseño, microarquitectura, convenciones ABI y pruebas.
 
-## Pruebas (`tests/test_fconv.py`)
+## Pruebas (`tests/fpu/test_fconv.py`)
 
 19 pruebas automatizadas (111 aserciones directas) que validan el comportamiento contra IEEE 754 y el oráculo nativo:
 
@@ -679,7 +678,7 @@ La capa de servicios (`AdaptadorFPU` en `enigma64/ui/servicios/adaptadores.py`) 
 Para correr solo estas pruebas:
 
 ```bash
-python -m pytest tests/test_fconv.py -v
+python -m pytest tests/fpu/test_fconv.py -v
 ```
 
 ---
@@ -701,7 +700,7 @@ python -m pytest tests/test_fconv.py -v
   * Lee el número de pares objetivo $K$ desde `0x00205000`.
   * Escribe la estimación $B_2$ en `0x00205008`, la cantidad de pares procesados en `0x00205010` y el último primo gemelo en `0x00205018`.
   * Disponible en binario crudo (`.bin`), volcado (`.hex`) y ejecutable estructurado (`.e64`).
-* **Batería de Pruebas Unitarias y de Integración (`tests/test_bateria_integracion.py` y `tests/test_fbrun.py`):**
+* **Batería de Pruebas Unitarias y de Integración (`tests/integration/test_bateria_integracion.py` y `tests/fpu/test_fbrun.py`):**
   * Pruebas exhaustivas de división `FDIV` (operaciones normales, división por cero, infinitos, NaN, subnormales y contraste con el oráculo).
   * Pruebas de comparación `FCMP` (orden estricto, ceros con signo $+0.0 \equiv -0.0$, NaNs desordenados).
   * Pruebas de estabilidad de marco de pila (`ENTER`/`LEAVE`) e invarianza de `SP`/`BP`.
@@ -711,10 +710,10 @@ python -m pytest tests/test_fconv.py -v
 
 ```bash
 # Pruebas de la Constante de Brun
-python -m pytest tests/test_fbrun.py -v
+python -m pytest tests/fpu/test_fbrun.py -v
 
 # Batería completa de integración y robustez FPU
-python -m pytest tests/test_bateria_integracion.py -v
+python -m pytest tests/integration/test_bateria_integracion.py -v
 ```
 
 ---

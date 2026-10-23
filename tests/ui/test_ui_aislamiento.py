@@ -1,4 +1,4 @@
-"""
+﻿"""
 Verifica por analisis del codigo que los modulos de la interfaz no se mezclan.
 
 Es el requisito explicito del profesor: los componentes deben poder funcionar
@@ -13,9 +13,12 @@ from __future__ import annotations
 import ast
 import pathlib
 
+import enigma64
 import pytest
 
-RAIZ = pathlib.Path(__file__).resolve().parent.parent
+# Anclar la raiz desde el paquete principal en lugar de contar niveles de carpeta
+# (esto hace la prueba inmune a cualquier reorganizacion futura de tests/).
+RAIZ = pathlib.Path(enigma64.__file__).resolve().parent.parent
 DIR_PANELES = RAIZ / "enigma64" / "ui" / "paneles"
 
 #: Modulos de panel; `base` e `__init__` son infraestructura, no paneles.
