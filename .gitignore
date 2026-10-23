@@ -76,4 +76,5 @@ CLAUDE.md
 # Reports script
 scripts/generar_reporte_pdf.py
 
-
+# Salidas de ejemplo del enlazador (python -m enigma64.enlazador.ejemplos)
+programas/objetos/

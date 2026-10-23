@@ -28,6 +28,13 @@ e implementado en la Tarea 10 del curso Lenguajes de Programación G2 2026-2.
 - [Cargador de Programas y Manipulación de Memoria Bit a Bit](#cargador-de-programas-y-manipulación-de-memoria-bit-a-bit)
   - [Qué incluye](#qué-incluye-2)
   - [API pública](#api-pública-2)
+- [Enlazador: Módulos Objeto Reubicables (.obj)](#enlazador-módulos-objeto-reubicables-obj)
+  - [Componentes del enlazador](#componentes-del-enlazador)
+  - [Formato del archivo `.obj`](#formato-del-archivo-obj)
+  - [Tipos de marca de reubicación](#tipos-de-marca-de-reubicación)
+  - [Uso del enlazador](#uso-del-enlazador)
+  - [Criterios de diseño del enlazador](#criterios-de-diseño-del-enlazador)
+  - [Pruebas del enlazador (`tests/core/test_enlazador.py`)](#pruebas-del-enlazador-testscoretest_enlazadorpy)
 - [Pruebas](#pruebas)
   - [Nivel 1 — El paquete se importa](#nivel-1--el-paquete-se-importa)
   - [Nivel 2 — Suite de pruebas unitarias](#nivel-2--suite-de-pruebas-unitarias)
@@ -113,7 +120,12 @@ Enigma-64/
 │   ├── alu.py                     Unidad Aritmético-Lógica (ALU) pura de 64 bits
 │   ├── memoria.py                 Controlador de memoria RAM física y subsistema de buses
 │   ├── cpu.py                     Unidad de Control FSM (5 fases) y PrefetchBuffer
-│   ├── cargador.py                Cargador de ejecutables (.e64, .bin) y manipulador de bits
+│   ├── cargador.py                Cargador de ejecutables (.e64, .obj, .bin) y manipulador de bits
+│   ├── enlazador/                 Enlazador: análisis de módulos objeto .obj, enlace y reubicación
+│   │   ├── objeto.py              Formato .obj: cabecera, secciones, exportaciones/importaciones y marcas
+│   │   ├── enlace.py              EnlazadorEnigma: ubicación de secciones, ESTAB y aplicación de marcas
+│   │   ├── ejemplos.py            Módulos objeto de ejemplo (principal.obj, libmat.obj)
+│   │   └── __main__.py            Línea de comandos: python -m enigma64.enlazador
 │   ├── perifericos.py             Subsistema MMIO y controlador de pantalla CRT
 │   ├── programas.py               Definición y compilación de programas oficiales de prueba
 │   ├── fpu.py                     EmuladorFPUEnigma64, vector jump table y utilidades IEEE 754
@@ -146,7 +158,7 @@ Enigma-64/
 │   └── verificacion_manual.py     Script interactivo de trazado y verificación (factorial)
 └── tests/                         Suite de pruebas automatizadas modularizada
     ├── conftest.py                Configuración global de entorno para pytest
-    ├── core/                      Pruebas de CPU, ALU, registros, memoria y cargador
+    ├── core/                      Pruebas de CPU, ALU, registros, memoria, cargador y enlazador
     ├── fpu/                       Pruebas IEEE 754, FADD, FMUL, FDIV, FCMP, FSQRT, Brun y oráculo
     ├── ui/                        Pruebas de interfaz gráfica, aislamiento AST y eventos
     ├── test_spl/                  Pruebas del lenguaje y herramientas SPL
@@ -361,7 +373,8 @@ documentados en el código:
 - **Modelo de ejecutable con soporte dual (`BinarioEnigma`):**
   - **Modo 1: Binario plano crudo (`.bin`):** Volcado directo de opcodes e inmediatos para las pruebas inmediatas de la Tarea 10 (Factorial, Euclides y Fibonacci).
   - **Modo 2: Binario estructurado Enigma-64 (`.e64`):** Cabecera Big-Endian de 32 bytes (`>4s7I`) que encapsula número mágico (`b'ENIG'`), flags (absoluto vs. reubicable), `entry_point`, `direccion_base`, tamaño de código (`.text`), tamaño de datos (`.data`), tabla de reubicación y tabla de símbolos.
-  - **Preparación para el futuro Enlazador:** Si un binario reubicable se monta en una dirección destino diferente a su dirección base original, el cargador procesa la tabla de reubicación y parcha las referencias absolutas automáticamente.
+  - **Reubicación de `.e64`:** Si un binario reubicable se monta en una dirección destino diferente a su dirección base original, el cargador procesa la tabla de reubicación y parcha las referencias absolutas automáticamente.
+  - **Integración con el Enlazador:** `cargar_archivo` reconoce los módulos objeto reubicables (firma `EOBJ`) y los enlaza en la dirección destino antes de cargarlos (ver [Enlazador](#enlazador-módulos-objeto-reubicables-obj)).
 - **Parser de volcados de texto (`parsear_texto_a_bytes`):**
   - Procesa volcados en texto con tokens hexadecimales (`0x78`, `4A`), binarios (`0b11001100`) o decimales, ignorando comentarios (`#`, `//`, `;`) y espacios.
 - **Motor del Cargador (`CargadorEnigma`):**
@@ -403,12 +416,146 @@ escribir_bit(ram, 0x00200000, bit_index=3, valor=1)
 
 ---
 
+# Enlazador: Módulos Objeto Reubicables (.obj)
+
+La especificación de la Tarea 9 reparte el módulo **Enlazador-Cargador** (región `0x00001000`–`0x000FFFFF`) en dos responsabilidades: el **Cargador** ubica en memoria un programa ya traducido y le transfiere el control, pero *"no resuelve símbolos entre módulos (tarea del Enlazador)"*. El paquete `enigma64/enlazador/` completa esa segunda mitad: analiza módulos objeto reubicables, resuelve las referencias entre ellos y aplica las marcas de reubicación sobre la imagen que luego deposita `CargadorEnigma`.
+
+Hasta ahora la única forma de combinar código de varios archivos era concatenar las fuentes y ensamblarlas juntas (así se arma `CODIGO_FPU_ASM`). Con el enlazador cada módulo se traduce por separado y se une después.
+
+## Componentes del enlazador
+
+- **`enigma64/enlazador/objeto.py` — Análisis de módulos objeto.**
+  - Reconoce la cabecera (`EOBJ`, versión, máquina `0xE064`) y la **tabla de encabezados de sección** (`.text`, `.data`, `.bss` o propias): tipo, permisos R/W/X, alineación, tamaño y posición del contenido en el archivo.
+  - Extrae la **tabla de exportaciones** (símbolos `GLOBAL` definidos en el módulo), la **tabla de importaciones** (símbolos indefinidos que debe aportar otro módulo) y los símbolos locales.
+  - Interpreta las **marcas de reubicación**: qué bytes de qué sección se parchan en memoria, con qué fórmula y contra qué símbolo.
+  - Valida campo por campo y rechaza con `ObjetoInvalido` cualquier índice, desplazamiento, tamaño, nombre o marca solapada antes de que llegue a la RAM.
+  - Serializa módulos construidos en memoria: es el formato que debe emitir el backend del ensamblador SPL.
+- **`enigma64/enlazador/enlace.py` — Enlace en dos pasadas (`EnlazadorEnigma`).**
+  - *Pasada 1:* ubica las secciones (primero el código de todos los módulos, luego los datos y al final las reservas `.bss`, respetando la alineación de cada una) y construye la tabla global de símbolos (ESTAB). Detecta exportaciones duplicadas.
+  - *Pasada 2:* resuelve cada importación contra la ESTAB (reporta todas las que falten de una vez), aplica las marcas sobre la imagen verificando que el valor quepa en el campo y deja `.bss` en ceros.
+  - Entrega un `BinarioEnigma` absoluto, el mapa de secciones y la ESTAB. `enlazar_y_cargar` enlaza directamente en la dirección de carga y deposita la imagen con `CargadorEnigma`, que sigue aplicando las fronteras del mapa de memoria.
+- **`CargadorEnigma.cargar_archivo`** reconoce la firma `EOBJ` y enlaza el módulo antes de cargarlo, así la pestaña **Cargador** de la interfaz también acepta `.obj`.
+- **`python -m enigma64.enlazador`** — analizador y enlazador de línea de comandos.
+- **`enigma64/enlazador/ejemplos.py`** — dos módulos de ejemplo (`principal.obj`, `libmat.obj`) que usan los cinco tipos de marca.
+
+## Formato del archivo `.obj`
+
+Todo en Big-Endian, como la máquina y el formato `.e64`:
+
+```
++-------------------------------+ 0
+| Cabecera                52 B  |
++-------------------------------+ off_secciones
+| Encabezados de sección  20 B c/u
++-------------------------------+
+| Contenido de secciones BITS   |  (.bss no ocupa bytes en el archivo)
++-------------------------------+ off_simbolos
+| Tabla de símbolos       12 B c/u
++-------------------------------+ off_reubicaciones
+| Marcas de reubicación   16 B c/u
++-------------------------------+ off_cadenas
+| Tabla de cadenas (UTF-8, NUL) |
++-------------------------------+
+```
+
+| Registro | `struct` | Campos |
+|---|---|---|
+| Cabecera | `>4sHHHHIIIIIIIIII` | `magia = "EOBJ"`, `version = 1`, `maquina = 0xE064`, `banderas` (bit 0: el módulo declara el punto de entrada), `seccion_entrada`, `offset_entrada`, `nombre_modulo` y las parejas (cantidad, offset) de secciones, símbolos, marcas y cadenas |
+| Encabezado de sección | `>IHHIII` | `nombre`, `tipo` (1 = BITS, 2 = VACIA), `permisos` (R = 1, W = 2, X = 4), `alineacion` (potencia de 2 hasta 4096), `tamano`, `offset` |
+| Símbolo | `>IHBBI` | `nombre`, `seccion` (`0xFFFF` = importado, `0xFFFE` = constante absoluta), `ligadura` (LOCAL / GLOBAL), `tipo` (SIN_TIPO / FUNCION / DATO), `valor` |
+| Marca de reubicación | `>HBBIIi` | `seccion`, `tipo`, `reservado = 0`, `offset` del campo, índice del `simbolo`, `sumando` con signo |
+
+Los nombres son offsets dentro de la tabla de cadenas. Una exportación es un símbolo `GLOBAL` con sección definida; una importación, un símbolo con sección `0xFFFF`.
+
+## Tipos de marca de reubicación
+
+Salen de los campos del ISA que pueden contener una dirección. `S` = dirección final del símbolo, `A` = sumando, `P` = dirección final del primer byte del campo:
+
+| Tipo | Ancho | Valor escrito | Dónde se usa |
+|---|---|---|---|
+| `ABS64` | 8 B | `S + A` | Palabra de datos que guarda una dirección (punteros en `.data`) |
+| `ABS32` | 4 B | `S + A` | Destino de `JMP` / `CALL` (bytes 1 a 4 de la instrucción) |
+| `REL16` | 2 B | `S + A − (P + 2)` | Desplazamiento de `JZ`, `JNZ`, …, medido desde la instrucción siguiente |
+| `HI16` | 2 B | `(S + A + 0x8000) >> 16` | Inmediato del `ADDI Rx, R0, …` que precede a `SHL Rx, Rx, 16` |
+| `LO16` | 2 B | `(S + A) & 0xFFFF` | Inmediato del `ADDI Rx, Rx, …` o desplazamiento de `LOAD` / `STORE` |
+
+`HI16` es la parte alta **ajustada**: la CPU extiende el signo de los inmediatos de 16 bits, así que un `LO16 ≥ 0x8000` resta `0x10000` y la parte alta lo compensa. Con eso la secuencia que ya usa el equipo (`ADDI`, `SHL 16`, `ADDI`) construye la dirección exacta para cualquier destino por debajo de `0x7FFF8000` (`LIMITE_HI16`); por encima el enlazador lo reporta como desbordamiento en vez de generar código erróneo.
+
+## Uso del enlazador
+
+```python
+from enigma64 import CargadorEnigma, EnlazadorEnigma, analizar_objeto
+
+modulo = analizar_objeto("programas/objetos/principal.obj")
+print(modulo.informe())        # cabecera, secciones, exportaciones, importaciones y marcas
+modulo.exportaciones           # [SimboloObjeto('main', ...), ...]
+modulo.importaciones           # [SimboloObjeto('sumar', ...), SimboloObjeto('error', ...)]
+modulo.reubicaciones           # [MarcaReubicacion(seccion=0, offset=2, tipo=REUB_HI16, ...), ...]
+
+enlazador = EnlazadorEnigma(["programas/objetos/principal.obj", "programas/objetos/libmat.obj"])
+resultado = enlazador.enlazar(direccion_base=0x00200000)
+resultado.simbolos             # ESTAB: {'main': 0x00200000, 'sumar': 0x00200039, ...}
+print(resultado.informe())     # mapa de enlace
+
+# O enlazar directamente en la dirección de carga y dejar la CPU lista
+enlazador.enlazar_y_cargar(cargador, direccion_destino=0x00300000)
+```
+
+Desde la línea de comandos:
+
+```bash
+# Generar los módulos de ejemplo en programas/objetos/
+python -m enigma64.enlazador.ejemplos
+
+# Analizar un módulo: cabecera, secciones, exportaciones, importaciones y marcas
+python -m enigma64.enlazador programas/objetos/principal.obj
+
+# Enlazar y escribir un ejecutable .e64 (se carga desde la pestaña Cargador)
+python -m enigma64.enlazador programas/objetos/principal.obj programas/objetos/libmat.obj -o programas/objetos/demo.e64 --mapa
+```
+
+Excepciones (todas heredan de `ErrorCargador`): `ObjetoInvalido` (también es `FormatoInvalido`), `SimboloNoDefinido` (con `faltantes`: símbolo → módulos que lo importan), `SimboloDuplicado` y `DesbordamientoReubicacion`.
+
+## Criterios de diseño del enlazador
+
+| Punto | Decisión | Razón |
+|---|---|---|
+| Sumando explícito en la marca | El enlazador escribe `S + A` sin leer lo que había en el campo | La fórmula no depende del contenido previo del campo |
+| Enlace en la dirección de carga | El ejecutable enlazado es absoluto (`reubicable=False`) | La tabla de reubicación del `.e64` solo parcha palabras de 8 bytes; los campos `ABS32`, `REL16` y `HI16`/`LO16` se resuelven al enlazar |
+| `.bss` en la imagen | La reserva se escribe en ceros al cargar | La RAM puede conservar datos de una carga anterior |
+| Importaciones sin resolver | Se reportan todas juntas en un solo `SimboloNoDefinido` | Se ve de una vez todo lo que falta enlazar |
+| Orden de ubicación | Código, datos y reservas; las secciones del mismo nombre van juntas en el orden de los módulos | El código queda contiguo al inicio de la imagen |
+| Punto de entrada | Símbolo pedido, si no el que declare un módulo, si no el inicio del código | Que dos módulos declaren entrada es un error explícito |
+
+## Pruebas del enlazador (`tests/core/test_enlazador.py`)
+
+50 pruebas (82 subpruebas):
+
+| Grupo | Qué verifica |
+|---|---|
+| `TestCabeceraYSecciones` | Firma, versión, máquina, cantidades y offsets de cada tabla; tipo, permisos, alineación, tamaño, clase y posición en el archivo de cada sección |
+| `TestTablasDeSimbolos` | Tabla de exportaciones, tabla de importaciones, símbolos locales y referencias de cada importación |
+| `TestMarcasDeReubicacion` | Sección, offset, tipo, ancho, símbolo y sumando de cada marca; que cada campo caiga en el operando de la instrucción correcta |
+| `TestSerializacion` | Ida y vuelta byte a byte, nombres UTF-8, lectura de disco, informe y que los ejemplos coincidan con el ensamblador oficial |
+| `TestObjetoInvalido` | 36 archivos corruptos (firma, tablas fuera del archivo, nombres, índices, marcas solapadas, punto de entrada…) y 7 modelos incoherentes que no se serializan |
+| `TestCalculoDeParches` | Fórmulas de los cinco tipos, reconstrucción de direcciones `HI16`/`LO16` con la ALU oficial y desbordamientos |
+| `TestEnlazador` | Mapa de secciones y alineación, ESTAB, bytes parchados en la imagen, `.bss` en ceros, duplicados, importaciones faltantes, constantes absolutas y punto de entrada |
+| `TestEnlaceCargaEjecucion` | El programa de dos módulos corre en la CPU en tres bases (una de ellas impar), el salto `REL16` entre módulos y la carga de `.obj` desde `cargar_archivo` |
+| `TestEnlaceConCodigoDelEquipo` | Euclides (Tarea 9) reubicado a `0x00400000`; la biblioteca FPU completa (68 marcas `ABS32`) enlazada con un cliente compilado aparte da los mismos bits que el ensamblado monolítico |
+| `TestLineaDeComandos` | Análisis, enlace a un `.e64` que se carga y ejecuta, y códigos de error |
+
+```bash
+python -m pytest tests/core/test_enlazador.py -v
+```
+
+---
+
 # Pruebas
 
 ## Nivel 1 — El paquete se importa
 
 ```bash
-python -c "from enigma64 import ALU, BancoRegistros, RAMMemory, CargadorEnigma; print('OK')"
+python -c "from enigma64 import ALU, BancoRegistros, RAMMemory, CargadorEnigma, EnlazadorEnigma; print('OK')"
 ```
 
 Si falla aquí el problema es de ubicación de archivos, no de código:
@@ -423,7 +570,7 @@ Si falla aquí el problema es de ubicación de archivos, no de código:
 python -m unittest discover -s tests -v
 ```
 
-Debe terminar en `Ran 81 tests ... OK`. Cobertura:
+Debe terminar en `Ran 280 tests ... OK`. Cobertura:
 
 | Módulo | Grupo | Qué verifica |
 |---|---|---|
@@ -443,6 +590,9 @@ Debe terminar en `Ran 81 tests ... OK`. Cobertura:
 | **Cargador & Bits** | `TestCargaFormatos` | Carga de binarios planos (.bin), serialización/deserialización .e64 Big-Endian, reubicación dinámica de direcciones y parser de volcados en texto |
 | **Cargador & Bits** | `TestContextoHardware` | Sincronización de registros tras la carga (PC=entry_point, SP=0xEFFFFFFF, SR=0x1, R0=0, R5=entry_point) y detención/reanudación de CPU |
 | **Cargador & Bits** | `TestSubrutinaFirmware` | Transferencia de datos entre buffers emulando la subrutina en 0x00001000 con parámetros R1, R2, R3 y retorno en R5 |
+| **Enlazador** | `TestCabeceraYSecciones`, `TestTablasDeSimbolos`, `TestMarcasDeReubicacion` | Análisis de `.obj`: cabecera, encabezados de sección, tablas de exportación e importación y marcas de reubicación |
+| **Enlazador** | `TestObjetoInvalido`, `TestCalculoDeParches` | Rechazo de 36 archivos corruptos, fórmulas de reubicación y desbordamientos |
+| **Enlazador** | `TestEnlazador`, `TestEnlaceCargaEjecucion`, `TestEnlaceConCodigoDelEquipo` | Enlace de varios módulos, carga y ejecución en la CPU en distintas bases, incluida la biblioteca FPU como módulo reubicable (ver sección Enlazador) |
 | **FPU — FMUL** | `TestFMULEnigma64` | Tabla de 24 casos en hex, 300 casos aleatorios bit a bit contra el oráculo IEEE 754 de Python, conmutatividad, peor caso de ciclos y producto de 128 bits de `FPU_MUL128` (ver sección FMUL) |
 
 
@@ -856,9 +1006,9 @@ Luego se abre un Pull Request para revisión e integración de cambios.
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
 ```bash
-# Suite completa (669 pruebas: unitarias y GUI)
+# Suite completa (719 pruebas: unitarias y GUI)
 python -m pytest
 
-# O mediante unittest estándar (182 pruebas de hardware sin GUI)
+# O mediante unittest estándar (280 pruebas de hardware sin GUI)
 python -m unittest discover -s tests
 ```
