@@ -635,12 +635,12 @@ class CargadorEnigma:
         )
         tamano = binario.tamano_total
 
-        # 1. Detencion preventiva de la CPU
+        # 1. Validacion estricta de fronteras (antes de detener la CPU)
+        self.validar_limites(dir_base, tamano)
+
+        # 2. Detencion preventiva de la CPU
         if self.cpu is not None and hasattr(self.cpu, "detenido"):
             self.cpu.detenido = True
-
-        # 2. Validacion estricta de fronteras
-        self.validar_limites(dir_base, tamano)
 
         # 3. Reubicacion si el ejecutable es reubicable y cambio de direccion base
         cuerpo = binario.bytes_completos()
@@ -667,9 +667,27 @@ class CargadorEnigma:
         if configurar_cpu:
             self.inicializar_contexto_hardware(entry_point)
 
-        # 6. Reanudacion de CPU
-        if self.cpu is not None and hasattr(self.cpu, "detenido"):
-            self.cpu.detenido = False
+        # 6. Reanudacion y limpieza de estado interno de la CPU
+        if self.cpu is not None:
+            if hasattr(self.cpu, "prefetch") and hasattr(self.cpu.prefetch, "reset"):
+                self.cpu.prefetch.reset()
+            if configurar_cpu:
+                if hasattr(self.cpu, "fase"):
+                    self.cpu.fase = "FETCH"
+                if hasattr(self.cpu, "_actual"):
+                    self.cpu._actual = None
+                if hasattr(self.cpu, "_resultado_alu"):
+                    self.cpu._resultado_alu = None
+                if hasattr(self.cpu, "_resultado_memoria"):
+                    self.cpu._resultado_memoria = None
+                if hasattr(self.cpu, "_destino"):
+                    self.cpu._destino = None
+                if hasattr(self.cpu, "_halt_pending"):
+                    self.cpu._halt_pending = False
+                if hasattr(self.cpu, "_mensaje"):
+                    self.cpu._mensaje = ""
+            if hasattr(self.cpu, "detenido"):
+                self.cpu.detenido = False
 
         self.ultima_direccion_cargada = dir_base + tamano - 1
         self.ultimo_entry_point = entry_point

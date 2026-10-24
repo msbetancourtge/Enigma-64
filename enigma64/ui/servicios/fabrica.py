@@ -37,6 +37,8 @@ class Maquina:
         self.alu = AdaptadorALU(registros=self.registros)
         self.cargador = AdaptadorCargador(memoria=self.memoria, registros=self.registros)
         self.cpu = AdaptadorCPU(memoria=self.memoria, registros=self.registros)
+        if self.cargador.cargador is not None and self.cpu.cpu is not None:
+            self.cargador.cargador.conectar_hardware(cpu=self.cpu.cpu)
         self.mmio = AdaptadorMMIO(memoria=self.memoria)
         # La FPU corre sobre un procesador propio: no recibe ni la RAM ni el
         # banco compartidos, asi que sus calculos no alteran la maquina.
