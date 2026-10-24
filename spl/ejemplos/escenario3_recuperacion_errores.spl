@@ -1,0 +1,26 @@
+// ============================================================================
+// ESCENARIO INTEGRAL 3 (Pipeline SPL Enigma-64)
+// Tolerancia a Fallos y Recuperación ante Errores Léxicos en Compilador
+// ============================================================================
+
+#include "enigma64.h"
+#define CODIGO_RECUPERACION 99
+
+int contador_inicial = CODIGO_RECUPERACION;
+
+// Errores léxicos intencionales (caracteres fuera del alfabeto y literales corruptos)
+int variable@invalida = 10;
+float monto$ilegal = 25.5;
+int binario_mal = 0b10201;
+int hex_mal = 0xFFG1;
+float numero_corrupto = 45xyz;
+
+// El analizador se recupera y continúa reconociendo código posterior sin abortar
+function int verificar_recuperacion() {
+    if (contador_inicial == CODIGO_RECUPERACION) then {
+        return VERDADERO;
+    } else {
+        return FALSO;
+    }
+}
+

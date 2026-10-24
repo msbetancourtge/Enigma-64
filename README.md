@@ -73,6 +73,9 @@ e implementado en la Tarea 10 del curso Lenguajes de Programación G2 2026-2.
 - [SPL: Analizador Léxico del Compilador (Integrante 4)](#spl-analizador-léxico-del-compilador-integrante-4)
   - [Qué incluye](#qué-incluye-10)
   - [Cómo usar](#cómo-usar-1)
+- [SPL: Driver Principal, Pipeline & Pruebas de Extremo a Extremo (Integrante 7)](#spl-driver-principal-pipeline--pruebas-de-extremo-a-extremo-integrante-7)
+  - [Qué incluye](#qué-incluye-11)
+  - [Cómo usar](#cómo-usar-2)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 
 ## Especificación de la máquina
@@ -982,6 +985,43 @@ echo "struct Punto { float x; float y; };" | python -m spl.compilador
 
 # Pruebas unitarias del compilador (18 pruebas)
 python -m pytest tests/test_spl/test_lexer_compilador.py -v
+```
+
+---
+
+# SPL: Driver Principal, Pipeline & Pruebas de Extremo a Extremo (Integrante 7)
+
+Orquestador maestro del **Sistema de Procesamiento del Lenguaje (SPL)** que integra secuencialmente las 4 herramientas del Taller #01: **Preprocesador → Compilador (Lexer + Tablas) → Ensamblador (Lexer) → Enlazador-Cargador (+ CPU Enigma-64)**.
+
+## Qué incluye
+
+- **`spl/pipeline.py` (`OrquestadorSPL`)** — Pipeline modular que conecta `Preprocesador` (Integrante 1), `LexerCompilador` + `GestorTablas` (Integrantes 4 y 6), `LexerEnsamblador` (Integrante 2) y `EnlazadorEnigma` + `CargadorRelocalizable` + `CPU` Enigma-64 (Integrante 3), recolectando métricas, tablas y diagnósticos por etapa.
+- **`spl/__main__.py` (`python -m spl`)** — Driver CLI principal con soporte para ejecutar los 3 escenarios oficiales (`--escenario 1|2|3|todos`), pipelines personalizados (`--spl`, `--asm`, `--obj`, `-I`, `-D`) y validación del módulo C (`--verificar-c`).
+- **`Makefile` (raíz)** — Automatización de compilación cruzada C/Flex (`tablas_simbolos.c` y `test_tablas.c` en `spl/compilador/Makefile`), ejecución de los 3 escenarios y corrida completa de pruebas.
+- **`spl/ejemplos/`** — Programas de prueba de extremo a extremo:
+  - **Escenario 1** (`escenario1_aritmetica_tda.spl` + `escenario1_modulo.asm` + `principal.obj` + `libmat.obj`): Aritmética entera, TDA (`struct`/`typedef`), matrices y enlace/ejecución en CPU Enigma-64 (`R5 = 42`).
+  - **Escenario 2** (`escenario2_punto_flotante_switch.spl` + `escenario2_fpu.asm`): Punto flotante IEEE 754, selección múltiple `switch-case` y ensamblador FPU (`FADD`, `FMUL`, `ITOF`).
+  - **Escenario 3** (`escenario3_recuperacion_errores.spl` + `escenario3_errores.asm`): Recuperación de errores léxicos y directivas en cascada a través de las etapas del SPL sin abortar la ejecución.
+- **`tests/test_spl/test_pipeline_integracion.py`** — Suite de pruebas de integración E2E (11 tests automatizados).
+
+## Cómo usar
+
+```bash
+# Ejecutar los 3 escenarios oficiales de extremo a extremo
+python -m spl
+
+# Ejecutar un escenario específico (1, 2 o 3)
+python -m spl --escenario 1
+
+# Ejecutar un archivo .spl y .asm personalizados en el pipeline
+python -m spl --spl spl/ejemplos/escenario1_aritmetica_tda.spl --asm spl/ejemplos/escenario1_modulo.asm
+
+# Ejecutar suite de pruebas de integración del pipeline (11 pruebas)
+python -m pytest tests/test_spl/test_pipeline_integracion.py -v
+
+# Automatización con Make
+make all
+make test-spl
 ```
 
 ---

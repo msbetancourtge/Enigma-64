@@ -1,0 +1,65 @@
+// ============================================================================
+// ESCENARIO INTEGRAL 2 (Pipeline SPL Enigma-64)
+// Macros parametrizadas, Punto Flotante IEEE 754 (64 bits), Switch-Case y Cadenas
+// ============================================================================
+
+#include "enigma64.h"
+
+#define USAR_FPU 1
+#define TOLERANCIA_NEWTON 1.0e-9
+#define COTA_SUPERIOR 1.5E3
+#define MASCARA_ESTADO 0xFF
+#define BANDERAS_ACT 0b1010
+#define ESCALAR_DOBLE(x) ((x) + (x))
+
+#ifdef USAR_FPU
+#define MODO_EJECUCION 1
+#else
+#define MODO_EJECUCION 0
+#endif
+
+struct EstadoNewton {
+    float semilla_x0;
+    float aproximacion_actual;
+    float error_relativo;
+    int iteraciones_realizadas;
+};
+
+function float estimar_raiz_newton(float radicando, int _max_iter) {
+    struct EstadoNewton estado;
+    estado.semilla_x0 = 2.0;
+    estado.aproximacion_actual = estado.semilla_x0;
+    estado.error_relativo = TOLERANCIA_NEWTON;
+    estado.iteraciones_realizadas = 0;
+
+    char _ruta_bitacora[64];
+    // Cadenas con escapes \" y \\ para verificar deduplicación en tablaString
+    _ruta_bitacora[0] = 'C';
+    string_log("C:\\Enigma64\\fpu_trace.log");
+    string_log("Estado FPU: \"CONVERGENCIA_OK\"");
+    string_log("Estado FPU: \"CONVERGENCIA_OK\"");
+
+    for (int iter_1_ = 0; iter_1_ < _max_iter; iter_1_ = iter_1_ + 1) {
+        if (estado.aproximacion_actual >= COTA_SUPERIOR) then {
+            break;
+        }
+        estado.aproximacion_actual = 0.5 * (estado.aproximacion_actual + (radicando / estado.aproximacion_actual));
+        estado.iteraciones_realizadas = ESCALAR_DOBLE(iter_1_);
+    }
+
+    switch (MODO_EJECUCION) {
+        case 1:
+            int _flags = MASCARA_ESTADO;
+            int _bits = BANDERAS_ACT;
+            break;
+        case 0:
+            estado.aproximacion_actual = 0.0;
+            break;
+        default:
+            estado.aproximacion_actual = -1.0;
+            break;
+    }
+
+    return estado.aproximacion_actual;
+}
+
