@@ -4,6 +4,8 @@ Módulo del Compilador SPL (Simple Programming Language) para Enigma-64.
 Exporta:
 - Analizador léxico base, vocabulario y categorías del compilador (Integrante 4).
 - Tablas de símbolos, literales y des-escape determinista (Integrante 6).
+- Operadores aritméticos, lógicos y relacionales, y literales numéricos y
+  de cadena (Integrante 5).
 """
 
 from spl.compilador.tablas import (
@@ -40,6 +42,23 @@ from spl.compilador.lexer import (
     CAT_OPERADOR_ASIGNACION,
     CAT_DELIMITADOR,
     obtener_categoria_y_subcodigo,
+    OPERADORES,
+    OPERADORES_RELACIONALES,
+    OPERADORES_ARITMETICOS,
+    OPERADORES_LOGICOS,
+    SUBCODIGOS_RELACIONALES,
+    SUBCODIGOS_ARITMETICOS,
+    SUBCODIGOS_LOGICOS,
+    SUB_NUM_ENTERO_DEC,
+    SUB_NUM_ENTERO_HEX,
+    SUB_NUM_ENTERO_BIN,
+    SUB_NUM_REAL_DECIMAL,
+    SUB_NUM_REAL_CIENTIFICO,
+    SUB_CADENA,
+    SUB_CARACTER,
+    ENTERO_DEC_MAXIMO,
+    ENTERO_PATRON_MAXIMO,
+    ESCAPES_VALIDOS,
 )
 
 __all__ = [
@@ -75,4 +94,22 @@ __all__ = [
     "CAT_OPERADOR_ASIGNACION",
     "CAT_DELIMITADOR",
     "obtener_categoria_y_subcodigo",
+    # Operadores & Literales (Integrante 5)
+    "OPERADORES",
+    "OPERADORES_RELACIONALES",
+    "OPERADORES_ARITMETICOS",
+    "OPERADORES_LOGICOS",
+    "SUBCODIGOS_RELACIONALES",
+    "SUBCODIGOS_ARITMETICOS",
+    "SUBCODIGOS_LOGICOS",
+    "SUB_NUM_ENTERO_DEC",
+    "SUB_NUM_ENTERO_HEX",
+    "SUB_NUM_ENTERO_BIN",
+    "SUB_NUM_REAL_DECIMAL",
+    "SUB_NUM_REAL_CIENTIFICO",
+    "SUB_CADENA",
+    "SUB_CARACTER",
+    "ENTERO_DEC_MAXIMO",
+    "ENTERO_PATRON_MAXIMO",
+    "ESCAPES_VALIDOS",
 ]

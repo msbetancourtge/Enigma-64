@@ -1,0 +1,31 @@
+// ============================================================================
+// ESCENARIO 5: Errores Léxicos en Operadores y Literales (Integrante 5)
+// Lenguaje de Alto Nivel para Enigma-64 (SPL)
+// ============================================================================
+
+int valido_inicio = 7;
+
+// Error 1: literales enteros fuera del rango de 64 bits
+int desborde_dec = 9223372036854775808;
+int desborde_hex = 0x10000000000000000;
+
+// Error 2: literales flotantes fuera del rango de IEEE 754 binary64
+float infinito = 1e309;
+float cero_falso = 1e-400;
+
+// Error 3: exponente sin dígitos
+float exponente = 2.5e+;
+
+// Error 4: cadena con secuencia de escape no admitida
+string_log("Escape invalido: \q");
+
+// Error 5: operadores lógicos incompletos
+bool bandera = valido_inicio & 1 | 0;
+
+// Error 6: cadena sin cerrar antes del fin de línea
+string_log("Sin comillas de cierre);
+
+// El analizador se recupera y continúa reconociendo tokens válidos
+function int fin_de_literales() {
+    return valido_inicio * 2;
+}

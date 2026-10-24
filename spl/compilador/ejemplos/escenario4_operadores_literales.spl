@@ -1,0 +1,43 @@
+// ============================================================================
+// ESCENARIO 4: Operadores y Literales del Lenguaje de Alto Nivel (Integrante 5)
+// Lenguaje de Alto Nivel para Enigma-64 (SPL)
+// ============================================================================
+
+// Literales enteros en base 10 y base 16 (64 bits)
+int limite = 1000;
+int mascara = 0xFF;
+int palabra = 0X7FFFFFFFFFFFFFFF;
+int maximo = 9223372036854775807;
+
+// Literales flotantes IEEE 754 binary64: punto fijo y notación científica
+float pi = 3.14159;
+float medio = .5;
+float entero_real = 5.;
+float avogadro = 6.022e23;
+float epsilon = 2.5E-3;
+float escala = .5e+2;
+
+// Cadenas de texto con secuencias de escape
+char saludo = 'H';
+char salto = '\n';
+
+function int evaluar(int a, int b, float x) {
+    // Operadores aritméticos: + - * / %
+    int suma = a + b;
+    int resta = a - b;
+    int producto = a * b;
+    int cociente = a / b;
+    int residuo = a % b;
+    float area = pi * x * x;
+
+    // Operadores relacionales: == != < <= > >=
+    // Operadores lógicos: && || !
+    if ((a == b) || (a != b && a < limite)) then {
+        string_log("Rango valido:\t[0, 1000]\n");
+    }
+    if (!(a <= b) && b >= 0 || a > mascara) {
+        string_log("Ruta: \"C:\\Enigma64\\salida.log\"");
+    }
+
+    return (suma + resta * producto - cociente) % residuo;
+}

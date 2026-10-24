@@ -73,9 +73,12 @@ e implementado en la Tarea 10 del curso Lenguajes de Programación G2 2026-2.
 - [SPL: Analizador Léxico del Compilador (Integrante 4)](#spl-analizador-léxico-del-compilador-integrante-4)
   - [Qué incluye](#qué-incluye-10)
   - [Cómo usar](#cómo-usar-1)
-- [SPL: Driver Principal, Pipeline & Pruebas de Extremo a Extremo (Integrante 7)](#spl-driver-principal-pipeline--pruebas-de-extremo-a-extremo-integrante-7)
+- [SPL: Operadores y Literales del Compilador (Integrante 5)](#spl-operadores-y-literales-del-compilador-integrante-5)
   - [Qué incluye](#qué-incluye-11)
   - [Cómo usar](#cómo-usar-2)
+- [SPL: Driver Principal, Pipeline & Pruebas de Extremo a Extremo (Integrante 7)](#spl-driver-principal-pipeline--pruebas-de-extremo-a-extremo-integrante-7)
+  - [Qué incluye](#qué-incluye-12)
+  - [Cómo usar](#cómo-usar-3)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 
 ## Especificación de la máquina
@@ -154,7 +157,7 @@ Enigma-64/
 │   ├── include/enigma64.h
 │   ├── preprocesador/             Lexer, motor de directivas y CLI
 │   ├── ensamblador/               Analizador léxico del ensamblador (PLY), CLI y ejemplos
-│   └── compilador/                Analizador léxico base del compilador (PLY), tablas y CLI
+│   └── compilador/                Analizador léxico del compilador (PLY): vocabulario, operadores, literales, tablas y CLI
 ├── scripts/                       Scripts utilitarios, compilación y pruebas manuales
 │   ├── generar_binarios.py        Generador automatizado de ejecutables (.bin, .hex, .e64)
 │   ├── generar_reporte_tarea17_pdf.py Generador del informe técnico formal en PDF
@@ -989,6 +992,35 @@ python -m pytest tests/test_spl/test_lexer_compilador.py -v
 
 ---
 
+# SPL: Operadores y Literales del Compilador (Integrante 5)
+
+## Qué incluye
+
+* **Operadores con subcódigo propio** en `spl/compilador/lexer.py`: aritméticos (`+ - * / %`, categoría 210), relacionales (`== != < <= > >=`, categoría 200) y lógicos (`&& || !`, categoría 220). Cada token lleva en `subcodigo` el operador concreto (por ejemplo `MENOR_IGUAL` → 200/4). Los de dos caracteres ganan a los de uno (`a<=b` → `MENOR_IGUAL`), y un `&` o `|` aislado se reporta como operador lógico incompleto.
+* **Literales enteros** en base 10 (hasta `INT64_MAX`; el signo es el operador unario `-`) y base 16 `0x...` (hasta `0xFFFFFFFFFFFFFFFF`). Un literal que no cabe en 64 bits es un error léxico y no entra en `tablaNum`.
+* **Literales flotantes** IEEE 754 binary64 en punto fijo (`3.14`, `.5`, `5.`) y notación científica (`1e10`, `2.5E-3`, `.5e+2`). Se rechazan el desborde (`1e309`), el subdesborde a cero (`1e-400`) y los exponentes sin dígitos (`2.5e+`).
+* **Cadenas de texto** con los escapes `\n \t \r \0 \\ \" \'`, que se registran limpias en `tablaString`. Un escape desconocido (`"\q"`) y una cadena sin cerrar son errores; en el segundo caso el análisis se retoma en la línea siguiente.
+* **`spl/compilador/ejemplos/`:** `escenario4_operadores_literales.spl` (todos los operadores y formatos, 0 errores) y `escenario5_errores_literales.spl` (9 errores con recuperación).
+* Especificación en notación FLEX, tabla de subcódigos y decisiones de diseño en [`docs/integrantes/informe_integrante5_operadores_literales.md`](docs/integrantes/informe_integrante5_operadores_literales.md).
+
+## Cómo usar
+
+```bash
+# Operadores y literales válidos con volcado de tablaNum y tablaString
+python -m spl.compilador spl/compilador/ejemplos/escenario4_operadores_literales.spl
+
+# Errores léxicos de literales y operadores
+python -m spl.compilador spl/compilador/ejemplos/escenario5_errores_literales.spl --sin-tablas
+
+# Desde la entrada estándar
+echo 'if (x >= 0x1F && y != .5e-3) s = "ok\n";' | python -m spl.compilador
+
+# Pruebas de operadores y literales (104 pruebas)
+python -m pytest tests/test_spl/test_lexer_operadores_literales.py -v
+```
+
+---
+
 # SPL: Driver Principal, Pipeline & Pruebas de Extremo a Extremo (Integrante 7)
 
 Orquestador maestro del **Sistema de Procesamiento del Lenguaje (SPL)** que integra secuencialmente las 4 herramientas del Taller #01: **Preprocesador → Compilador (Lexer + Tablas) → Ensamblador (Lexer) → Enlazador-Cargador (+ CPU Enigma-64)**.
@@ -1047,7 +1079,7 @@ Luego se abre un Pull Request para revisión e integración de cambios.
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
 ```bash
-# Suite completa (719 pruebas: unitarias y GUI)
+# Suite completa (836 pruebas: unitarias y GUI)
 python -m pytest
 
 # O mediante unittest estándar (280 pruebas de hardware sin GUI)
