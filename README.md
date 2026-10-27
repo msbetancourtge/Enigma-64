@@ -200,7 +200,7 @@ La CPU implementa 41 instrucciones divididas en 6 grupos funcionales:
 - **Preprocesador**: Expansión de macros, inclusión de cabeceras (`#include`) y compilación condicional (`#ifdef`, `#ifndef`).
 - **Compilador SPL**: Analizador léxico PLY para lenguaje imperativo estructurado (tipos primitivos, arreglos, matrices, TDA `struct`, estructuras de control) con gestión integrada de tablas de símbolos (`tablaID`, `tablaNum`, `tablaString`).
 - **Ensamblador SPL**: Analizador léxico PLY de la sintaxis ensambladora de Enigma-64.
-- **Traductor de compatibilidad**: Traducción automática de ensamblador CacaoCore-64 a Enigma-64 (`LOAD`, `STORE`, `LDB`, `STB`, `LEA`), con reubicación a espacio de usuario y alineación de desplazamientos a múltiplos de 8 bytes.
+- **Traductor de compatibilidad**: Traducción automática de ensamblador CacaoCore-64 a Enigma-64 (`LOAD`, `STORE`, `LDB`, `STB`, `LEA`), con reubicación a espacio de usuario y alineación de desplazamientos a múltiplos de 8 bytes; asignación de los 16 registros de CacaoCore a R1–R7 con derrame a memoria, y traducción de su ALU de acumulador a las 16 operaciones de Enigma-64 (`python -m spl.traductor programa.asm --ejecutar`).
 
 ### Interfaz Gráfica (GUI)
 - Visualizador y editor interactivo de memoria RAM con selector de banco y conmutación de bits en vivo.
