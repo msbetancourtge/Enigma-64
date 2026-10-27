@@ -5,6 +5,82 @@ A Von Neumann-Like Computer with Compiler and a Programming Language
 Emulador del computador **Enigma-64** de **Noctua Systems**, diseñado en la Tarea 9
 e implementado en la Tarea 10 del curso Lenguajes de Programación G2 2026-2.
 
+## Índice
+
+- [Especificación de la máquina](#especificación-de-la-máquina)
+- [Autores](#autores)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [Requisitos](#requisitos)
+- [Cómo ejecutar](#cómo-ejecutar)
+- [Subsistema de Memoria RAM y Buses](#subsistema-de-memoria-ram-y-buses)
+  - [Qué incluye](#qué-incluye)
+  - [API pública](#api-pública)
+    - [Métodos y Propiedades](#métodos-y-propiedades)
+    - [Señales del Bus de Control (`status`)](#señales-del-bus-de-control-status)
+  - [Decisiones de diseño tomadas](#decisiones-de-diseño-tomadas)
+- [Banco de Registros y Unidad Aritmético-Lógica (ALU)](#banco-de-registros-y-unidad-aritmético-lógica-alu)
+  - [Qué incluye](#qué-incluye-1)
+  - [API pública](#api-pública-1)
+    - [BancoRegistros](#bancoregistros)
+    - [ALU](#alu)
+  - [Decisiones de diseño tomadas](#decisiones-de-diseño-tomadas-1)
+  - [Especificaciones y Decisiones de Diseño Arquitectónico](#especificaciones-y-decisiones-de-diseño-arquitectónico)
+- [Cargador de Programas y Manipulación de Memoria Bit a Bit](#cargador-de-programas-y-manipulación-de-memoria-bit-a-bit)
+  - [Qué incluye](#qué-incluye-2)
+  - [API pública](#api-pública-2)
+- [Enlazador: Módulos Objeto Reubicables (.obj)](#enlazador-módulos-objeto-reubicables-obj)
+  - [Componentes del enlazador](#componentes-del-enlazador)
+  - [Formato del archivo `.obj`](#formato-del-archivo-obj)
+  - [Tipos de marca de reubicación](#tipos-de-marca-de-reubicación)
+  - [Uso del enlazador](#uso-del-enlazador)
+  - [Criterios de diseño del enlazador](#criterios-de-diseño-del-enlazador)
+  - [Pruebas del enlazador (`tests/core/test_enlazador.py`)](#pruebas-del-enlazador-testscoretest_enlazadorpy)
+- [Pruebas](#pruebas)
+  - [Nivel 1 — El paquete se importa](#nivel-1--el-paquete-se-importa)
+  - [Nivel 2 — Suite de pruebas unitarias](#nivel-2--suite-de-pruebas-unitarias)
+  - [Nivel 3 — Panel gráfico](#nivel-3--panel-gráfico)
+  - [Nivel 4 — Trazado del algoritmo del documento](#nivel-4--trazado-del-algoritmo-del-documento)
+- [Unidad de Control (CPU) y Microarquitectura FSM](#unidad-de-control-cpu-y-microarquitectura-fsm)
+  - [Qué incluye](#qué-incluye-3)
+    - [1. FSM de 5 Fases Síncronas](#1-fsm-de-5-fases-síncronas)
+    - [2. Cola FIFO de Prebúsqueda (`PrefetchBuffer`)](#2-cola-fifo-de-prebúsqueda-prefetchbuffer)
+    - [3. Modos y Control de Pila](#3-modos-y-control-de-pila)
+- [Interconexión y Ciclo de Instrucción](#interconexión-y-ciclo-de-instrucción)
+  - [Acceso a Memoria en el Ciclo de Instrucción](#acceso-a-memoria-en-el-ciclo-de-instrucción)
+  - [Integración con la Interfaz Gráfica (GUI)](#integración-con-la-interfaz-gráfica-gui)
+- [Programas Oficiales y Algoritmos de Prueba](#programas-oficiales-y-algoritmos-de-prueba)
+  - [Qué incluye](#qué-incluye-4)
+    - [1. `enigma64/programas.py` y `programas/` — Binarios oficiales de la Tarea 9](#1-enigma64programaspy-y-programas--binarios-oficiales-de-la-tarea-9)
+    - [2. Suite de pruebas de validación formal (`tests/integration/test_algoritmos.py`)](#2-suite-de-pruebas-de-validación-formal-testsintegrationtest_algoritmospy)
+- [Subsistema de Entrada/Salida Mapeada en Memoria (MMIO) y Periféricos](#subsistema-de-entradasalida-mapeada-en-memoria-mmio-y-periféricos)
+  - [Qué incluye](#qué-incluye-5)
+    - [1. `enigma64/perifericos.py` — Controlador básico de pantalla y subsistema MMIO](#1-enigma64perifericospy--controlador-básico-de-pantalla-y-subsistema-mmio)
+    - [2. Grilla visual interactiva de memoria RAM (`enigma64/ui/paneles/panel_memoria.py`)](#2-grilla-visual-interactiva-de-memoria-ram-enigma64uipanelespanel_memoriapy)
+    - [3. Terminal CRT emulada en MMIO (`enigma64/ui/paneles/panel_mmio.py`)](#3-terminal-crt-emulada-en-mmio-enigma64uipanelespanel_mmiopy)
+- [FPU: Multiplicación de Punto Flotante (FMUL)](#fpu-multiplicación-de-punto-flotante-fmul)
+  - [Qué incluye](#qué-incluye-6)
+  - [Pruebas (`tests/fpu/test_fmul.py`)](#pruebas-testsfputest_fmulpy)
+- [FPU: Panel Interactivo y Visor IEEE 754 (Integrante 5)](#fpu-panel-interactivo-y-visor-ieee-754-integrante-5)
+- [FPU: Conversiones de Formato y Mesa de Entrada Canónica (Integrante 4)](#fpu-conversiones-de-formato-y-mesa-de-entrada-canónica-integrante-4)
+  - [Qué incluye](#qué-incluye-7)
+  - [Pruebas (`tests/fpu/test_fconv.py`)](#pruebas-testsfputest_fconvpy)
+- [FPU: Constante de Brun & Batería de Pruebas (Integrante 7)](#fpu-constante-de-brun--batería-de-pruebas-integrante-7)
+  - [Qué incluye](#qué-incluye-8)
+  - [Cómo probar](#cómo-probar)
+- [SPL: Analizador Léxico del Ensamblador (Integrante 2)](#spl-analizador-léxico-del-ensamblador-integrante-2)
+  - [Qué incluye](#qué-incluye-9)
+  - [Cómo usar](#cómo-usar)
+- [SPL: Analizador Léxico del Compilador (Integrante 4)](#spl-analizador-léxico-del-compilador-integrante-4)
+  - [Qué incluye](#qué-incluye-10)
+  - [Cómo usar](#cómo-usar-1)
+- [SPL: Operadores y Literales del Compilador (Integrante 5)](#spl-operadores-y-literales-del-compilador-integrante-5)
+  - [Qué incluye](#qué-incluye-11)
+  - [Cómo usar](#cómo-usar-2)
+- [SPL: Driver Principal, Pipeline & Pruebas de Extremo a Extremo (Integrante 7)](#spl-driver-principal-pipeline--pruebas-de-extremo-a-extremo-integrante-7)
+  - [Qué incluye](#qué-incluye-12)
+  - [Cómo usar](#cómo-usar-3)
+- [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
+
 ## Especificación de la máquina
 
 | Característica | Valor |
@@ -40,23 +116,33 @@ Enigma-64/
 ├── requirements.txt
 ├── environment.yml
 ├── main.py                        Punto de entrada: lanza la interfaz gráfica del emulador
-├── verificacion_manual.py         Script de trazado y verificación del bucle factorial
+├── docs/                          Documentación, reportes técnicos y figuras
+│   ├── reportes/                  Reportes formales en PDF de entregas académicas
+│   ├── integrantes/               Informes técnicos individuales por módulo
+│   └── figuras/                   Mockups y capturas del sistema
 ├── enigma64/                           Paquete principal del emulador
 │   ├── __init__.py                Exportación de la API pública del sistema
 │   ├── registros.py               Banco de registros de 64 bits, punteros y banderas SR
 │   ├── alu.py                     Unidad Aritmético-Lógica (ALU) pura de 64 bits
 │   ├── memoria.py                 Controlador de memoria RAM física y subsistema de buses
 │   ├── cpu.py                     Unidad de Control FSM (5 fases) y PrefetchBuffer
-│   ├── cargador.py                Cargador de ejecutables (.e64, .bin) y manipulador de bits
+│   ├── cargador.py                Cargador de ejecutables (.e64, .obj, .bin) y manipulador de bits
+│   ├── enlazador/                 Enlazador: análisis de módulos objeto .obj, enlace y reubicación
+│   │   ├── objeto.py              Formato .obj: cabecera, secciones, exportaciones/importaciones y marcas
+│   │   ├── enlace.py              EnlazadorEnigma: ubicación de secciones, ESTAB y aplicación de marcas
+│   │   ├── ejemplos.py            Módulos objeto de ejemplo (principal.obj, libmat.obj)
+│   │   └── __main__.py            Línea de comandos: python -m enigma64.enlazador
 │   ├── perifericos.py             Subsistema MMIO y controlador de pantalla CRT
 │   ├── programas.py               Definición y compilación de programas oficiales de prueba
 │   ├── fpu.py                     EmuladorFPUEnigma64, vector jump table y utilidades IEEE 754
-│   ├── fpu.s                      Núcleo FPU: FADD, FSUB, empaquetado y desempaquetado
-│   ├── fmul.s                     Multiplicación FMUL (IEEE 754 binary64) y MUL128
-│   ├── fdiv.s                     División FDIV (IEEE 754 binary64) con guarda y pegajoso
-│   ├── fcmp.s                     Comparador FCMP quieto de flotantes IEEE 754
-│   ├── fconv.s                    Conversiones INT-FLOAT, FLOAT-INT y tabla canónica FPU_VECTORES
-│   ├── fsqrt.s                    Raíz cuadrada FSQRT (Newton-Raphson, Ricardo Peña pág. 26)
+│   ├── asm/                       Firmware y rutinas ensamblador oficiales de la FPU
+│   │   ├── fpu.s                  Núcleo FPU: FADD, FSUB, empaquetado y desempaquetado
+│   │   ├── fmul.s                 Multiplicación FMUL (IEEE 754 binary64) y MUL128
+│   │   ├── fdiv.s                 División FDIV (IEEE 754 binary64) con guarda y pegajoso
+│   │   ├── fcmp.s                 Comparador FCMP quieto de flotantes IEEE 754
+│   │   ├── fconv.s                Conversiones INT-FLOAT, FLOAT-INT y tabla canónica FPU_VECTORES
+│   │   ├── fsqrt.s                Raíz cuadrada FSQRT (Newton-Raphson, Ricardo Peña pág. 26)
+│   │   └── fbrun.s                Estimación de la Constante de Brun y test de primalidad
 │   ├── oraculo_ieee754.py         Módulo utilitario de validación IEEE 754 y oráculo de referencia
 │   ├── ui/                        Interfaz gráfica modular (Tkinter / TTK)
 │   │   ├── shell/ventana.py       Shell principal y cuaderno de módulos
@@ -67,26 +153,22 @@ Enigma-64/
 │       ├── __init__.py
 │       └── panel_registros.py     Panel en vivo de registros y banco de pruebas ALU
 ├── programas/                     Archivos binarios (.bin, .hex, .e64) y biblioteca fpu_lib.*
-├── scripts/                       Scripts utilitarios (generación automatizada de binarios)
-└── tests/                         Suite de pruebas automatizadas
+├── spl/                           Herramientas y subsistema SPL (Simple Programming Language)
+│   ├── include/enigma64.h
+│   ├── preprocesador/             Lexer, motor de directivas y CLI
+│   ├── ensamblador/               Analizador léxico del ensamblador (PLY), CLI y ejemplos
+│   └── compilador/                Analizador léxico del compilador (PLY): vocabulario, operadores, literales, tablas y CLI
+├── scripts/                       Scripts utilitarios, compilación y pruebas manuales
+│   ├── generar_binarios.py        Generador automatizado de ejecutables (.bin, .hex, .e64)
+│   ├── generar_reporte_tarea17_pdf.py Generador del informe técnico formal en PDF
+│   └── verificacion_manual.py     Script interactivo de trazado y verificación (factorial)
+└── tests/                         Suite de pruebas automatizadas modularizada
     ├── conftest.py                Configuración global de entorno para pytest
-    ├── test_registros_alu.py      Pruebas de banco de registros y operaciones ALU
-    ├── test_memoria.py            Pruebas de memoria física, paginación y alineación
-    ├── test_cpu.py                Pruebas de la CPU, FSM multiciclo y decodificador
-    ├── test_cargador.py           Pruebas de carga, formatos y manipulación de bits
-    ├── test_perifericos.py        Pruebas de MMIO y controlador de pantalla
-    ├── test_algoritmos.py         Pruebas de ejecución de algoritmos oficiales
-    ├── test_fpu.py                Pruebas de FADD, FSUB, desempaquetar y empaquetar
-    ├── test_fmul.py               Pruebas de FMUL (IEEE 754 binary64) contra el oráculo de Python
-    ├── test_fconv.py              Pruebas de conversiones INT-FLOAT y mesa de vectores FPU
-    ├── test_oraculo.py            Pruebas del oráculo de validación IEEE 754 y simulación Newton
-    ├── test_fsqrt.py              Pruebas de FSQRT (Newton-Raphson) en la CPU contra el oráculo
-    ├── test_ui_aislamiento.py     Pruebas estáticas de desacoplamiento de capas (AST)
-    ├── test_ui_fpu.py             Pruebas del panel de la FPU, su adaptador y el formato IEEE 754
-    ├── test_ui_modulos_nuevos.py  Pruebas de interfaces de servicios y adaptadores
-    ├── test_ui_nucleo.py          Pruebas del núcleo de interfaz y bus de eventos
-    ├── test_ui_paneles.py         Pruebas funcionales de los paneles gráficos
-    └── test_ui_visor_ram_mmio.py  Pruebas de visualización de memoria y edición de bits
+    ├── core/                      Pruebas de CPU, ALU, registros, memoria, cargador y enlazador
+    ├── fpu/                       Pruebas IEEE 754, FADD, FMUL, FDIV, FCMP, FSQRT, Brun y oráculo
+    ├── ui/                        Pruebas de interfaz gráfica, aislamiento AST y eventos
+    ├── test_spl/                  Pruebas del lenguaje y herramientas SPL
+    └── integration/               Pruebas de algoritmos de prueba e integración del sistema
 ```
 
 ## Requisitos
@@ -297,7 +379,8 @@ documentados en el código:
 - **Modelo de ejecutable con soporte dual (`BinarioEnigma`):**
   - **Modo 1: Binario plano crudo (`.bin`):** Volcado directo de opcodes e inmediatos para las pruebas inmediatas de la Tarea 10 (Factorial, Euclides y Fibonacci).
   - **Modo 2: Binario estructurado Enigma-64 (`.e64`):** Cabecera Big-Endian de 32 bytes (`>4s7I`) que encapsula número mágico (`b'ENIG'`), flags (absoluto vs. reubicable), `entry_point`, `direccion_base`, tamaño de código (`.text`), tamaño de datos (`.data`), tabla de reubicación y tabla de símbolos.
-  - **Preparación para el futuro Enlazador:** Si un binario reubicable se monta en una dirección destino diferente a su dirección base original, el cargador procesa la tabla de reubicación y parcha las referencias absolutas automáticamente.
+  - **Reubicación de `.e64`:** Si un binario reubicable se monta en una dirección destino diferente a su dirección base original, el cargador procesa la tabla de reubicación y parcha las referencias absolutas automáticamente.
+  - **Integración con el Enlazador:** `cargar_archivo` reconoce los módulos objeto reubicables (firma `EOBJ`) y los enlaza en la dirección destino antes de cargarlos (ver [Enlazador](#enlazador-módulos-objeto-reubicables-obj)).
 - **Parser de volcados de texto (`parsear_texto_a_bytes`):**
   - Procesa volcados en texto con tokens hexadecimales (`0x78`, `4A`), binarios (`0b11001100`) o decimales, ignorando comentarios (`#`, `//`, `;`) y espacios.
 - **Motor del Cargador (`CargadorEnigma`):**
@@ -339,12 +422,147 @@ escribir_bit(ram, 0x00200000, bit_index=3, valor=1)
 
 ---
 
+# Enlazador: Módulos Objeto Reubicables (.obj)
+
+La especificación de la Tarea 9 reparte el módulo **Enlazador-Cargador** (región `0x00001000`–`0x000FFFFF`) en dos responsabilidades: el **Cargador** ubica en memoria un programa ya traducido y le transfiere el control, pero *"no resuelve símbolos entre módulos (tarea del Enlazador)"*. El paquete `enigma64/enlazador/` completa esa segunda mitad: analiza módulos objeto reubicables, resuelve las referencias entre ellos y aplica las marcas de reubicación sobre la imagen que luego deposita `CargadorEnigma`.
+
+Hasta ahora la única forma de combinar código de varios archivos era concatenar las fuentes y ensamblarlas juntas (así se arma `CODIGO_FPU_ASM`). Con el enlazador cada módulo se traduce por separado y se une después.
+
+## Componentes del enlazador
+
+- **`enigma64/enlazador/objeto.py` — Análisis de módulos objeto.**
+  - Reconoce la cabecera (`EOBJ`, versión, máquina `0xE064`) y la **tabla de encabezados de sección** (`.text`, `.data`, `.bss` o propias): tipo, permisos R/W/X, alineación, tamaño y posición del contenido en el archivo.
+  - Extrae la **tabla de exportaciones** (símbolos `GLOBAL` definidos en el módulo), la **tabla de importaciones** (símbolos indefinidos que debe aportar otro módulo) y los símbolos locales.
+  - Interpreta las **marcas de reubicación**: qué bytes de qué sección se parchan en memoria, con qué fórmula y contra qué símbolo.
+  - Valida campo por campo y rechaza con `ObjetoInvalido` cualquier índice, desplazamiento, tamaño, nombre o marca solapada antes de que llegue a la RAM.
+  - Serializa módulos construidos en memoria: es el formato que debe emitir el backend del ensamblador SPL.
+- **`enigma64/enlazador/enlace.py` — Enlace en dos pasadas (`EnlazadorEnigma`).**
+  - *Pasada 1:* ubica las secciones (primero el código de todos los módulos, luego los datos y al final las reservas `.bss`, respetando la alineación de cada una) y construye la tabla global de símbolos (ESTAB). Detecta exportaciones duplicadas.
+  - *Pasada 2:* resuelve cada importación contra la ESTAB (reporta todas las que falten de una vez), aplica las marcas sobre la imagen verificando que el valor quepa en el campo y deja `.bss` en ceros.
+  - Entrega un `BinarioEnigma` absoluto, el mapa de secciones y la ESTAB. `enlazar_y_cargar` enlaza directamente en la dirección de carga y deposita la imagen con `CargadorEnigma`, que sigue aplicando las fronteras del mapa de memoria.
+- **`CargadorEnigma.cargar_archivo`** reconoce la firma `EOBJ` y enlaza el módulo antes de cargarlo, así la pestaña **Cargador** de la interfaz también acepta `.obj`.
+- **`python -m enigma64.enlazador`** — analizador y enlazador de línea de comandos.
+- **`enigma64/enlazador/ejemplos.py`** — dos módulos de ejemplo (`principal.obj`, `libmat.obj`) que usan los cinco tipos de marca.
+- Informe técnico completo en [`docs/integrantes/informe_integrante3_enlazador_cargador.md`](docs/integrantes/informe_integrante3_enlazador_cargador.md): restricciones del ISA, formato, decisiones de diseño, verificación con el código del equipo y pendientes.
+
+## Formato del archivo `.obj`
+
+Todo en Big-Endian, como la máquina y el formato `.e64`:
+
+```
++-------------------------------+ 0
+| Cabecera                52 B  |
++-------------------------------+ off_secciones
+| Encabezados de sección  20 B c/u
++-------------------------------+
+| Contenido de secciones BITS   |  (.bss no ocupa bytes en el archivo)
++-------------------------------+ off_simbolos
+| Tabla de símbolos       12 B c/u
++-------------------------------+ off_reubicaciones
+| Marcas de reubicación   16 B c/u
++-------------------------------+ off_cadenas
+| Tabla de cadenas (UTF-8, NUL) |
++-------------------------------+
+```
+
+| Registro | `struct` | Campos |
+|---|---|---|
+| Cabecera | `>4sHHHHIIIIIIIIII` | `magia = "EOBJ"`, `version = 1`, `maquina = 0xE064`, `banderas` (bit 0: el módulo declara el punto de entrada), `seccion_entrada`, `offset_entrada`, `nombre_modulo` y las parejas (cantidad, offset) de secciones, símbolos, marcas y cadenas |
+| Encabezado de sección | `>IHHIII` | `nombre`, `tipo` (1 = BITS, 2 = VACIA), `permisos` (R = 1, W = 2, X = 4), `alineacion` (potencia de 2 hasta 4096), `tamano`, `offset` |
+| Símbolo | `>IHBBI` | `nombre`, `seccion` (`0xFFFF` = importado, `0xFFFE` = constante absoluta), `ligadura` (LOCAL / GLOBAL), `tipo` (SIN_TIPO / FUNCION / DATO), `valor` |
+| Marca de reubicación | `>HBBIIi` | `seccion`, `tipo`, `reservado = 0`, `offset` del campo, índice del `simbolo`, `sumando` con signo |
+
+Los nombres son offsets dentro de la tabla de cadenas. Una exportación es un símbolo `GLOBAL` con sección definida; una importación, un símbolo con sección `0xFFFF`.
+
+## Tipos de marca de reubicación
+
+Salen de los campos del ISA que pueden contener una dirección. `S` = dirección final del símbolo, `A` = sumando, `P` = dirección final del primer byte del campo:
+
+| Tipo | Ancho | Valor escrito | Dónde se usa |
+|---|---|---|---|
+| `ABS64` | 8 B | `S + A` | Palabra de datos que guarda una dirección (punteros en `.data`) |
+| `ABS32` | 4 B | `S + A` | Destino de `JMP` / `CALL` (bytes 1 a 4 de la instrucción) |
+| `REL16` | 2 B | `S + A − (P + 2)` | Desplazamiento de `JZ`, `JNZ`, …, medido desde la instrucción siguiente |
+| `HI16` | 2 B | `(S + A + 0x8000) >> 16` | Inmediato del `ADDI Rx, R0, …` que precede a `SHL Rx, Rx, 16` |
+| `LO16` | 2 B | `(S + A) & 0xFFFF` | Inmediato del `ADDI Rx, Rx, …` o desplazamiento de `LOAD` / `STORE` |
+
+`HI16` es la parte alta **ajustada**: la CPU extiende el signo de los inmediatos de 16 bits, así que un `LO16 ≥ 0x8000` resta `0x10000` y la parte alta lo compensa. Con eso la secuencia que ya usa el equipo (`ADDI`, `SHL 16`, `ADDI`) construye la dirección exacta para cualquier destino por debajo de `0x7FFF8000` (`LIMITE_HI16`); por encima el enlazador lo reporta como desbordamiento en vez de generar código erróneo.
+
+## Uso del enlazador
+
+```python
+from enigma64 import CargadorEnigma, EnlazadorEnigma, analizar_objeto
+
+modulo = analizar_objeto("programas/objetos/principal.obj")
+print(modulo.informe())        # cabecera, secciones, exportaciones, importaciones y marcas
+modulo.exportaciones           # [SimboloObjeto('main', ...), ...]
+modulo.importaciones           # [SimboloObjeto('sumar', ...), SimboloObjeto('error', ...)]
+modulo.reubicaciones           # [MarcaReubicacion(seccion=0, offset=2, tipo=REUB_HI16, ...), ...]
+
+enlazador = EnlazadorEnigma(["programas/objetos/principal.obj", "programas/objetos/libmat.obj"])
+resultado = enlazador.enlazar(direccion_base=0x00200000)
+resultado.simbolos             # ESTAB: {'main': 0x00200000, 'sumar': 0x00200039, ...}
+print(resultado.informe())     # mapa de enlace
+
+# O enlazar directamente en la dirección de carga y dejar la CPU lista
+enlazador.enlazar_y_cargar(cargador, direccion_destino=0x00300000)
+```
+
+Desde la línea de comandos:
+
+```bash
+# Generar los módulos de ejemplo en programas/objetos/
+python -m enigma64.enlazador.ejemplos
+
+# Analizar un módulo: cabecera, secciones, exportaciones, importaciones y marcas
+python -m enigma64.enlazador programas/objetos/principal.obj
+
+# Enlazar y escribir un ejecutable .e64 (se carga desde la pestaña Cargador)
+python -m enigma64.enlazador programas/objetos/principal.obj programas/objetos/libmat.obj -o programas/objetos/demo.e64 --mapa
+```
+
+Excepciones (todas heredan de `ErrorCargador`): `ObjetoInvalido` (también es `FormatoInvalido`), `SimboloNoDefinido` (con `faltantes`: símbolo → módulos que lo importan), `SimboloDuplicado` y `DesbordamientoReubicacion`.
+
+## Criterios de diseño del enlazador
+
+| Punto | Decisión | Razón |
+|---|---|---|
+| Sumando explícito en la marca | El enlazador escribe `S + A` sin leer lo que había en el campo | La fórmula no depende del contenido previo del campo |
+| Enlace en la dirección de carga | El ejecutable enlazado es absoluto (`reubicable=False`) | La tabla de reubicación del `.e64` solo parcha palabras de 8 bytes; los campos `ABS32`, `REL16` y `HI16`/`LO16` se resuelven al enlazar |
+| `.bss` en la imagen | La reserva se escribe en ceros al cargar | La RAM puede conservar datos de una carga anterior |
+| Importaciones sin resolver | Se reportan todas juntas en un solo `SimboloNoDefinido` | Se ve de una vez todo lo que falta enlazar |
+| Orden de ubicación | Código, datos y reservas; las secciones del mismo nombre van juntas en el orden de los módulos | El código queda contiguo al inicio de la imagen |
+| Punto de entrada | Símbolo pedido, si no el que declare un módulo, si no el inicio del código | Que dos módulos declaren entrada es un error explícito |
+
+## Pruebas del enlazador (`tests/core/test_enlazador.py`)
+
+50 pruebas (82 subpruebas):
+
+| Grupo | Qué verifica |
+|---|---|
+| `TestCabeceraYSecciones` | Firma, versión, máquina, cantidades y offsets de cada tabla; tipo, permisos, alineación, tamaño, clase y posición en el archivo de cada sección |
+| `TestTablasDeSimbolos` | Tabla de exportaciones, tabla de importaciones, símbolos locales y referencias de cada importación |
+| `TestMarcasDeReubicacion` | Sección, offset, tipo, ancho, símbolo y sumando de cada marca; que cada campo caiga en el operando de la instrucción correcta |
+| `TestSerializacion` | Ida y vuelta byte a byte, nombres UTF-8, lectura de disco, informe y que los ejemplos coincidan con el ensamblador oficial |
+| `TestObjetoInvalido` | 36 archivos corruptos (firma, tablas fuera del archivo, nombres, índices, marcas solapadas, punto de entrada…) y 7 modelos incoherentes que no se serializan |
+| `TestCalculoDeParches` | Fórmulas de los cinco tipos, reconstrucción de direcciones `HI16`/`LO16` con la ALU oficial y desbordamientos |
+| `TestEnlazador` | Mapa de secciones y alineación, ESTAB, bytes parchados en la imagen, `.bss` en ceros, duplicados, importaciones faltantes, constantes absolutas y punto de entrada |
+| `TestEnlaceCargaEjecucion` | El programa de dos módulos corre en la CPU en tres bases (una de ellas impar), el salto `REL16` entre módulos y la carga de `.obj` desde `cargar_archivo` |
+| `TestEnlaceConCodigoDelEquipo` | Euclides (Tarea 9) reubicado a `0x00400000`; la biblioteca FPU completa (68 marcas `ABS32`) enlazada con un cliente compilado aparte da los mismos bits que el ensamblado monolítico |
+| `TestLineaDeComandos` | Análisis, enlace a un `.e64` que se carga y ejecuta, y códigos de error |
+
+```bash
+python -m pytest tests/core/test_enlazador.py -v
+```
+
+---
+
 # Pruebas
 
 ## Nivel 1 — El paquete se importa
 
 ```bash
-python -c "from enigma64 import ALU, BancoRegistros, RAMMemory, CargadorEnigma; print('OK')"
+python -c "from enigma64 import ALU, BancoRegistros, RAMMemory, CargadorEnigma, EnlazadorEnigma; print('OK')"
 ```
 
 Si falla aquí el problema es de ubicación de archivos, no de código:
@@ -359,7 +577,7 @@ Si falla aquí el problema es de ubicación de archivos, no de código:
 python -m unittest discover -s tests -v
 ```
 
-Debe terminar en `Ran 81 tests ... OK`. Cobertura:
+Debe terminar en `Ran 280 tests ... OK`. Cobertura:
 
 | Módulo | Grupo | Qué verifica |
 |---|---|---|
@@ -379,6 +597,9 @@ Debe terminar en `Ran 81 tests ... OK`. Cobertura:
 | **Cargador & Bits** | `TestCargaFormatos` | Carga de binarios planos (.bin), serialización/deserialización .e64 Big-Endian, reubicación dinámica de direcciones y parser de volcados en texto |
 | **Cargador & Bits** | `TestContextoHardware` | Sincronización de registros tras la carga (PC=entry_point, SP=0xEFFFFFFF, SR=0x1, R0=0, R5=entry_point) y detención/reanudación de CPU |
 | **Cargador & Bits** | `TestSubrutinaFirmware` | Transferencia de datos entre buffers emulando la subrutina en 0x00001000 con parámetros R1, R2, R3 y retorno en R5 |
+| **Enlazador** | `TestCabeceraYSecciones`, `TestTablasDeSimbolos`, `TestMarcasDeReubicacion` | Análisis de `.obj`: cabecera, encabezados de sección, tablas de exportación e importación y marcas de reubicación |
+| **Enlazador** | `TestObjetoInvalido`, `TestCalculoDeParches` | Rechazo de 36 archivos corruptos, fórmulas de reubicación y desbordamientos |
+| **Enlazador** | `TestEnlazador`, `TestEnlaceCargaEjecucion`, `TestEnlaceConCodigoDelEquipo` | Enlace de varios módulos, carga y ejecución en la CPU en distintas bases, incluida la biblioteca FPU como módulo reubicable (ver sección Enlazador) |
 | **FPU — FMUL** | `TestFMULEnigma64` | Tabla de 24 casos en hex, 300 casos aleatorios bit a bit contra el oráculo IEEE 754 de Python, conmutatividad, peor caso de ciclos y producto de 128 bits de `FPU_MUL128` (ver sección FMUL) |
 
 
@@ -421,7 +642,7 @@ Secuencia de comprobación manual:
 ## Nivel 4 — Trazado del algoritmo del documento
 
 ```bash
-python verificacion_manual.py
+python scripts/verificacion_manual.py
 ```
 
 Reproduce el bucle del Algoritmo 1 (factorial de 5) usando únicamente el banco de
@@ -526,7 +747,7 @@ en un diccionario con hexadecimal, decimal con signo y las siete banderas.
 - Formatos suministrados: `.bin` (binario crudo), `.hex` (volcado hexadecimal) y `.e64` (ejecutable estructurado con cabecera Magic `ENIG`).
 - Script generador: `python scripts/generar_binarios.py`.
 
-### 2. Suite de pruebas de validación formal (`tests/test_algoritmos.py`)
+### 2. Suite de pruebas de validación formal (`tests/integration/test_algoritmos.py`)
 - 16 pruebas automatizadas que verifican la integridad byte a byte contra la Tarea 9, el respeto de fronteras de memoria, la carga en RAM mediante `CargadorEnigma`, la ejecución paso a paso y la ejecución sobre la `CPU` oficial de la máquina.
 
 ---
@@ -568,11 +789,11 @@ en un diccionario con hexadecimal, decimal con signo y las siete banderas.
 
 ## Qué incluye
 
-- **`enigma64/fmul.s`** — Subrutina `FMUL` en ensamblador de Enigma-64: `R5 = R1 × R2` en IEEE 754 binary64, con redondeo al par más cercano, subnormales en entrada y salida, y casos especiales (NaN, ±Inf, ±0, 0 × Inf). Incluye las auxiliares `FPU_MUL128` (producto 64 × 64 → 128 bits con cuatro productos parciales de 32 bits, porque `MUL` solo conserva los 64 bits bajos) y `FPU_NORMALIZAR_SUBNORMAL`. Reutiliza `FPU_DESEMPAQUETAR` y `FPU_EMPAQUETAR` de `fpu.s`.
+- **`enigma64/asm/fmul.s`** — Subrutina `FMUL` en ensamblador de Enigma-64: `R5 = R1 × R2` en IEEE 754 binary64, con redondeo al par más cercano, subnormales en entrada y salida, y casos especiales (NaN, ±Inf, ±0, 0 × Inf). Incluye las auxiliares `FPU_MUL128` (producto 64 × 64 → 128 bits con cuatro productos parciales de 32 bits, porque `MUL` solo conserva los 64 bits bajos) y `FPU_NORMALIZAR_SUBNORMAL`. Reutiliza `FPU_DESEMPAQUETAR` y `FPU_EMPAQUETAR` de `fpu.s`.
 - **`enigma64/fpu.py`** — Ensambla `fpu.s` + `fmul.s` como una sola unidad y expone `EmuladorFPUEnigma64.multiplicar()` (devuelve `float`) y `multiplicar_bits()` (devuelve el patrón de 64 bits).
-- **`docs/informe_integrante2_fmul.md`** — Diseño, asignación de registros, oráculo y limitaciones.
+- **`docs/integrantes/informe_integrante2_fmul.md`** — Diseño, asignación de registros, oráculo y limitaciones.
 
-## Pruebas (`tests/test_fmul.py`)
+## Pruebas (`tests/fpu/test_fmul.py`)
 
 Cada prueba ejecuta `FMUL` sobre la CPU oficial y compara el resultado bit a bit contra el oráculo de Python (`struct` + `*`, que es IEEE 754 binary64 con redondeo al par más cercano).
 
@@ -620,7 +841,7 @@ En el caso 12 el oráculo de Python (x86) da `FFF8000000000000`. Los dos son NaN
 Para correr solo estas pruebas:
 
 ```bash
-python -m pytest tests/test_fmul.py -v
+python -m pytest tests/fpu/test_fmul.py -v
 # o con unittest estándar
 python -m unittest tests.test_fmul -v
 ```
@@ -649,15 +870,15 @@ La capa de servicios (`AdaptadorFPU` en `enigma64/ui/servicios/adaptadores.py`) 
 
 ## Qué incluye
 
-- **`enigma64/fconv.s`** — Subrutinas en ensamblador de Enigma-64:
+- **`enigma64/asm/fconv.s`** — Subrutinas en ensamblador de Enigma-64:
   - `FPU_VECTORES`: Mesa de entrada / tabla de salto canónica fija de 7 entradas (`JMP` de 5 bytes en saltos fijos de `+0x05`), permitiendo a los programas de usuario invocar cualquier servicio de la FPU de forma canónica desacoplada de la implementación interna.
   - `FPU_INT_TO_FLOAT` (`INT64_TO_FLOAT64`): Conversión de enteros de 64 bits con signo en complemento a dos (R1) a formato IEEE 754 de doble precisión binary64 (R5). Gestiona el caso cero, el caso crítico `INT64_MIN` ($-2^{63}$), normalización y redondeo al par más cercano (*roundTiesToEven*) para enteros que exceden 53 bits de significando.
   - `FPU_FLOAT_TO_INT` (`FLOAT64_TO_INT64`): Conversión de flotantes IEEE 754 binary64 (R1) a enteros de 64 bits con signo (R5), implementando truncamiento hacia cero ($[-1.0, 1.0) \to 0$), soporte para enteros de hasta 63 bits y el límite exacto $-2^{63}$.
 - **`enigma64/fpu.py`** — Integración en `EmuladorFPUEnigma64` con métodos `int_to_float()`, `int_to_float_bits()`, `float_to_int()`, `ejecutar_vector()` y constantes de vector `VECTOR_*`.
 - **`programas/fpu_lib.s`**, **`fpu_lib.bin`** (1425 bytes), **`fpu_lib.hex`** — Biblioteca binaria unificada completa que compila la tabla `FPU_VECTORES`, `fconv.s`, `fpu.s` y `fmul.s` en un único módulo distribuible.
-- **`docs/informe_integrante4_conversiones_enlace.md`** — Informe técnico completo sobre diseño, microarquitectura, convenciones ABI y pruebas.
+- **`docs/integrantes/informe_integrante4_conversiones_enlace.md`** — Informe técnico completo sobre diseño, microarquitectura, convenciones ABI y pruebas.
 
-## Pruebas (`tests/test_fconv.py`)
+## Pruebas (`tests/fpu/test_fconv.py`)
 
 19 pruebas automatizadas (111 aserciones directas) que validan el comportamiento contra IEEE 754 y el oráculo nativo:
 
@@ -679,7 +900,7 @@ La capa de servicios (`AdaptadorFPU` en `enigma64/ui/servicios/adaptadores.py`) 
 Para correr solo estas pruebas:
 
 ```bash
-python -m pytest tests/test_fconv.py -v
+python -m pytest tests/fpu/test_fconv.py -v
 ```
 
 ---
@@ -701,7 +922,7 @@ python -m pytest tests/test_fconv.py -v
   * Lee el número de pares objetivo $K$ desde `0x00205000`.
   * Escribe la estimación $B_2$ en `0x00205008`, la cantidad de pares procesados en `0x00205010` y el último primo gemelo en `0x00205018`.
   * Disponible en binario crudo (`.bin`), volcado (`.hex`) y ejecutable estructurado (`.e64`).
-* **Batería de Pruebas Unitarias y de Integración (`tests/test_bateria_integracion.py` y `tests/test_fbrun.py`):**
+* **Batería de Pruebas Unitarias y de Integración (`tests/integration/test_bateria_integracion.py` y `tests/fpu/test_fbrun.py`):**
   * Pruebas exhaustivas de división `FDIV` (operaciones normales, división por cero, infinitos, NaN, subnormales y contraste con el oráculo).
   * Pruebas de comparación `FCMP` (orden estricto, ceros con signo $+0.0 \equiv -0.0$, NaNs desordenados).
   * Pruebas de estabilidad de marco de pila (`ENTER`/`LEAVE`) e invarianza de `SP`/`BP`.
@@ -711,10 +932,128 @@ python -m pytest tests/test_fconv.py -v
 
 ```bash
 # Pruebas de la Constante de Brun
-python -m pytest tests/test_fbrun.py -v
+python -m pytest tests/fpu/test_fbrun.py -v
 
 # Batería completa de integración y robustez FPU
-python -m pytest tests/test_bateria_integracion.py -v
+python -m pytest tests/integration/test_bateria_integracion.py -v
+```
+
+---
+
+# SPL: Analizador Léxico del Ensamblador (Integrante 2)
+
+## Qué incluye
+
+* **`spl/ensamblador/lexer.py`:** tokenizador construido con `ply.lex`. Reconoce los 41 mnemónicos del ISA, los registros (`R0`–`R7`, `PC`, `SR`, `RV`, `SP`, `BP`), las directivas `.data .text .org .word .byte`, la definición y el uso de etiquetas, los literales decimales, hexadecimales, binarios y flotantes (con signo), y los separadores `, : [ ] ( ) # + -`. Ignora los comentarios `;`, lleva el conteo de líneas y reporta cada error léxico con su línea y columna sin detener el análisis.
+* **`spl/ensamblador/ejemplos/prueba.asm`:** programa que usa todas las categorías léxicas. Incluye 7 errores intencionales y su salida esperada.
+* Tabla de categorías, decisiones de diseño y manuales en [`docs/integrantes/informe_integrante2_lexer_ensamblador.md`](docs/integrantes/informe_integrante2_lexer_ensamblador.md).
+
+## Cómo usar
+
+```bash
+# Tokens <línea, CATEGORÍA, lexema> y resumen por categoría
+python -m spl.ensamblador spl/ensamblador/ejemplos/prueba.asm
+
+# Desde la entrada estándar
+echo "loop: JMP loop" | python -m spl.ensamblador
+
+# Pruebas (117)
+python -m pytest tests/test_spl/test_lexer_ensamblador.py -v
+```
+
+# SPL: Analizador Léxico del Compilador (Integrante 4)
+
+## Qué incluye
+
+* **`spl/compilador/lexer.py`:** Tokenizador del lenguaje de alto nivel imperativo para Enigma-64 construido con `ply.lex`. Reconoce las palabras reservadas de control (`if`, `then`, `else`, `switch`, `case`, `default`, `while`, `do`, `for`, `continue`, `function`, `return`, `break`), los tipos primitivos (`int` de 64 bits, `float` IEEE 754 Binary64, `void`, `char`, `bool`, `const`), los tipos de datos abstractos y estructuras (`struct`, `tda`, `typedef`, `sizeof`), los delimitadores dimensionales para arreglos unidimensionales y matrices multidimensionales (`[` y `]`), bloques (`{` y `}`), y acceso a miembros (`.` y `->`).
+* **Desambiguación e Integración con Tablas de Símbolos:** Identifica identificadores (`ID`) distinguiéndolos de palabras clave con prefijos compartidos (`if_cond`, `while_cnt`), e interactúa nativamente con `GestorTablasSimbolos` (`spl/compilador/tablas.py`, Integrante 6) deduplicando identificadores en `tablaID` con índices base 1.
+* **Tolerancia y reporte de errores:** Detecta y reporta errores léxicos (`ErrorLexico`) indicando línea y columna sin abortar el análisis.
+* **`spl/compilador/ejemplos/`:** 3 programas de prueba correspondientes a los escenarios formales del taller:
+  * `escenario1_tda_matrices.spl`: Tipos abstractos `struct`/`tda`, vectores y matrices multidimensionales.
+  * `escenario2_control_funciones.spl`: Estructuras de control, funciones y desambiguación.
+  * `escenario3_errores_recuperacion.spl`: Detección y recuperación ante errores léxicos intencionales.
+* Tabla maestra de códigos, justificación del paradigma imperativo y documentación técnica en [`docs/integrantes/informe_integrante4_vocabulario_compilador.md`](docs/integrantes/informe_integrante4_vocabulario_compilador.md).
+
+## Cómo usar
+
+```bash
+# Tokenización de programa de alto nivel con reporte tabular y estado de tablas
+python -m spl.compilador spl/compilador/ejemplos/escenario1_tda_matrices.spl
+
+# Ocultando el volcado de tablas
+python -m spl.compilador spl/compilador/ejemplos/escenario2_control_funciones.spl --sin-tablas
+
+# Desde la entrada estándar
+echo "struct Punto { float x; float y; };" | python -m spl.compilador
+
+# Pruebas unitarias del compilador (18 pruebas)
+python -m pytest tests/test_spl/test_lexer_compilador.py -v
+```
+
+---
+
+# SPL: Operadores y Literales del Compilador (Integrante 5)
+
+## Qué incluye
+
+* **Operadores con subcódigo propio** en `spl/compilador/lexer.py`: aritméticos (`+ - * / %`, categoría 210), relacionales (`== != < <= > >=`, categoría 200) y lógicos (`&& || !`, categoría 220). Cada token lleva en `subcodigo` el operador concreto (por ejemplo `MENOR_IGUAL` → 200/4). Los de dos caracteres ganan a los de uno (`a<=b` → `MENOR_IGUAL`), y un `&` o `|` aislado se reporta como operador lógico incompleto.
+* **Literales enteros** en base 10 (hasta `INT64_MAX`; el signo es el operador unario `-`) y base 16 `0x...` (hasta `0xFFFFFFFFFFFFFFFF`). Un literal que no cabe en 64 bits es un error léxico y no entra en `tablaNum`.
+* **Literales flotantes** IEEE 754 binary64 en punto fijo (`3.14`, `.5`, `5.`) y notación científica (`1e10`, `2.5E-3`, `.5e+2`). Se rechazan el desborde (`1e309`), el subdesborde a cero (`1e-400`) y los exponentes sin dígitos (`2.5e+`).
+* **Cadenas de texto** con los escapes `\n \t \r \0 \\ \" \'`, que se registran limpias en `tablaString`. Un escape desconocido (`"\q"`) y una cadena sin cerrar son errores; en el segundo caso el análisis se retoma en la línea siguiente.
+* **`spl/compilador/ejemplos/`:** `escenario4_operadores_literales.spl` (todos los operadores y formatos, 0 errores) y `escenario5_errores_literales.spl` (9 errores con recuperación).
+* Especificación en notación FLEX, tabla de subcódigos y decisiones de diseño en [`docs/integrantes/informe_integrante5_operadores_literales.md`](docs/integrantes/informe_integrante5_operadores_literales.md).
+
+## Cómo usar
+
+```bash
+# Operadores y literales válidos con volcado de tablaNum y tablaString
+python -m spl.compilador spl/compilador/ejemplos/escenario4_operadores_literales.spl
+
+# Errores léxicos de literales y operadores
+python -m spl.compilador spl/compilador/ejemplos/escenario5_errores_literales.spl --sin-tablas
+
+# Desde la entrada estándar
+echo 'if (x >= 0x1F && y != .5e-3) s = "ok\n";' | python -m spl.compilador
+
+# Pruebas de operadores y literales (104 pruebas)
+python -m pytest tests/test_spl/test_lexer_operadores_literales.py -v
+```
+
+---
+
+# SPL: Driver Principal, Pipeline & Pruebas de Extremo a Extremo (Integrante 7)
+
+Orquestador maestro del **Sistema de Procesamiento del Lenguaje (SPL)** que integra secuencialmente las 4 herramientas del Taller #01: **Preprocesador → Compilador (Lexer + Tablas) → Ensamblador (Lexer) → Enlazador-Cargador (+ CPU Enigma-64)**.
+
+## Qué incluye
+
+- **`spl/pipeline.py` (`OrquestadorSPL`)** — Pipeline modular que conecta `Preprocesador` (Integrante 1), `LexerCompilador` + `GestorTablas` (Integrantes 4 y 6), `LexerEnsamblador` (Integrante 2) y `EnlazadorEnigma` + `CargadorRelocalizable` + `CPU` Enigma-64 (Integrante 3), recolectando métricas, tablas y diagnósticos por etapa.
+- **`spl/__main__.py` (`python -m spl`)** — Driver CLI principal con soporte para ejecutar los 3 escenarios oficiales (`--escenario 1|2|3|todos`), pipelines personalizados (`--spl`, `--asm`, `--obj`, `-I`, `-D`) y validación del módulo C (`--verificar-c`).
+- **`Makefile` (raíz)** — Automatización de compilación cruzada C/Flex (`tablas_simbolos.c` y `test_tablas.c` en `spl/compilador/Makefile`), ejecución de los 3 escenarios y corrida completa de pruebas.
+- **`spl/ejemplos/`** — Programas de prueba de extremo a extremo:
+  - **Escenario 1** (`escenario1_aritmetica_tda.spl` + `escenario1_modulo.asm` + `principal.obj` + `libmat.obj`): Aritmética entera, TDA (`struct`/`typedef`), matrices y enlace/ejecución en CPU Enigma-64 (`R5 = 42`).
+  - **Escenario 2** (`escenario2_punto_flotante_switch.spl` + `escenario2_fpu.asm`): Punto flotante IEEE 754, selección múltiple `switch-case` y ensamblador FPU (`FADD`, `FMUL`, `ITOF`).
+  - **Escenario 3** (`escenario3_recuperacion_errores.spl` + `escenario3_errores.asm`): Recuperación de errores léxicos y directivas en cascada a través de las etapas del SPL sin abortar la ejecución.
+- **`tests/test_spl/test_pipeline_integracion.py`** — Suite de pruebas de integración E2E (11 tests automatizados).
+
+## Cómo usar
+
+```bash
+# Ejecutar los 3 escenarios oficiales de extremo a extremo
+python -m spl
+
+# Ejecutar un escenario específico (1, 2 o 3)
+python -m spl --escenario 1
+
+# Ejecutar un archivo .spl y .asm personalizados en el pipeline
+python -m spl --spl spl/ejemplos/escenario1_aritmetica_tda.spl --asm spl/ejemplos/escenario1_modulo.asm
+
+# Ejecutar suite de pruebas de integración del pipeline (11 pruebas)
+python -m pytest tests/test_spl/test_pipeline_integracion.py -v
+
+# Automatización con Make
+make all
+make test-spl
 ```
 
 ---
@@ -740,9 +1079,9 @@ Luego se abre un Pull Request para revisión e integración de cambios.
 Antes de cada commit, verificar que las pruebas siguen pasando:
 
 ```bash
-# Suite completa (424 pruebas: unitarias y GUI)
+# Suite completa (836 pruebas: unitarias y GUI)
 python -m pytest
 
-# O mediante unittest estándar (182 pruebas de hardware sin GUI)
+# O mediante unittest estándar (280 pruebas de hardware sin GUI)
 python -m unittest discover -s tests
 ```

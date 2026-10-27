@@ -1,0 +1,38 @@
+// ============================================================================
+// ESCENARIO 1: Tipos de Datos Abstractos (TDA / struct), Vectores y Matrices
+// Lenguaje de Alto Nivel para Enigma-64 (SPL)
+// ============================================================================
+
+// 1. Definición de un Tipo de Dato Abstracto (TDA) para representar un vector 3D
+struct Vector3D {
+    float x;
+    float y;
+    float z;
+    int id;
+};
+
+// 2. Definición alternativa usando palabra clave 'tda' y 'typedef'
+tda MatrizTransformacion {
+    float datos[4][4];  // Matriz bidimensional 4x4
+    int filas;
+    int columnas;
+    bool normalizada;
+};
+
+// 3. Declaración de variables globales, arreglos y matrices
+const int MAX_PUNTOS = 100;
+struct Vector3D lista_puntos[MAX_PUNTOS]; // Arreglo unidimensional de TDA
+float matriz_rotacion[3][3];              // Matriz bidimensional 3x3 de punto flotante
+int buffer_pixeles[64][64];               // Matriz bidimensional de enteros de 64 bits
+
+// 4. Función de inicialización
+function void inicializar_sistema() {
+    struct Vector3D origen;
+    origen.x = 0.0;
+    origen.y = 0.0;
+    origen.z = 0.0;
+    origen.id = 1;
+    
+    lista_puntos[0] = origen;
+    matriz_rotacion[0][0] = 1.0;
+}

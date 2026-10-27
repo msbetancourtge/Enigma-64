@@ -1,3 +1,11 @@
+import os
+import sys
+
+# Asegurar acceso al paquete enigma64 independientemente del directorio de ejecucion
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 from enigma64 import ALU, BancoRegistros, hex64
 
 # realizar 5!

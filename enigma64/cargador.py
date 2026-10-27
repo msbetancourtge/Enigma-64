@@ -8,7 +8,8 @@ Implementa las responsabilidades del Integrante 4 (Tarea 10):
   3. Motor del Cargador (CargadorEnigma) con validacion estricta de fronteras de memoria,
      prevencion de colisiones con vectores/pila e inicializacion de registros.
   4. Emulacion de la subrutina de firmware del cargador residente en 0x00001000 (Tarea 9).
-  5. Base desacoplada y extensible preparada para el futuro enlazador (relocacion y simbolos).
+  5. Base desacoplada y extensible para el enlazador: cargar_archivo reconoce los modulos
+     objeto reubicables (.obj) y los entrega a enigma64.enlazador antes de cargarlos.
 
 Autor: Integrante 4 - Cargador & Manipulador de Bits
 """
@@ -64,6 +65,9 @@ MAX_PHYSICAL_ADDR: int = 0xFFFFFFFF
 
 # Cabecera magica para ejecutables estructurados Enigma-64 (Big-Endian)
 MAGIC_ENIGMA: bytes = b"ENIG"  # 0x454E4947
+
+# Cabecera magica de los modulos objeto reubicables (.obj) que analiza el enlazador
+MAGIC_OBJETO: bytes = b"EOBJ"  # 0x454F424A
 
 # Formato struct de cabecera Enigma-64 (32 bytes, Big-Endian):
 # Magic (4s) + Flags/Version (I) + Entry_Point (I) + Target_Address (I)
@@ -631,12 +635,12 @@ class CargadorEnigma:
         )
         tamano = binario.tamano_total
 
-        # 1. Detencion preventiva de la CPU
+        # 1. Validacion estricta de fronteras (antes de detener la CPU)
+        self.validar_limites(dir_base, tamano)
+
+        # 2. Detencion preventiva de la CPU
         if self.cpu is not None and hasattr(self.cpu, "detenido"):
             self.cpu.detenido = True
-
-        # 2. Validacion estricta de fronteras
-        self.validar_limites(dir_base, tamano)
 
         # 3. Reubicacion si el ejecutable es reubicable y cambio de direccion base
         cuerpo = binario.bytes_completos()
@@ -663,9 +667,27 @@ class CargadorEnigma:
         if configurar_cpu:
             self.inicializar_contexto_hardware(entry_point)
 
-        # 6. Reanudacion de CPU
-        if self.cpu is not None and hasattr(self.cpu, "detenido"):
-            self.cpu.detenido = False
+        # 6. Reanudacion y limpieza de estado interno de la CPU
+        if self.cpu is not None:
+            if hasattr(self.cpu, "prefetch") and hasattr(self.cpu.prefetch, "reset"):
+                self.cpu.prefetch.reset()
+            if configurar_cpu:
+                if hasattr(self.cpu, "fase"):
+                    self.cpu.fase = "FETCH"
+                if hasattr(self.cpu, "_actual"):
+                    self.cpu._actual = None
+                if hasattr(self.cpu, "_resultado_alu"):
+                    self.cpu._resultado_alu = None
+                if hasattr(self.cpu, "_resultado_memoria"):
+                    self.cpu._resultado_memoria = None
+                if hasattr(self.cpu, "_destino"):
+                    self.cpu._destino = None
+                if hasattr(self.cpu, "_halt_pending"):
+                    self.cpu._halt_pending = False
+                if hasattr(self.cpu, "_mensaje"):
+                    self.cpu._mensaje = ""
+            if hasattr(self.cpu, "detenido"):
+                self.cpu.detenido = False
 
         self.ultima_direccion_cargada = dir_base + tamano - 1
         self.ultimo_entry_point = entry_point
@@ -727,6 +749,9 @@ class CargadorEnigma:
         Lee un archivo desde el host y lo carga en la memoria RAM.
         Detecta automaticamente:
           - Formato estructurado .e64 (cabecera 'ENIG').
+          - Modulo objeto reubicable .obj (cabecera 'EOBJ'): se enlaza solo en la
+            direccion destino y luego se carga. Si importa simbolos de otros modulos
+            se rechaza con SimboloNoDefinido; para varios modulos usar EnlazadorEnigma.
           - Archivo de texto .txt (volcado legible hex/bin).
           - Binario plano .bin o cualquier otro archivo binario crudo.
         """
@@ -735,6 +760,18 @@ class CargadorEnigma:
 
         with open(ruta_archivo, "rb") as f:
             contenido = f.read()
+
+        if len(contenido) >= 4 and contenido[:4] == MAGIC_OBJETO:
+            # Importacion diferida: el enlazador depende de este modulo.
+            from .enlazador import EnlazadorEnigma
+
+            return EnlazadorEnigma([ruta_archivo]).enlazar_y_cargar(
+                self,
+                direccion_destino=(
+                    direccion_destino if direccion_destino is not None else USER_MEM_START
+                ),
+                configurar_cpu=configurar_cpu,
+            )
 
         if len(contenido) >= 4 and contenido[:4] == MAGIC_ENIGMA:
             binario = BinarioEnigma.deserializar_e64(contenido)

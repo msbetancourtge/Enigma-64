@@ -15,3 +15,4 @@ dependencies:
   - pip
   - pip:
       - pytest==9.1.1
+      - ply>=3.11   # analizadores lexicos del SPL

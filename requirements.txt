@@ -4,3 +4,4 @@
 # Este archivo lista las dependencias necesarias para ejecutar la suite de pruebas automatizadas.
 
 pytest>=8.0.0
+ply>=3.11

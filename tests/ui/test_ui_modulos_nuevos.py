@@ -331,3 +331,29 @@ def test_la_maquina_expone_los_siete_modulos():
     assert maquina.total_modulos == 7
     esperados = 7 if maquina.cpu.disponible else 6
     assert maquina.modulos_disponibles == esperados
+
+
+def test_carga_sucesiva_reanuda_cpu_y_limpia_pipeline():
+    """
+    Verifica que al cargar un segundo programa tras un HLT:
+      1. La CPU no quede bloqueada con detenido=True.
+      2. No ejecute opcodes residuales del PrefetchBuffer en direcciones contiguas.
+    """
+    maquina = construir_maquina()
+    # Programa 1: ADDI R1, R0, 7; HLT (14 10 00 07 00)
+    maquina.cargador.cargar_texto("14 10 00 07 00", destino=0x00200000)
+    maquina.cpu.ejecutar()
+    assert maquina.registros.leer_nombre("R1") == 7
+    assert maquina.cpu.cpu.detenido is True
+
+    # Programa 2 en 0x00200100: ADDI R2, R0, 9; HLT (14 20 00 09 00)
+    maquina.cargador.cargar_texto("14 20 00 09 00", destino=0x00200100)
+    assert maquina.cpu.cpu.detenido is False
+    maquina.cpu.ejecutar()
+    assert maquina.registros.leer_nombre("R2") == 9
+
+    # Programa 3 en direccion contigua 0x00200008: ADDI R3, R0, 15; HLT (14 30 00 0F 00)
+    maquina.cargador.cargar_texto("14 30 00 0F 00", destino=0x00200008)
+    assert maquina.cpu.cpu.detenido is False
+    maquina.cpu.ejecutar()
+    assert maquina.registros.leer_nombre("R3") == 15

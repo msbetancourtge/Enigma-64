@@ -118,3 +118,27 @@ Para cada algoritmo se suministran tres formatos compatibles con el [CargadorEni
 * **Archivo**: `cargador_firmware.bin` (69 bytes).
 * **Dirección base**: `0x00001000` (Región de monitor y cargador).
 * Emula la rutina descrita en la Tarea 9 (Págs. 25-28) que recibe en `R1` (origen), `R2` (destino) y `R3` (tamaño), validando que no invada vectores ni pila antes de copiar byte a byte y saltar a `R5`.
+
+---
+
+## 5. Programas y Bibliotecas de la Tarea 17 (FPU IEEE 754)
+* **`constante_brun.s` / `.bin` / `.hex` / `.e64`**: Algoritmo numérico para la estimación de la Constante de Brun $B_2$ mediante primos gemelos.
+* **`fpu_lib.s` / `.bin` / `.hex`**: Biblioteca consolidada que expone la Mesa Canónica de Vectores de la FPU.
+* **`fpu_nucleo.s` / `.bin` / `.hex`**: Rutinas base de empaquetado, desempaquetado, suma y resta en coma flotante.
+* **`raiz_cuadrada.s`**: Rutina iterativa de raíz cuadrada por aproximación Newton-Raphson.
+
+---
+
+## Índice de Archivos y Generación
+
+| Categoría | Archivos | Descripción |
+|---|---|---|
+| **Fuentes Ensamblador (`.s`)** | `constante_brun.s`, `fpu_lib.s`, `fpu_nucleo.s`, `raiz_cuadrada.s` | Código fuente humano en ensamblador Enigma-64. |
+| **Binarios Crudos (`.bin`)** | `factorial.bin`, `euclides.bin`, `fibonacci.bin`, `constante_brun.bin`, `fpu_lib.bin`, `fpu_nucleo.bin`, `cargador_firmware.bin` | Flujos de bytes exactos listos para cargar en RAM. |
+| **Volcados Hexadecimales (`.hex`)** | `factorial.hex`, `euclides.hex`, `fibonacci.hex`, `constante_brun.hex`, `fpu_lib.hex`, `fpu_nucleo.hex` | Archivos de texto con el volcado hexadecimal comentado. |
+| **Contenedores Enigma-64 (`.e64`)** | `factorial.e64`, `euclides.e64`, `fibonacci.e64`, `constante_brun.e64` | Formato estructurado con cabecera Big-Endian de 32 bytes (`ENIG`). |
+
+> **Nota:** Todos los archivos `.bin`, `.hex` y `.e64` pueden regenerarse automáticamente en cualquier momento ejecutando:
+> ```bash
+> python scripts/generar_binarios.py
+> ```

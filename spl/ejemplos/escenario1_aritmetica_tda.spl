@@ -1,0 +1,53 @@
+// ============================================================================
+// ESCENARIO INTEGRAL 1 (Pipeline SPL Enigma-64)
+// Preprocesador (#include, #define) + Compilador (TDA, Matrices, Selección, Iteración)
+// ============================================================================
+
+#include "enigma64.h"
+
+#define VALOR_INICIAL_A 30
+#define VALOR_INICIAL_B 12
+#define META_SUMA 42
+#define DIM_MATRIZ 3
+
+/* Definición de Tipo de Dato Abstracto (TDA) para bloque de cálculo */
+tda BloqueAritmetico {
+    int operando_a;
+    int operando_b;
+    int resultado_suma;
+    float matriz_pesos[DIM_MATRIZ][DIM_MATRIZ];
+    bool verificado;
+};
+
+struct RegistroEstado {
+    int direccion_base;
+    char etiqueta[16];
+};
+
+/* Función principal del programa en lenguaje imperativo SPL */
+function int ejecutar_calculo_principal() {
+    tda BloqueAritmetico bloque;
+    int _acumulador = 0;
+    int indice_fila = 0;
+
+    bloque.operando_a = 30;
+    bloque.operando_b = 12;
+    bloque.matriz_pesos[0][0] = 1.0;
+    bloque.matriz_pesos[1][1] = 2.5;
+
+    // Estructura de iteración while
+    while (indice_fila < DIM_MATRIZ) {
+        _acumulador = _acumulador + indice_fila;
+        indice_fila = indice_fila + 1;
+    }
+
+    // Estructura de selección if-then-else
+    bloque.resultado_suma = bloque.operando_a + bloque.operando_b;
+    if (bloque.resultado_suma == META_SUMA) then {
+        bloque.verificado = VERDADERO;
+    } else {
+        bloque.verificado = FALSO;
+    }
+
+    return bloque.resultado_suma;
+}
