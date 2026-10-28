@@ -1,0 +1,19 @@
+// =============================================================================
+// Algoritmo 1: Maximo Comun Divisor (Euclides) por restas sucesivas
+// Tarea 27 — CacaoCore-64 (CacaoScript) hacia Enigma-64
+// Valores oficiales Tarea 10: MCD(48, 18) = 6
+// =============================================================================
+
+let a: int = 48
+let b: int = 18
+
+asLongAs a != b {
+    if a > b {
+        set a = a - b
+    }
+    otherwise {
+        set b = b - a
+    }
+}
+
+show a

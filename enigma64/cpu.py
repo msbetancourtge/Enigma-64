@@ -187,10 +187,12 @@ class CPU:
         ram: Optional[RAMMemory] = None,
         banco: Optional[BancoRegistros] = None,
         alu: Optional[ALU] = None,
+        perifericos: Optional[Any] = None,
     ) -> None:
         self.ram = ram if ram is not None else RAMMemory()
         self.banco = banco if banco is not None else BancoRegistros()
         self.alu = alu if alu is not None else ALU()
+        self.perifericos = perifericos
         self.prefetch = PrefetchBuffer(self.ram)
         self.micro: Dict[str, int] = {nombre: 0 for nombre in MICRO_REGISTROS}
         self.fase = "FETCH"
@@ -389,6 +391,14 @@ class CPU:
         if status == STATUS_ADDR_FAULT:
             raise MemoryFault(f"Direccion fuera de rango: 0x{address:X}")
         if status == STATUS_MMIO:
+            if self.perifericos is not None:
+                base = address & ~0xFFF
+                offset = address & 0xFFF
+                if write is not None:
+                    self.perifericos.escribir(base, offset, write)
+                    return None
+                else:
+                    return self.perifericos.leer(base, offset)
             raise MemoryFault(f"MMIO no conectado: 0x{address:08X}")
         if status != STATUS_READY:
             raise MemoryFault(f"Fallo de memoria en 0x{address:08X}: {status}")

@@ -1,0 +1,15 @@
+// =============================================================================
+// Algoritmo 2: Calculo del Factorial (N!)
+// Tarea 27 — CacaoCore-64 (CacaoScript) hacia Enigma-64
+// Valores oficiales Tarea 10: 5! = 120
+// =============================================================================
+
+let n: int = 5
+let fact: int = 1
+
+asLongAs n > 1 {
+    set fact = fact * n
+    set n = n - 1
+}
+
+show fact

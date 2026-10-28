@@ -67,7 +67,7 @@ BASE_DATOS = 0x00201000
 #   JGE (N=0 o Z=1) = JP o JZ     JLE (N=1 o Z=1) = JN o JZ
 SALTOS: Dict[str, Tuple[str, ...]] = {
     "jmp": ("JMP",), "call": ("CALL",),
-    "jz": ("JZ",), "jnz": ("JNZ",), "jc": ("JC",), "jnc": ("JNC",),
+    "jz": ("JZ",), "jnz": ("JNZ",), "je": ("JZ",), "jne": ("JNZ",), "jc": ("JC",), "jnc": ("JNC",),
     "js": ("JN",), "jns": ("JP", "JZ"), "jo": ("JV",), "jno": ("JNV",),
     "jl": ("JN",), "jg": ("JP",), "jge": ("JP", "JZ"), "jle": ("JN", "JZ"),
 }
