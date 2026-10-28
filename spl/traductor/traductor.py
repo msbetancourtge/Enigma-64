@@ -45,6 +45,13 @@ from .alu import (
     efectos_alu,
     modifica_banderas,
 )
+from .directivas import (
+    ProcesadorDirectivasCacao,
+    construir_binario_enigma,
+    exportar_ejecutable_e64,
+    normalizar_literal_cacao,
+    precargar_datos_en_ram,
+)
 from .memoria import TraductorMemoria
 from .registros import (
     ACC,
@@ -99,11 +106,11 @@ class LexerPrograma:
         t.lexer.lineno += len(t.value)
 
     def t_SECCION(self, t):
-        r"\.(?:data|DATA|text|TEXT)(?![A-Za-z0-9_])"
+        r"\.(?:data|DATA|text|TEXT)(?![A-Za-z0-9_])|\[(?:DATA|data|CODE|code)\]"
         return t
 
     def t_DATO(self, t):
-        r"[a-z_][a-z0-9_]*[ \t]*:[ \t]*(?:[+-]?\d+\.\d+|[+-]?\d+|'[A-Za-z0-9_]+')"
+        r"[a-z_][a-z0-9_]*[ \t]*:[ \t]*(?:[+-]?0[xX][0-9a-fA-F]+|[+-]?0[bB][01]+|[+-]?\d+\.\d+(?:[eE][+-]?\d+)?|[+-]?\d+|'(?:\\.|[^'\\])+'|\"[^\"\n]*\")"
         return t
 
     def t_ETIQUETA(self, t):
@@ -166,12 +173,9 @@ class ResultadoTraduccion:
 
 
 def _valor_dato(texto: str) -> int:
-    """Patron de 64 bits de un dato de .data (entero, flotante IEEE 754 o caracter)."""
-    if texto.startswith("'"):
-        return ord(texto[1])
-    if "." in texto:
-        return struct.unpack(">Q", struct.pack(">d", float(texto)))[0]
-    return int(texto) & ((1 << 64) - 1)
+    """Patron de 64 bits de un dato de .data (entero, flotante IEEE 754, caracter, hex o bin)."""
+    bits, _ = normalizar_literal_cacao(texto)
+    return bits
 
 
 def _efectos_memoria(mnemonico: str, operandos: List[Operando]) -> Efectos:
@@ -526,8 +530,10 @@ def traducir_texto(fuente: str, **opciones) -> ResultadoTraduccion:
 
 
 def ejecutar_en_enigma(codigo_enigma: str, max_ciclos: int = 1_000_000,
-                       base_datos: int = BASE_DATOS):
+                       base_datos: int = BASE_DATOS,
+                       usar_cargador: bool = False):
     """Ensambla, carga en 0x00200000 y ejecuta hasta HLT. Devuelve (cpu, banco, ram)."""
+    from enigma64.cargador import CargadorEnigma
     from enigma64.cpu import CPU
     from enigma64.ensamblador import ensamblar
     from enigma64.memoria import RAMMemory
@@ -539,10 +545,17 @@ def ejecutar_en_enigma(codigo_enigma: str, max_ciclos: int = 1_000_000,
             f"el codigo ({len(binario)} bytes) se solapa con .data en 0x{base_datos:08X}"
         )
     ram, banco = RAMMemory(), BancoRegistros()
-    for i, byte in enumerate(binario):
-        ram.mem_write(BASE_CODIGO + i, byte, 1, check_alignment=False)
-    banco.pc = BASE_CODIGO
-    cpu = CPU(ram=ram, banco=banco)
+    if usar_cargador:
+        from enigma64.cargador import BinarioEnigma
+        obj_bin = BinarioEnigma(codigo=binario, direccion_base=BASE_CODIGO)
+        cpu = CPU(ram=ram, banco=banco)
+        cargador = CargadorEnigma(ram=ram, banco=banco, cpu=cpu)
+        cargador.cargar_binario(obj_bin, direccion_destino=BASE_CODIGO, configurar_cpu=True)
+    else:
+        for i, byte in enumerate(binario):
+            ram.mem_write(BASE_CODIGO + i, byte, 1, check_alignment=False)
+        banco.pc = BASE_CODIGO
+        cpu = CPU(ram=ram, banco=banco)
     cpu.ejecutar(max_ciclos=max_ciclos)
     return cpu, banco, ram
 
@@ -555,6 +568,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Traductor CacaoCore-64 -> Enigma-64")
     parser.add_argument("entrada", help="programa .asm de CacaoCore-64")
     parser.add_argument("-o", "--salida", help="archivo .asm de Enigma-64 (por defecto, stdout)")
+    parser.add_argument("--exportar-e64", help="ruta para guardar ejecutable estructurado .e64")
+    parser.add_argument("--cargador", action="store_true", help="usar CargadorEnigma para la ejecucion")
     parser.add_argument("--verificar", action="store_true", help="ensamblar la salida con el ensamblador de Enigma-64")
     parser.add_argument("--ejecutar", action="store_true", help="ejecutar la salida en el emulador y mostrar el estado")
     args = parser.parse_args(argv)
@@ -572,13 +587,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     for linea, mensaje in resultado.errores:
         print(f"error (linea {linea}): {mensaje}", file=sys.stderr)
 
+    if args.exportar_e64:
+        proc_datos = ProcesadorDirectivasCacao()
+        mapa_datos = proc_datos.procesar(resultado.codigo)
+        exportar_ejecutable_e64(resultado.codigo, mapa_datos, args.exportar_e64)
+        print(f"ejecutable .e64 exportado: {args.exportar_e64}", file=sys.stderr)
+
     if args.verificar or args.ejecutar:
         from enigma64.ensamblador import ensamblar
 
         binario = ensamblar(resultado.codigo)
         print(f"ensamblado correcto: {len(binario)} bytes", file=sys.stderr)
     if args.ejecutar:
-        cpu, banco, ram = ejecutar_en_enigma(resultado.codigo)
+        cpu, banco, ram = ejecutar_en_enigma(resultado.codigo, usar_cargador=args.cargador)
         print(f"HLT tras {cpu.instrucciones} instrucciones ({cpu.ciclos} ciclos)", file=sys.stderr)
         for nombre, direccion in resultado.variables.items():
             valor, _ = ram.mem_read(direccion, 8)
