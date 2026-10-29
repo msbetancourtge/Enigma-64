@@ -32,6 +32,16 @@ from .mmio_soporte import (
 )
 from .registros import TablaRegistros, emitir_load, emitir_store, mapear_registro
 from .traductor import TraductorCacaoEnigma, ejecutar_en_enigma, traducir_texto
+from .verificacion import (
+    ARCHIVOS_ALGORITMOS_CACAO,
+    RESULTADOS_OFICIALES_TAREA10,
+    ReporteVerificacionTraductor,
+    ResultadoVerificacionAlgoritmo,
+    construir_definiciones_programas_tarea27,
+    ejecutar_algoritmo_nativo_tarea10,
+    ejecutar_pipeline_verificacion_cacao,
+    verificar_algoritmo_cacao,
+)
 
 __all__ = [
     "TraductorMemoria",
@@ -59,4 +69,12 @@ __all__ = [
     "generar_emision_ascii_mmio",
     "inyectar_salida_mmio",
     "ejecutar_en_enigma_mmio",
+    "ARCHIVOS_ALGORITMOS_CACAO",
+    "RESULTADOS_OFICIALES_TAREA10",
+    "ResultadoVerificacionAlgoritmo",
+    "ReporteVerificacionTraductor",
+    "verificar_algoritmo_cacao",
+    "ejecutar_pipeline_verificacion_cacao",
+    "ejecutar_algoritmo_nativo_tarea10",
+    "construir_definiciones_programas_tarea27",
 ]
