@@ -385,6 +385,16 @@ PROGRAMAS_TAREA17: Dict[str, DefinicionPrograma] = {
 }
 
 
+def obtener_programas_tarea27() -> Dict[str, DefinicionPrograma]:
+    """
+    Retorna las definiciones de los 3 algoritmos clasicos de CacaoCore-64
+    traducidos a Enigma-64 mediante el traductor LEX de la Tarea 27.
+    """
+    from spl.traductor.verificacion import construir_definiciones_programas_tarea27
+
+    return construir_definiciones_programas_tarea27()
+
+
 # ===========================================================================
 # 3. Utilidades de Exportacion y Carga en Disco
 # ===========================================================================
