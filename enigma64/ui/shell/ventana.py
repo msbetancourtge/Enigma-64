@@ -40,6 +40,7 @@ from ..paneles.panel_mapa import PanelMapa
 from ..paneles.panel_memoria import PanelMemoria
 from ..paneles.panel_mmio import PanelMMIO
 from ..paneles.panel_registros import PanelRegistros
+from ..paneles.panel_traduccion import PanelTraduccion
 from ..servicios import construir_maquina
 
 #: Paneles que ocupan una pestana del cuaderno, en orden de presentacion.
@@ -52,6 +53,7 @@ PESTANAS = (
     (PanelCPU, "cpu", "Unidad de Control"),
     (PanelMMIO, "mmio", "I/O mapeada"),
     (PanelAlgoritmos, "algoritmos", "Algoritmos"),
+    (PanelTraduccion, "traduccion", "Traductor"),
 )
 
 #: Ancho reservado a la columna de contexto de la derecha.

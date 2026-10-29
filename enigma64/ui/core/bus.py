@@ -58,6 +58,10 @@ class Evento:
     ALGORITMO_CARGADO = "algoritmos.cargado"
     ALGORITMO_VERIFICADO = "algoritmos.verificado"
 
+    # Traductor CacaoCore-64 -> Enigma-64 (Tarea 27)
+    TRADUCCION_REALIZADA = "traduccion.realizada"
+    TRADUCCION_VERIFICADA = "traduccion.verificada"
+
     # Unidad de punto flotante
     FPU_EJECUTADA = "fpu.ejecutada"
 
