@@ -4,12 +4,14 @@ Paquete traductor de ensamblador CacaoCore-64 a Enigma-64.
   memoria.py      accesos a memoria, direccionamiento y alineacion (Integrante 1)
   registros.py    asignacion de registros y derrames (Integrante 2)
   alu.py          operaciones de la ALU (Integrante 2)
+  control.py      etiquetas, saltos, pila, subrutinas y HLT (Integrante 3)
   directivas.py   secciones, directivas, literales y enlace con cargador (Integrante 4)
   traductor.py    driver integrador: lee .asm de CacaoCore y escribe el de Enigma-64
   mmio_soporte.py soporte de salida por MMIO (Base 0xFF001000 / Registro DATA 0xFF001010) (Integrante 6)
 """
 
 from .alu import TraductorALU, cargar_constante
+from .control import TraductorControl
 from .directivas import (
     LexerDirectivasCacao,
     MapaSeccionDatos,
@@ -40,6 +42,7 @@ __all__ = [
     "emitir_store",
     "TraductorALU",
     "cargar_constante",
+    "TraductorControl",
     "LexerDirectivasCacao",
     "ProcesadorDirectivasCacao",
     "VariableDato",
