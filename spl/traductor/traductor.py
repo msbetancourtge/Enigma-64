@@ -14,12 +14,11 @@ Etapas:
   3. Emision: cada instruccion se envia al modulo que la traduce
        ALU y transferencias registro/inmediato -> alu.py      (Integrante 2)
        accesos a memoria y LEA                 -> memoria.py  (Integrante 1)
-       saltos, pila, HLT                       -> este archivo (soporte minimo)
+       etiquetas, saltos, pila, CALL/RET, HLT  -> control.py  (Integrante 3)
      y cada linea emitida lleva como comentario la instruccion original.
 
-Los saltos, la seccion .data y la pila se resuelven aqui solo lo necesario
-para que el programa traducido corra en el emulador; el grupo puede
-reemplazarlos al integrar.
+La seccion .data se resuelve aqui solo lo necesario para que el programa
+traducido corra en el emulador; el grupo puede reemplazarla al integrar.
 
 Autor: Integrante 2 Tomas Garzon - Registros & ALU (Tarea 27)
 """
@@ -45,6 +44,13 @@ from .alu import (
     efectos_alu,
     modifica_banderas,
 )
+from .control import (
+    MNEMONICOS_CONTROL,
+    SALTOS,
+    SALTOS_CONDICIONALES,
+    TraductorControl,
+    lee_lr,
+)
 from .directivas import (
     ProcesadorDirectivasCacao,
     construir_binario_enigma,
@@ -67,20 +73,10 @@ from .registros import (
 BASE_CODIGO = 0x00200000
 BASE_DATOS = 0x00201000
 
-# Saltos de CacaoCore -> saltos de Enigma-64 (se salta si alguno se cumple).
-# JG/JL/JGE/JLE de CacaoCore solo miran N y Z (j_comparacion), y Z = 1
-# implica N = 0, de modo que:
-#   JG  (N=0 y Z=0) = JP          JL  (N=1 y Z=0) = JN
-#   JGE (N=0 o Z=1) = JP o JZ     JLE (N=1 o Z=1) = JN o JZ
-SALTOS: Dict[str, Tuple[str, ...]] = {
-    "jmp": ("JMP",), "call": ("CALL",),
-    "jz": ("JZ",), "jnz": ("JNZ",), "je": ("JZ",), "jne": ("JNZ",), "jc": ("JC",), "jnc": ("JNC",),
-    "js": ("JN",), "jns": ("JP", "JZ"), "jo": ("JV",), "jno": ("JNV",),
-    "jl": ("JN",), "jg": ("JP",), "jge": ("JP", "JZ"), "jle": ("JN", "JZ"),
-}
-SALTOS_CONDICIONALES = frozenset(SALTOS) - {"jmp", "call"}
-SIN_OPERANDOS = {"hlt": "HLT", "ret": "RET", "ei": "EI", "di": "DI", "iret": "IRET", "nop": None}
-CONTROL = frozenset(SALTOS) | frozenset(SIN_OPERANDOS) | {"push", "pop", "intr", "ju", "jnu", "sext"}
+# Etiquetas, saltos (tabla SALTOS), pila, CALL/RET y HLT se traducen en
+# control.py (Integrante 3); aqui quedan las demas instrucciones de control.
+SIN_OPERANDOS = {"ei": "EI", "di": "DI", "iret": "IRET", "nop": None}
+CONTROL = MNEMONICOS_CONTROL | frozenset(SIN_OPERANDOS) | {"intr", "sext"}
 
 
 # ---------------------------------------------------------------------------
@@ -362,6 +358,7 @@ class TraductorCacaoEnigma:
         for nombre in programa.variables:
             memoria.registrar_variable(nombre)
         alu = TraductorALU(tabla, memoria, acc_observable, set(programa.variables))
+        control = TraductorControl(tabla, programa.etiquetas, lee_lr(programa.instrucciones))
         vivas = self._banderas_vivas(programa)
 
         salida = self._encabezado(tabla, acc_observable)
@@ -377,16 +374,16 @@ class TraductorCacaoEnigma:
 
         for tipo, dato in programa.elementos:
             if tipo == "etiqueta":
-                salida.append(f"{dato}:")
+                salida += control.traducir(f"{dato}:")
             elif tipo == "seccion":
                 salida.append(f"; {dato}")
             elif tipo == "instruccion":
                 ins = programa.instrucciones[dato]
-                codigo = self._traducir_instruccion(ins, vivas[dato], tabla, memoria, alu,
-                                                    programa, acc_observable, errores, avisos)
+                codigo = self._traducir_instruccion(ins, vivas[dato], tabla, memoria, alu, control,
+                                                    acc_observable, errores, avisos)
                 salida += self._anotar(codigo, f"L{ins.linea}: {ins.texto}")
 
-        errores += alu.errores
+        errores += alu.errores + control.errores
         avisos += alu.avisos
         if not any(ins.mnemonico == "hlt" for ins in programa.instrucciones):
             avisos.append((0, "el programa no tiene HLT"))
@@ -399,14 +396,16 @@ class TraductorCacaoEnigma:
             avisos=sorted(avisos),
         )
 
-    def _traducir_instruccion(self, ins, vivas, tabla, memoria, alu, programa, acc_observable,
+    def _traducir_instruccion(self, ins, vivas, tabla, memoria, alu, control, acc_observable,
                               errores, avisos) -> List[str]:
         if ins.clase == "alu":
             codigo = alu.traducir(ins.texto, ins.linea, vivas)
         elif ins.clase == "memoria":
             codigo = self._memoria(ins, tabla, memoria, acc_observable, errores)
+        elif ins.clase == "control" and ins.mnemonico in MNEMONICOS_CONTROL:
+            codigo = control.traducir(ins.texto, ins.linea)
         elif ins.clase == "control":
-            codigo = self._control(ins, tabla, programa, errores, avisos)
+            codigo = self._control(ins, errores, avisos)
         else:
             errores.append((ins.linea, f"instruccion desconocida: '{ins.texto}'"))
             return ["; ERROR: instruccion desconocida"]
@@ -469,27 +468,12 @@ class TraductorCacaoEnigma:
         return previas + traducidas + posteriores
 
     @staticmethod
-    def _control(ins, tabla, programa, errores, avisos) -> List[str]:
-        mnemonico, operandos = ins.mnemonico, ins.operandos
-        if mnemonico in SALTOS:
-            if len(operandos) != 1 or operandos[0].tipo != "etiqueta":
-                errores.append((ins.linea, f"salto sin etiqueta (no se admiten direcciones absolutas): '{ins.texto}'"))
-                return ["; ERROR: destino de salto no soportado"]
-            destino = operandos[0].valor
-            if destino not in programa.etiquetas:
-                errores.append((ins.linea, f"etiqueta no definida '{destino}'"))
-                return ["; ERROR: etiqueta no definida"]
-            return [f"{salto} {destino}" for salto in SALTOS[mnemonico]]
+    def _control(ins, errores, avisos) -> List[str]:
+        """EI, DI, IRET, NOP e INTR; lo demas del control lo traduce control.py."""
+        mnemonico = ins.mnemonico
         if mnemonico in SIN_OPERANDOS:
             enigma = SIN_OPERANDOS[mnemonico]
             return [enigma] if enigma else []
-        if mnemonico in ("push", "pop") and len(operandos) == 1 and operandos[0].tipo == "reg":
-            registro = operandos[0].valor
-            if mnemonico == "push":
-                fisico, previas = tabla.leer(registro, TMP1)
-                return previas + [f"PUSH {fisico}"]
-            fisico, posteriores = tabla.escribir(registro, TMP1)
-            return [f"POP {fisico}"] + posteriores
         if mnemonico == "intr":
             avisos.append((ins.linea, f"'{ins.texto}': Enigma-64 no tiene interrupcion de "
                                       "software para E/S; se omite (el dato queda en memoria)"))
