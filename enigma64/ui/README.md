@@ -50,6 +50,7 @@ python -m enigma64.ui.paneles.panel_cargador    # cargador y bits     (Integrant
 python -m enigma64.ui.paneles.panel_cpu         # Unidad de Control   (Integrante 3)
 python -m enigma64.ui.paneles.panel_mmio        # I/O mapeada
 python -m enigma64.ui.paneles.panel_algoritmos  # algoritmos de la Tarea 9
+python -m enigma64.ui.paneles.panel_traduccion  # traductor CacaoCore-64 (Tarea 27)
 python -m enigma64.ui.paneles.panel_mapa        # mapa de memoria
 python -m enigma64.ui.paneles.panel_consola     # traza del bus
 ```
@@ -77,13 +78,14 @@ enigma64/ui/
 │   ├── fabrica.py         arma una `Maquina` coherente
 │   ├── mapa_memoria.py    el mapa de la Tarea 9 como dato puro
 │   ├── mmio.py            controladores MMIO + banco provisional de registros
-│   └── algoritmos.py      los tres programas de la Tarea 9, byte a byte
+│   ├── algoritmos.py      los tres programas de la Tarea 9, byte a byte
+│   └── traduccion.py      traductor CacaoCore-64 -> Enigma-64 + cargador + CPU
 ├── paneles/               un panel por modulo, todos independientes
 │   ├── base.py            PanelBase + arranque suelto
 │   ├── panel_memoria.py   · panel_registros.py  · panel_alu.py
 │   ├── panel_cargador.py  · panel_cpu.py        · panel_mmio.py
 │   ├── panel_algoritmos.py · panel_mapa.py      · panel_consola.py
-│   ├── panel_fpu.py
+│   ├── panel_fpu.py       · panel_traduccion.py
 ├── shell/ventana.py       compone los paneles; no tiene logica de ningun modulo
 └── mockups/               los bocetos previos a la implementacion
 ```
@@ -112,6 +114,7 @@ enigma64/ui/
 | **Unidad de Control** | `enigma64.cpu` *(pendiente)* | Las cinco fases de la FSM, los micro-registros MAR/MDR/IR/A/B/Z, el buffer de prebusqueda y los contadores de ciclos e instrucciones |
 | **I/O mapeada** | `enigma64.perifericos` *(opcional)* | Los cinco controladores con sus registros CTRL/STATUS/DATA/ADDR/COUNT, editables; la interfaz de red renombra los suyos |
 | **Algoritmos** | — (compone cargador y RAM) | Factorial, Euclides y Fibonacci con su pseudocodigo y la traduccion manual a maquina; carga y verificacion |
+| **Traductor CacaoCore** | `spl.traductor` (compone cargador, RAM y CPU) | CacaoCore-64 y Enigma-64 lado a lado con resaltado de correspondencia; envio al Cargador/RAM, ejecucion y contraste con la Tarea 10 |
 | **Mapa de memoria** | — (dato puro) | Las ocho regiones de la Tarea 9 con permisos, los controladores MMIO, y la region donde cayo el ultimo acceso |
 | **Traza del bus** | — (dato puro) | Todo lo que circula por el bus, con hora, origen y severidad |
 
@@ -162,7 +165,8 @@ Los paneles se coordinan publicando estos eventos, definidos en `core/bus.py`:
 | `cpu.avanzo` / `cpu.reiniciada` | panel de la CPU | traza |
 | `mmio.escrito` | panel de I/O | mapa, traza |
 | `algoritmos.cargado` / `.verificado` | panel de algoritmos | memoria, mapa, traza |
-| `ui.ir_a_direccion` | panel del cargador | panel de memoria |
+| `traduccion.realizada` / `.verificada` | panel del traductor | traza |
+| `ui.ir_a_direccion` | cargador, algoritmos, traductor | panel de memoria |
 | `ui.traza` | cualquiera | traza, barra de estado |
 
 `ui.ir_a_direccion` es el ejemplo que mejor explica la regla: cuando el
@@ -206,6 +210,7 @@ python -m pytest tests/ -q
 | `tests/test_ui_paneles.py` | construccion y comportamiento de los paneles con widgets reales |
 | `tests/test_ui_aislamiento.py` | que los modulos no se mezclan (analisis del codigo) |
 | `tests/test_ui_modulos_nuevos.py` | algoritmos de la Tarea 9, MMIO y el enganche de la CPU |
+| `tests/ui/test_ui_traduccion.py` | traductor CacaoCore-64: servicio, pestana y ejecucion de los tres algoritmos |
 
 Las pruebas graficas se omiten solas si no hay servidor X, de modo que la
 bateria completa sigue corriendo en una maquina sin escritorio.

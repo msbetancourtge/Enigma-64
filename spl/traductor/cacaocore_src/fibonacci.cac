@@ -1,0 +1,16 @@
+// =============================================================================
+// Algoritmo 3: Sucesion de Fibonacci en memoria (7 terminos)
+// Tarea 27 — CacaoCore-64 (CacaoScript) hacia Enigma-64
+// Valores oficiales Tarea 10: [0, 1, 1, 2, 3, 5, 8]
+// =============================================================================
+
+let fib: int[7] = 0, 1, 0, 0, 0, 0, 0
+let i: int = 2
+
+asLongAs i < 7 {
+    set fib[i] = fib[i - 1] + fib[i - 2]
+    set i = i + 1
+}
+
+let res: int = fib[6]
+show res
