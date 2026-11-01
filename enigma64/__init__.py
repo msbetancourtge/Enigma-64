@@ -7,7 +7,6 @@ Subsistemas principales:
   * Banco de Registros y ALU (ALU, BancoRegistros)
   * Unidad de Control y FSM (CPU, PrefetchBuffer, FASES_FSM)
   * Cargador y Manipulador de Bits (CargadorEnigma, BinarioEnigma)
-  * Enlazador de Modulos Objeto .obj (EnlazadorEnigma, ModuloObjeto)
   * Interfaz Grafica Modular (enigma64.ui)
   * Perifericos y MMIO (Perifericos, ControladorPantalla)
   * Programas Oficiales y Algoritmos de Prueba (PROGRAMAS_OFICIALES)
@@ -83,22 +82,6 @@ from .cargador import (
     leer_bit,
     leer_byte_directo,
     parsear_texto_a_bytes,
-)
-from .enlazador import (
-    DesbordamientoReubicacion,
-    EnlazadorEnigma,
-    ErrorEnlazador,
-    MarcaReubicacion,
-    ModuloObjeto,
-    ObjetoInvalido,
-    ResultadoEnlace,
-    SeccionObjeto,
-    SimboloDuplicado,
-    SimboloNoDefinido,
-    SimboloObjeto,
-    UbicacionSeccion,
-    analizar_objeto,
-    calcular_parche,
 )
 from .cpu import (
     CPU,
@@ -235,21 +218,6 @@ __all__ = [
     "LOADER_WORKSPACE_END",
     "MAGIC_ENIGMA",
     "MAGIC_OBJETO",
-    # Enlazador de Modulos Objeto (.obj)
-    "EnlazadorEnigma",
-    "ModuloObjeto",
-    "SeccionObjeto",
-    "SimboloObjeto",
-    "MarcaReubicacion",
-    "ResultadoEnlace",
-    "UbicacionSeccion",
-    "analizar_objeto",
-    "calcular_parche",
-    "ErrorEnlazador",
-    "ObjetoInvalido",
-    "SimboloNoDefinido",
-    "SimboloDuplicado",
-    "DesbordamientoReubicacion",
     # CPU & Unidad de Control FSM
     "CPU",
     "CPUError",

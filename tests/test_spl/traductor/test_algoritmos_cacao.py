@@ -3,7 +3,7 @@ Bateria de Pruebas Unitarias y de Integracion — Tarea 27.
 Traductor de ensamblador CacaoCore-64 a Enigma-64.
 
 Valida el ciclo completo de procesamiento:
-  1. Compilacion de CacaoScript (.cac) a ensamblador CacaoCore-64 (.asm)
+  1. Fuentes CacaoScript (.cac) de los programas CacaoCore-64 (.asm) de ejemplo
   2. Traduccion de CacaoCore-64 a Enigma-64 mediante reglas LEX
   3. Ejecucion en el emulador de Enigma-64 y verificacion de resultados:
      - Euclides: MCD(48, 18) = 6
@@ -32,57 +32,19 @@ from spl.traductor.mmio_soporte import (
     generar_emision_ascii_mmio,
     inyectar_salida_mmio,
 )
-from tools.compilar_algoritmos_cacao import (
-    buscar_cacaocore_src,
-    compilar_archivo_cacao,
-)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 SRC_DIR = BASE_DIR / "spl" / "traductor" / "cacaocore_src"
 EJEMPLOS_DIR = BASE_DIR / "spl" / "traductor" / "ejemplos"
 
 
-class TestCompilacionCacaoScript(unittest.TestCase):
-    """Pruebas de la etapa de alto nivel y compilacion de CacaoScript."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        try:
-            cls.cacao_src = buscar_cacaocore_src()
-        except FileNotFoundError:
-            cls.cacao_src = None
+class TestFuentesCacaoScript(unittest.TestCase):
+    """Pruebas de las fuentes de alto nivel en CacaoScript."""
 
     def test_existencia_archivos_fuente_cac(self) -> None:
         self.assertTrue((SRC_DIR / "euclides.cac").is_file(), "Falta euclides.cac")
         self.assertTrue((SRC_DIR / "factorial.cac").is_file(), "Falta factorial.cac")
         self.assertTrue((SRC_DIR / "fibonacci.cac").is_file(), "Falta fibonacci.cac")
-
-    def test_compilacion_euclides_produce_asm_valido(self) -> None:
-        if self.cacao_src is None:
-            self.skipTest("CacaoCore-64 src no disponible en entorno de pruebas")
-        lineas = compilar_archivo_cacao(SRC_DIR / "euclides.cac", self.cacao_src)
-        self.assertIn(".data", lineas)
-        self.assertIn(".text", lineas)
-        self.assertTrue(any("MOVD" in l for l in lineas))
-        self.assertTrue(any("HLT" in l for l in lineas))
-
-    def test_compilacion_factorial_produce_asm_valido(self) -> None:
-        if self.cacao_src is None:
-            self.skipTest("CacaoCore-64 src no disponible en entorno de pruebas")
-        lineas = compilar_archivo_cacao(SRC_DIR / "factorial.cac", self.cacao_src)
-        self.assertIn(".data", lineas)
-        self.assertIn(".text", lineas)
-        self.assertTrue(any("MUL" in l for l in lineas))
-        self.assertTrue(any("HLT" in l for l in lineas))
-
-    def test_compilacion_fibonacci_produce_asm_valido(self) -> None:
-        if self.cacao_src is None:
-            self.skipTest("CacaoCore-64 src no disponible en entorno de pruebas")
-        lineas = compilar_archivo_cacao(SRC_DIR / "fibonacci.cac", self.cacao_src)
-        self.assertIn(".data", lineas)
-        self.assertIn(".text", lineas)
-        self.assertTrue(any("ADD" in l for l in lineas))
-        self.assertTrue(any("HLT" in l for l in lineas))
 
 
 class TestTraduccionCacaoCoreAEnigma(unittest.TestCase):

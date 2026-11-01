@@ -9,7 +9,8 @@ Implementa las responsabilidades del Integrante 4 (Tarea 10):
      prevencion de colisiones con vectores/pila e inicializacion de registros.
   4. Emulacion de la subrutina de firmware del cargador residente en 0x00001000 (Tarea 9).
   5. Base desacoplada y extensible para el enlazador: cargar_archivo reconoce los modulos
-     objeto reubicables (.obj) y los entrega a enigma64.enlazador antes de cargarlos.
+     objeto reubicables (.obj binario o .tobj en texto) y los entrega a spl.enlazador
+     antes de cargarlos.
 
 Autor: Integrante 4 - Cargador & Manipulador de Bits
 """
@@ -68,6 +69,8 @@ MAGIC_ENIGMA: bytes = b"ENIG"  # 0x454E4947
 
 # Cabecera magica de los modulos objeto reubicables (.obj) que analiza el enlazador
 MAGIC_OBJETO: bytes = b"EOBJ"  # 0x454F424A
+# Extension de esos mismos modulos en formato de texto (los analiza el lexer de lex.py)
+EXTENSION_OBJETO_TEXTO: str = ".tobj"
 
 # Formato struct de cabecera Enigma-64 (32 bytes, Big-Endian):
 # Magic (4s) + Flags/Version (I) + Entry_Point (I) + Target_Address (I)
@@ -749,9 +752,10 @@ class CargadorEnigma:
         Lee un archivo desde el host y lo carga en la memoria RAM.
         Detecta automaticamente:
           - Formato estructurado .e64 (cabecera 'ENIG').
-          - Modulo objeto reubicable .obj (cabecera 'EOBJ'): se enlaza solo en la
-            direccion destino y luego se carga. Si importa simbolos de otros modulos
-            se rechaza con SimboloNoDefinido; para varios modulos usar EnlazadorEnigma.
+          - Modulo objeto reubicable .obj (cabecera 'EOBJ') o .tobj (texto): se enlaza
+            solo en la direccion destino y luego se carga. Si importa simbolos de otros
+            modulos se rechaza con SimboloNoDefinido; para varios modulos usar
+            EnlazadorEnigma.
           - Archivo de texto .txt (volcado legible hex/bin).
           - Binario plano .bin o cualquier otro archivo binario crudo.
         """
@@ -761,9 +765,11 @@ class CargadorEnigma:
         with open(ruta_archivo, "rb") as f:
             contenido = f.read()
 
-        if len(contenido) >= 4 and contenido[:4] == MAGIC_OBJETO:
-            # Importacion diferida: el enlazador depende de este modulo.
-            from .enlazador import EnlazadorEnigma
+        if (len(contenido) >= 4 and contenido[:4] == MAGIC_OBJETO) or ruta_archivo.lower().endswith(
+            EXTENSION_OBJETO_TEXTO
+        ):
+            # Importacion diferida: el enlazador (spl) depende de este modulo.
+            from spl.enlazador import EnlazadorEnigma
 
             return EnlazadorEnigma([ruta_archivo]).enlazar_y_cargar(
                 self,

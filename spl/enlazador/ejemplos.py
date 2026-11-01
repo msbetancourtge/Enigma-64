@@ -1,9 +1,14 @@
 """
 Modulos objeto de ejemplo para el Enlazador de Enigma-64.
 
-Construyen a mano lo que emitiria el backend del ensamblador para un programa
-de dos modulos, usando los cinco tipos de marca de reubicacion. Los campos
-reubicables quedan en cero: el enlazador escribe en ellos S + A.
+Un programa de dos modulos que usa los cinco tipos de marca de reubicacion,
+escrito en formato de texto en objetos/principal.tobj y objetos/libmat.tobj:
+es lo que emitira el backend del ensamblador SPL. construir_modulo_principal y
+construir_modulo_libmat analizan esos archivos con el lexer de lex.py cada vez
+que se llaman. Los campos reubicables quedan en cero: el enlazador escribe en
+ellos S + A. Las constantes CODIGO_* y DATOS_PRINCIPAL guardan los mismos bytes
+como referencia; las pruebas comprueban que coinciden con los .tobj y con el
+ensamblador oficial.
 
   principal.obj  (.text 57 B, .data 32 B, .bss 16 B; entrada en main)
     +0x00 main:   ADDI R1, R0, %hi(valores)  HI16  en +0x02 -> valores (local)
@@ -28,30 +33,19 @@ reubicables quedan en cero: el enlazador escribe en ellos S + A.
     +0x04 error:  ADDI R5, R0, 0x00EE        exportado; usa el R1 que dejo main
     +0x08         STORE R5, [R1 + 16]
     +0x0C         HLT
-
-Generar los archivos:  python -m enigma64.enlazador.ejemplos [directorio]
 """
 
 from __future__ import annotations
 
 import os
 import struct
-import sys
 from typing import List
 
-from .objeto import (
-    REUB_ABS32,
-    REUB_ABS64,
-    REUB_HI16,
-    REUB_LO16,
-    REUB_REL16,
-    SIMBOLO_DATO,
-    SIMBOLO_FUNCION,
-    MarcaReubicacion,
-    ModuloObjeto,
-    SeccionObjeto,
-    SimboloObjeto,
-)
+from .objeto import ModuloObjeto, analizar_objeto
+
+DIR_OBJETOS: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "objetos")
+RUTA_PRINCIPAL: str = os.path.join(DIR_OBJETOS, "principal.tobj")
+RUTA_LIBMAT: str = os.path.join(DIR_OBJETOS, "libmat.tobj")
 
 # Valores de entrada del programa de ejemplo: resultado esperado a + b = 42
 VALOR_A: int = 30
@@ -111,49 +105,12 @@ CODIGO_LIBMAT: bytes = bytes([
 
 def construir_modulo_principal() -> ModuloObjeto:
     """Modulo con codigo, datos y reserva que importa sumar y error de libmat."""
-    texto, datos, bss = 0, 1, 2
-    simbolos = [
-        SimboloObjeto.exportado("main", texto, 0x00, SIMBOLO_FUNCION),
-        SimboloObjeto.local("trampa", texto, 0x30, SIMBOLO_FUNCION),
-        SimboloObjeto.local("fin", texto, 0x38),
-        SimboloObjeto.local("valores", datos, 0x00, SIMBOLO_DATO),
-        SimboloObjeto.exportado("resultado", datos, 0x10, SIMBOLO_DATO),
-        SimboloObjeto.local("puntero", datos, 0x18, SIMBOLO_DATO),
-        SimboloObjeto.exportado("copia", bss, 0x00, SIMBOLO_DATO),
-        SimboloObjeto.importado("sumar", SIMBOLO_FUNCION),
-        SimboloObjeto.importado("error", SIMBOLO_FUNCION),
-    ]
-    indice = {simbolo.nombre: i for i, simbolo in enumerate(simbolos)}
-    return ModuloObjeto(
-        nombre="principal",
-        secciones=[
-            SeccionObjeto.texto(CODIGO_PRINCIPAL),
-            SeccionObjeto.datos(DATOS_PRINCIPAL),
-            SeccionObjeto.reserva(16),
-        ],
-        simbolos=simbolos,
-        reubicaciones=[
-            MarcaReubicacion(texto, 0x02, REUB_HI16, indice["valores"]),
-            MarcaReubicacion(texto, 0x0A, REUB_LO16, indice["valores"]),
-            MarcaReubicacion(texto, 0x15, REUB_ABS32, indice["sumar"]),
-            MarcaReubicacion(texto, 0x1D, REUB_REL16, indice["error"]),
-            MarcaReubicacion(texto, 0x2C, REUB_ABS32, indice["fin"]),
-            MarcaReubicacion(datos, 0x18, REUB_ABS64, indice["copia"]),
-        ],
-        entrada=(texto, 0x00),
-    )
+    return analizar_objeto(RUTA_PRINCIPAL)
 
 
 def construir_modulo_libmat() -> ModuloObjeto:
     """Biblioteca sin dependencias que exporta sumar y error."""
-    return ModuloObjeto(
-        nombre="libmat",
-        secciones=[SeccionObjeto.texto(CODIGO_LIBMAT)],
-        simbolos=[
-            SimboloObjeto.exportado("sumar", 0, 0x00, SIMBOLO_FUNCION),
-            SimboloObjeto.exportado("error", 0, 0x04, SIMBOLO_FUNCION),
-        ],
-    )
+    return analizar_objeto(RUTA_LIBMAT)
 
 
 def exportar_ejemplos(directorio: str) -> List[str]:
@@ -165,9 +122,3 @@ def exportar_ejemplos(directorio: str) -> List[str]:
         modulo.guardar(ruta)
         rutas.append(ruta)
     return rutas
-
-
-if __name__ == "__main__":
-    destino = sys.argv[1] if len(sys.argv) > 1 else os.path.join("programas", "objetos")
-    for ruta in exportar_ejemplos(destino):
-        print(f"{ruta} ({os.path.getsize(ruta)} bytes)")

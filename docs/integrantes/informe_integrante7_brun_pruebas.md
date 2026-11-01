@@ -36,7 +36,7 @@ En el marco del desarrollo de la **Tarea 17**, orientada a dotar al computador *
 | `programas/constante_brun.hex` | Volcado hexadecimal | Representación textual hexadecimal en bloques de 16 bytes. |
 | `programas/constante_brun.e64` | Binario estructurado Enigma-64 | Encabezado mágico `E64\x01`, metadatos de arquitectura, dirección base `0x00200000` y payload binario. |
 | `enigma64/fconv.s` | Mesa de Entrada Canónica | Incorporación del **Vector 8** (`VEC_FBRUN: JMP FPU_BRUN`) a la tabla `FPU_VECTORES`. |
-| `enigma64/fpu.py` | Emulador oficial de la FPU | Constante `VECTOR_FBRUN = 0x28`, integración de `fbrun.s` en `CODIGO_FPU_ASM`, y métodos de alto nivel `dividir()`, `comparar()`, `constante_brun()`, `constante_brun_bits()` y `ejecutar_programa_brun()`. |
+| `enigma64/fpu/__init__.py` | Emulador oficial de la FPU | Constante `VECTOR_FBRUN = 0x28`, integración de `fbrun.s` en `CODIGO_FPU_ASM`, y métodos de alto nivel `dividir()`, `comparar()`, `constante_brun()`, `constante_brun_bits()` y `ejecutar_programa_brun()`. |
 | `enigma64/oraculo_ieee754.py` | Módulo utilitario de validación | Métodos oráculo `es_primo()`, `generar_primos_gemelos()`, `oraculo_constante_brun()`, `validar_constante_brun()`, `oraculo_fdiv()` y `oraculo_fcmp()`. |
 | `enigma64/programas.py` | Registro de programas del sistema | Definición de `PROGRAMA_BRUN` y catálogo `PROGRAMAS_TAREA17`. |
 | `programas/fpu_lib.s/.bin/.hex` | Biblioteca FPU consolidada | Biblioteca completa con las 9 funcionalidades canónicas (3141 bytes). |

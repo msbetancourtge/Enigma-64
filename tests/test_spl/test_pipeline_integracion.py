@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from enigma64.enlazador.ejemplos import exportar_ejemplos
+from spl.enlazador.ejemplos import exportar_ejemplos
 from spl import (
     EtapaCompiladorResult,
     EtapaEnlazadorCargadorResult,

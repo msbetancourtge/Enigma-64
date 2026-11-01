@@ -16,8 +16,8 @@ Este trabajo completa el Enlazador. La pieza central es el análisis de los mód
 
 1. **Entorno local.** Se tomó la rama remota más reciente, `feat/compilador-vocabulario-base`, que ya incluye `feat/preprocesador`, `feat/lexer-ensamblador` y `feat/tablas-simbolos-literales`. Se instaló `ply`, que figuraba en `requirements.txt` pero faltaba en el entorno virtual; sin él no corrían las 199 pruebas del SPL. Punto de partida: 669 pruebas aprobadas y 1 omitida a propósito.
 2. **Formato `.obj`** (sección 3) y **marcas de reubicación** (sección 4).
-3. **Analizador y escritor** de módulos objeto: `enigma64/enlazador/objeto.py` (sección 5).
-4. **Enlazador de dos pasadas** e integración con el Cargador y la interfaz: `enigma64/enlazador/enlace.py` (sección 6).
+3. **Analizador y escritor** de módulos objeto: `spl/enlazador/objeto.py` (sección 5).
+4. **Enlazador de dos pasadas** e integración con el Cargador y la interfaz: `spl/enlazador/enlace.py` (sección 6).
 5. **Verificación** con pruebas propias y con código real del equipo: el programa de Euclides y la biblioteca FPU completa (sección 8).
 6. **Revisión de la interfaz**, donde apareció un fallo previo de integración entre la CPU y el cargador (sección 9).
 7. **Publicación** en la rama `feat/enlazador-objetos`.
@@ -26,14 +26,14 @@ Este trabajo completa el Enlazador. La pieza central es el análisis de los mód
 
 | Archivo | Contenido |
 | :--- | :--- |
-| `enigma64/enlazador/objeto.py` | Formato `.obj`: modelo de datos, analizador con validación y escritor |
-| `enigma64/enlazador/enlace.py` | `EnlazadorEnigma`: ubicación de secciones, tabla global de símbolos, resolución de importaciones y aplicación de marcas |
-| `enigma64/enlazador/__main__.py` | Línea de comandos `python -m enigma64.enlazador` |
-| `enigma64/enlazador/ejemplos.py` | Módulos objeto de ejemplo (`principal.obj` y `libmat.obj`) |
-| `enigma64/enlazador/__init__.py` | API pública del paquete |
+| `spl/enlazador/objeto.py` | Formato `.obj`: modelo de datos, analizador con validación y escritor |
+| `spl/enlazador/enlace.py` | `EnlazadorEnigma`: ubicación de secciones, tabla global de símbolos, resolución de importaciones y aplicación de marcas |
+| `spl/enlazador/__main__.py` | Línea de comandos `python -m spl.enlazador` |
+| `spl/enlazador/ejemplos.py` | Módulos objeto de ejemplo (`principal.obj` y `libmat.obj`) |
+| `spl/enlazador/__init__.py` | API pública del paquete |
 | `enigma64/cargador.py` | Firma `MAGIC_OBJETO` y reconocimiento de `.obj` en `cargar_archivo` |
 | `enigma64/ui/paneles/panel_cargador.py` | Opción `*.obj` en el selector de archivos de la pestaña Cargador |
-| `tests/core/test_enlazador.py` | 50 pruebas (82 subpruebas) |
+| `tests/test_spl/test_enlazador.py` | 50 pruebas (82 subpruebas) |
 | `README.md` | Sección del enlazador y conteos de pruebas corregidos |
 
 ## 2. Restricciones del ISA que guían el diseño
@@ -179,7 +179,7 @@ Cualquier fallo lanza `ObjetoInvalido`, que también es `FormatoInvalido` y `Err
 API principal:
 
 ```python
-from enigma64.enlazador import analizar_objeto
+from spl.enlazador import analizar_objeto
 
 modulo = analizar_objeto("programas/objetos/principal.obj")
 modulo.cabecera                   # campos de la cabecera, con el offset de cada tabla
@@ -194,6 +194,28 @@ print(modulo.informe())           # volcado legible, al estilo de objdump
 ```
 
 Para construir módulos en memoria, que es lo que hará el backend del ensamblador, están `SeccionObjeto.texto/datos/reserva`, `SimboloObjeto.local/exportado/importado`, `MarcaReubicacion` y `ModuloObjeto.serializar()` / `guardar()`.
+
+### 5.1 Módulo objeto en texto (`.tobj`) y su analizador léxico
+
+El enunciado del Taller # 01 pide construir el Enlazador-Cargador con el metalenguaje (lex.py en Python). Como el `.obj` es binario, el mismo módulo tiene una representación de texto que sí se analiza con `lex.py`:
+
+```text
+[MODULO] principal
+[ENTRADA] .text + 0x0000
+[SECCION] .text BITS R-X ALIN 1 {
+    14 10 00 00         ; +0x00 main: ADDI R1, R0, %hi(valores)
+}
+[SECCION] .bss VACIA RW- ALIN 8 TAM 16
+[SIMBOLOS]
+main     GLOBAL     FUNCION  .text  0x0000
+sumar    IMPORTADO  FUNCION
+[REUBICACIONES]
+.text    0x0002     HI16     valores  +0
+```
+
+- `lexer.py` (`ObjetoLexer`): 17 categorías (`ENCABEZADO`, `TIPO_SECCION`, `PERMISOS`, `ATRIBUTO`, `LIGADURA`, `TIPO_SIMBOLO`, `TIPO_REUBICACION`, `SECCION_ABSOLUTA`, `NOMBRE`, `ENTERO_HEX`, `ENTERO_DEC`, `BYTE`, `MAS`, `MENOS`, `LLAVE_IZQ`, `LLAVE_DER`, `FIN_LINEA`). Las palabras reservadas salen de las mismas tablas del formato binario. Los bytes entre `{` y `}` se reconocen en el estado exclusivo `contenido` (el `%x` de FLEX) y un `{` sin cerrar se detecta con la regla de fin de archivo del estado (el `<<EOF>>`). Errores: carácter no válido, número mal formado o de más de 32 bits, encabezado desconocido, escape no válido, cadena sin cerrar, byte mal formado y bloque sin cerrar.
+- `texto.py`: recorre los tokens línea por línea y arma el `ModuloObjeto`; los nombres de sección y de símbolo se resuelven al final, así el orden de los bloques es libre. Los errores léxicos, de estructura y de nombres no declarados salen todos juntos en un `ObjetoInvalido`, y la coherencia la comprueba `validar()`, igual que en el binario. `escribir_objeto_texto` hace el camino inverso.
+- `ModuloObjeto.desde_archivo`, `analizar_objeto`, `EnlazadorEnigma` y `CargadorEnigma.cargar_archivo` aceptan `.tobj`; los módulos de ejemplo están escritos así (`spl/enlazador/objetos/`), de modo que la etapa 4 del orquestador del SPL pasa por el lexer.
 
 ## 6. Enlace y carga (`enlace.py`)
 
@@ -243,12 +265,12 @@ ESTAB: `main` = `0x00200000`, `sumar` = `0x00200039`, `error` = `0x0020003D`, `r
 | Salida | Ejecutable absoluto, enlazado en la dirección de carga | La reubicación del `.e64` solo maneja palabras de 8 bytes |
 | `.bss` | Se escribe en ceros | La RAM puede conservar datos de una carga anterior |
 | Importaciones sin resolver | Se reportan todas a la vez | Se ve en un solo intento todo lo que falta enlazar |
-| Organización | Subpaquete `enigma64/enlazador/` con `__main__.py` | Mismo patrón que `spl/ensamblador`; `python -m enigma64.enlazador` funciona sin advertencias y `cargador.py` casi no cambia |
+| Organización | Subpaquete `spl/enlazador/` con `__main__.py` | Mismo patrón que las demás fases del SPL (`spl/ensamblador`, `spl/compilador`); `cargador.py` solo lo importa cuando recibe un módulo objeto |
 | Ejemplos | Código máquina escrito byte a byte con comentarios | Mismo estilo que `enigma64/programas.py`; una prueba lo compara con la salida del ensamblador oficial |
 
 ## 8. Verificación
 
-### 8.1 Suite `tests/core/test_enlazador.py`
+### 8.1 Suite `tests/test_spl/test_enlazador.py`
 
 | Grupo | Qué verifica |
 | :--- | :--- |
@@ -331,24 +353,27 @@ Al revisar la interfaz apareció un fallo que ya estaba en `main` y no depende d
 ### 11.1 Requisitos
 
 - Python 3.10 o superior.
-- El enlazador solo usa la biblioteca estándar. `ply` hace falta únicamente para las pruebas del SPL (`pip install -r requirements.txt`).
+- El enlazador es una fase del SPL, que requiere `ply` (`pip install -r requirements.txt`). El emulador no lo necesita: el cargador importa el enlazador solo al recibir un módulo objeto.
 
 ### 11.2 Ejecución
 
 Desde la raíz del repositorio:
 
 ```bash
-# Generar los módulos de ejemplo en programas/objetos/ (carpeta ignorada por git)
-python -m enigma64.enlazador.ejemplos
+# Escribir los módulos de ejemplo como .obj binarios en programas/objetos/ (carpeta ignorada por git)
+python -c "from spl.enlazador.ejemplos import exportar_ejemplos; exportar_ejemplos('programas/objetos')"
 
 # Analizar un módulo: cabecera, secciones, exportaciones, importaciones y marcas
-python -m enigma64.enlazador programas/objetos/principal.obj
+python -m spl.enlazador programas/objetos/principal.obj
+
+# Lo mismo con los módulos en texto; --tokens imprime los tokens del lexer
+python -m spl.enlazador spl/enlazador/objetos/principal.tobj spl/enlazador/objetos/libmat.tobj --tokens --mapa
 
 # Enlazar dos módulos, imprimir el mapa y escribir un ejecutable .e64
-python -m enigma64.enlazador programas/objetos/principal.obj programas/objetos/libmat.obj -o programas/objetos/demo.e64 --mapa
+python -m spl.enlazador programas/objetos/principal.obj programas/objetos/libmat.obj -o programas/objetos/demo.e64 --mapa
 
 # Pruebas del enlazador
-python -m pytest tests/core/test_enlazador.py -v
+python -m pytest tests/test_spl/test_enlazador.py tests/test_spl/test_objeto_texto.py -v
 ```
 
 Opciones de la línea de comandos:
@@ -358,6 +383,7 @@ Opciones de la línea de comandos:
 - `--entrada`: símbolo exportado que será el punto de entrada.
 - `--mapa`: imprime el mapa de enlace y la ESTAB.
 - `--sin-informe`: omite el análisis de cada módulo.
+- `--tokens`: imprime la secuencia de tokens y el resumen por categoría de cada `.tobj`.
 
 El código de salida es `0` si todo sale bien y `1` ante un error (archivo inexistente, objeto inválido, símbolo sin definir…).
 

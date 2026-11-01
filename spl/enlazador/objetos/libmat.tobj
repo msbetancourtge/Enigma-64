@@ -1,0 +1,18 @@
+; libmat.tobj - biblioteca del programa de ejemplo del Enlazador-Cargador
+;
+; Modulo sin dependencias que exporta sumar y error; principal.tobj los importa.
+
+[MODULO] libmat
+
+[SECCION] .text BITS R-X ALIN 1 {
+    10 52 30            ; +0x00 sumar: ADD   R5, R2, R3
+    4C                  ; +0x03        RET
+    14 50 00 EE         ; +0x04 error: ADDI  R5, R0, 0x00EE
+    31 51 00 10         ; +0x08        STORE R5, [R1 + 16]   usa el R1 que dejo main
+    00                  ; +0x0C        HLT
+}
+
+[SIMBOLOS]
+; nombre  ligadura  tipo     seccion  valor
+sumar     GLOBAL    FUNCION  .text    0x0000
+error     GLOBAL    FUNCION  .text    0x0004

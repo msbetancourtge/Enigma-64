@@ -3,14 +3,8 @@
 Bocetos de diseno previos a la implementacion, en SVG (se abren en cualquier
 navegador).
 
-No estan dibujados a mano en una herramienta externa: se **generan desde la
-misma paleta que usa la aplicacion** (`enigma64/ui/core/tema.py`), asi que el
-boceto y el producto final no se pueden separar. Si cambia un color de marca,
-se regeneran y ya estan al dia:
-
-```bash
-python -m enigma64.ui.mockups.generar_mockups
-```
+No estan dibujados a mano en una herramienta externa: se **generaron desde la
+misma paleta que usa la aplicacion** (`enigma64/ui/core/tema.py`).
 
 | Archivo | Que muestra |
 |---|---|

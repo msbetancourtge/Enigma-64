@@ -86,8 +86,7 @@ enigma64/ui/
 │   ├── panel_cargador.py  · panel_cpu.py        · panel_mmio.py
 │   ├── panel_algoritmos.py · panel_mapa.py      · panel_consola.py
 │   ├── panel_fpu.py       · panel_traduccion.py
-├── shell/ventana.py       compone los paneles; no tiene logica de ningun modulo
-└── mockups/               los bocetos previos a la implementacion
+└── shell/ventana.py       compone los paneles; no tiene logica de ningun modulo
 ```
 
 ### Flujo de dependencias
@@ -222,12 +221,10 @@ bateria completa sigue corriendo en una maquina sin escritorio.
 - La ventana se dimensiona sola segun la pantalla y **nunca nace mas grande que
   el escritorio**; esta verificado a 1366x768. Los paneles que no caben se
   desplazan con la rueda (`core/widgets.MarcoDesplazable`).
-- El `main.py` de la raiz se dejo **sin tocar** para no chocar con la rama de
-  los companeros; sigue abriendo la demo de registros. Cuando el equipo quiera
-  que `python main.py` abra la interfaz completa, basta cambiar su import por
-  `from enigma64.ui.shell.ventana import main`.
-- Los bocetos se generan desde la misma paleta que usa la aplicacion:
-  `python -m enigma64.ui.mockups.generar_mockups`.
+- `python main.py` y `python -m enigma64` abren la misma ventana que
+  `python -m enigma64.ui`.
+- Los bocetos de diseno previos a la implementacion estan en
+  `docs/figuras/mockups/`.
 - Los tres algoritmos de la Tarea 9 estan transcritos byte a byte en
   `servicios/algoritmos.py`. Las pruebas comprueban que las direcciones del
   documento encajan con la longitud real de cada instruccion, asi que si el

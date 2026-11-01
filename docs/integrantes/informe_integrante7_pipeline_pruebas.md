@@ -76,7 +76,7 @@ El presente documento técnico formaliza el diseño, implementación y validaci�
                                        │ Módulos Objeto Reubicables (.obj)
                                        ▼
   ┌─────────────────────────────────────────────────────────────────────────┐
-  │  [ETAPA 4] ENLAZADOR-CARGADOR & CPU ENIGMA-64 (enigma64.enlazador)      │
+  │  [ETAPA 4] ENLAZADOR-CARGADOR & CPU ENIGMA-64 (spl.enlazador)           │
   │  • Análisis léxico/estructural de cabeceras, secciones y tablas .obj    │
   │  • Construcción de ESTAB y resolución de 5 tipos de marcas (ABS64,      │
   │    ABS32, REL16, HI16, LO16)                                            │
@@ -132,6 +132,6 @@ python -m spl --verificar-c
 
 # Ejecutar la suite de pruebas de integración del pipeline (11 pruebas) y toda la suite SPL (260 pruebas)
 python -m pytest tests/test_spl/test_pipeline_integracion.py -v
-python -m pytest tests/test_spl tests/core/test_enlazador.py -q
+python -m pytest tests/test_spl -q
 ```
 

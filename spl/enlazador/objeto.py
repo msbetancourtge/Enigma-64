@@ -17,6 +17,9 @@ que produce un ensamblado por separado. Este modulo se encarga de esa lectura:
      desplazamiento, tamano o nombre incoherente antes de que llegue a la RAM.
   5. Serializa modulos construidos en memoria: es el formato que debe emitir
      el backend del ensamblador SPL.
+  6. Lee y escribe el mismo modulo en formato de texto (.tobj): lexer.py lo
+     tokeniza con lex.py (PLY) y texto.py arma el ModuloObjeto; desde_archivo
+     elige la representacion por la extension.
 
 Disposicion del archivo (Big-Endian, igual que la maquina y el formato .e64):
 
@@ -58,7 +61,7 @@ import struct
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from ..cargador import MAGIC_OBJETO, ErrorCargador, FormatoInvalido
+from enigma64.cargador import EXTENSION_OBJETO_TEXTO, MAGIC_OBJETO, ErrorCargador, FormatoInvalido
 
 # ---------------------------------------------------------------------------
 # Constantes del formato .obj
@@ -623,6 +626,31 @@ class ModuloObjeto:
         with open(ruta, "wb") as f:
             f.write(self.serializar())
 
+    def a_texto(self) -> str:
+        """Escribe el modulo en formato de texto .tobj (valida antes de escribir)."""
+        # Importacion diferida: texto.py depende de este modulo
+        from .texto import escribir_objeto_texto
+
+        return escribir_objeto_texto(self)
+
+    def guardar_texto(self, ruta: Union[str, os.PathLike]) -> None:
+        """Escribe el modulo en disco como archivo de texto .tobj."""
+        texto = self.a_texto()
+        with open(ruta, "w", encoding="utf-8") as f:
+            f.write(texto)
+
+    @classmethod
+    def desde_texto(cls, texto: str) -> ModuloObjeto:
+        """
+        Analiza un modulo objeto en texto (.tobj) con el lexer de lex.py.
+
+        :raises ObjetoInvalido: Con todos los errores lexicos y sintacticos, o con
+            el primer problema de coherencia del modulo.
+        """
+        from .texto import leer_objeto_texto
+
+        return leer_objeto_texto(texto)
+
     @classmethod
     def deserializar(cls, contenido: Union[bytes, bytearray]) -> ModuloObjeto:
         """
@@ -746,9 +774,20 @@ class ModuloObjeto:
 
     @classmethod
     def desde_archivo(cls, ruta: Union[str, os.PathLike]) -> ModuloObjeto:
-        """Analiza un .obj del disco; si no trae nombre se usa el del archivo."""
+        """
+        Analiza un modulo del disco: un .tobj como texto y cualquier otro archivo
+        como .obj binario. Si el modulo no trae nombre se usa el del archivo.
+        """
         with open(ruta, "rb") as f:
-            modulo = cls.deserializar(f.read())
+            contenido = f.read()
+        if os.fspath(ruta).lower().endswith(EXTENSION_OBJETO_TEXTO):
+            try:
+                texto = contenido.decode("utf-8")
+            except UnicodeDecodeError:
+                raise ObjetoInvalido(f"'{os.fspath(ruta)}' no es texto UTF-8 valido") from None
+            modulo = cls.desde_texto(texto)
+        else:
+            modulo = cls.deserializar(contenido)
         if not modulo.nombre:
             modulo.nombre = os.path.splitext(os.path.basename(os.fspath(ruta)))[0]
         return modulo
@@ -852,7 +891,8 @@ FuenteObjeto = Union[ModuloObjeto, bytes, bytearray, str, os.PathLike]
 def analizar_objeto(fuente: FuenteObjeto) -> ModuloObjeto:
     """
     Punto de entrada del analisis: acepta un ModuloObjeto ya construido, los
-    bytes de un .obj o la ruta del archivo, y devuelve el modulo validado.
+    bytes de un .obj o la ruta del archivo (.obj binario o .tobj en texto), y
+    devuelve el modulo validado.
     """
     if isinstance(fuente, ModuloObjeto):
         fuente.validar()

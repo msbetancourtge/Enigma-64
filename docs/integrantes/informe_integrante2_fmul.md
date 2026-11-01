@@ -13,7 +13,7 @@
 | Archivo | Contenido |
 | :--- | :--- |
 | `enigma64/fmul.s` | `FMUL`, `FPU_MUL128` (64×64→128) y `FPU_NORMALIZAR_SUBNORMAL` |
-| `enigma64/fpu.py` | Carga `fpu.s` + `fmul.s` como una sola unidad; métodos `multiplicar()` y `multiplicar_bits()` |
+| `enigma64/fpu/__init__.py` | Carga `fpu.s` + `fmul.s` como una sola unidad; métodos `multiplicar()` y `multiplicar_bits()` |
 | `tests/test_fmul.py` | Tabla de 24 casos en hex, prueba diferencial aleatoria (300 casos), prueba de `FPU_MUL128` |
 
 ## 2. Restricciones del ISA que guían el diseño

@@ -138,7 +138,7 @@ Para cada algoritmo se suministran tres formatos compatibles con el [CargadorEni
 | **Volcados Hexadecimales (`.hex`)** | `factorial.hex`, `euclides.hex`, `fibonacci.hex`, `constante_brun.hex`, `fpu_lib.hex`, `fpu_nucleo.hex` | Archivos de texto con el volcado hexadecimal comentado. |
 | **Contenedores Enigma-64 (`.e64`)** | `factorial.e64`, `euclides.e64`, `fibonacci.e64`, `constante_brun.e64` | Formato estructurado con cabecera Big-Endian de 32 bytes (`ENIG`). |
 
-> **Nota:** Todos los archivos `.bin`, `.hex` y `.e64` pueden regenerarse automáticamente en cualquier momento ejecutando:
+> **Nota:** Los `.bin`, `.hex` y `.e64` de factorial, euclides y fibonacci, y `cargador_firmware.bin`, se regeneran con:
 > ```bash
-> python scripts/generar_binarios.py
+> python -c "from enigma64.programas import exportar_archivos_programas; exportar_archivos_programas('programas')"
 > ```

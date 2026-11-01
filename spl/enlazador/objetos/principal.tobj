@@ -1,0 +1,57 @@
+; principal.tobj - modulo principal del programa de ejemplo del Enlazador-Cargador
+;
+; Es lo que emitira el backend del ensamblador SPL: el codigo ya traducido, con
+; los campos reubicables en cero (el enlazador escribe en ellos S + A), y las
+; tablas que dicen que parchar. Importa sumar y error de libmat.tobj y usa los
+; cinco tipos de marca de reubicacion. Resultado esperado: a + b = 42.
+
+[MODULO] principal
+[ENTRADA] .text + 0x0000
+
+[SECCION] .text BITS R-X ALIN 1 {
+    14 10 00 00         ; +0x00 main:   ADDI  R1, R0, %hi(valores)
+    24 11 00 10         ; +0x04         SHL   R1, R1, 16
+    14 11 00 00         ; +0x08         ADDI  R1, R1, %lo(valores)
+    30 21 00 00         ; +0x0C         LOAD  R2, [R1 + 0]     R2 = a
+    30 31 00 08         ; +0x10         LOAD  R3, [R1 + 8]     R3 = b
+    4A 00 00 00 00      ; +0x14         CALL  sumar
+    27 05 00            ; +0x19         CMP   R5, R0
+    41 00 00            ; +0x1C         JZ    error
+    31 51 00 10         ; +0x1F         STORE R5, [R1 + 16]    resultado = a + b
+    30 41 00 18         ; +0x23         LOAD  R4, [R1 + 24]    R4 = puntero (-> copia)
+    31 54 00 00         ; +0x27         STORE R5, [R4 + 0]     copia = a + b
+    40 00 00 00 00      ; +0x2B         JMP   fin
+    14 50 0B AD         ; +0x30 trampa: ADDI  R5, R0, 0x0BAD   solo si JMP quedo mal reubicado
+    31 51 00 10         ; +0x34         STORE R5, [R1 + 16]
+    00                  ; +0x38 fin:    HLT
+}
+
+[SECCION] .data BITS RW- ALIN 8 {
+    00 00 00 00 00 00 00 1E     ; +0x00 valores[0] = a = 30
+    00 00 00 00 00 00 00 0C     ; +0x08 valores[1] = b = 12
+    00 00 00 00 00 00 00 00     ; +0x10 resultado
+    00 00 00 00 00 00 00 00     ; +0x18 puntero (ABS64 -> copia)
+}
+
+[SECCION] .bss VACIA RW- ALIN 8 TAM 16
+
+[SIMBOLOS]
+; nombre    ligadura   tipo      seccion  valor
+main        GLOBAL     FUNCION   .text    0x0000
+trampa      LOCAL      FUNCION   .text    0x0030
+fin         LOCAL      SIN_TIPO  .text    0x0038
+valores     LOCAL      DATO      .data    0x0000
+resultado   GLOBAL     DATO      .data    0x0010
+puntero     LOCAL      DATO      .data    0x0018
+copia       GLOBAL     DATO      .bss     0x0000
+sumar       IMPORTADO  FUNCION
+error       IMPORTADO  FUNCION
+
+[REUBICACIONES]
+; seccion  offset  tipo   simbolo  sumando
+.text      0x0002  HI16   valores  +0       ; inmediato del primer ADDI
+.text      0x000A  LO16   valores  +0       ; inmediato del segundo ADDI
+.text      0x0015  ABS32  sumar    +0       ; destino de CALL (otro modulo)
+.text      0x001D  REL16  error    +0       ; desplazamiento de JZ (otro modulo)
+.text      0x002C  ABS32  fin      +0       ; destino de JMP (mismo modulo)
+.data      0x0018  ABS64  copia    +0       ; puntero a la reserva .bss

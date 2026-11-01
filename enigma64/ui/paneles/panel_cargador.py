@@ -54,7 +54,7 @@ class PanelCargador(PanelBase):
 
         columna = tk.Frame(fila, bg=PALETA["elevado"])
         columna.pack(side="left", fill="x", expand=True)
-        self.rotulo(columna, "Archivo del programa (.e64 / .obj / .bin / .txt)").pack(anchor="w")
+        self.rotulo(columna, "Archivo del programa (.e64 / .obj / .tobj / .bin / .txt)").pack(anchor="w")
         self.ruta = tk.StringVar()
         ttk.Entry(columna, textvariable=self.ruta, font=mono(10)).pack(fill="x")
 
@@ -147,7 +147,7 @@ class PanelCargador(PanelBase):
         ruta = filedialog.askopenfilename(
             title="Selecciona un ejecutable de Enigma-64",
             filetypes=[("Ejecutables Enigma-64", "*.e64"),
-                       ("Modulo objeto reubicable", "*.obj"),
+                       ("Modulo objeto reubicable", "*.obj *.tobj"),
                        ("Binario plano", "*.bin"),
                        ("Volcado en texto", "*.txt"),
                        ("Todos los archivos", "*.*")])
