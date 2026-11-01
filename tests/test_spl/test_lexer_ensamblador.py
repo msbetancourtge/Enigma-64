@@ -163,7 +163,7 @@ class TestErrores:
         assert len(vistos) == 1 and vistos[0].lexema == "?"
 
     @pytest.mark.parametrize("archivo", sorted(
-        list((RAIZ / "enigma64" / "asm").glob("*.s")) + list((RAIZ / "programas").glob("*.s"))
+        list((RAIZ / "enigma64" / "fpu").glob("*.s")) + list((RAIZ / "programas").glob("*.s"))
     ), ids=lambda p: p.name)
     def test_programas_oficiales_sin_errores(self, archivo):
         toks, errores = EnsambladorLexer().tokenizar(archivo.read_text(encoding="utf-8"))

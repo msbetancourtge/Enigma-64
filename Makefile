@@ -30,7 +30,7 @@ test:
 	$(PYTHON) -m pytest -q
 
 test-spl:
-	$(PYTHON) -m pytest tests/test_spl tests/core/test_enlazador.py -q
+	$(PYTHON) -m pytest tests/test_spl -q
 
 test-c:
 	$(PYTHON) -m spl --verificar-c --sin-tablas

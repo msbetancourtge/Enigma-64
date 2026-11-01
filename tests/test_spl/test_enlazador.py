@@ -35,7 +35,7 @@ from enigma64 import (
     RAMMemory,
     ViolacionProteccionMemoria,
 )
-from enigma64.enlazador import (
+from spl.enlazador import (
     LIMITE_HI16,
     PERM_EJECUCION,
     PERM_ESCRITURA,
@@ -74,8 +74,8 @@ from enigma64.enlazador import (
     texto_permisos,
 )
 from enigma64.cpu import _INSTRUCTIONS
-from enigma64.enlazador.__main__ import main as cli_enlazador
-from enigma64.enlazador.ejemplos import (
+from spl.enlazador.__main__ import main as cli_enlazador
+from spl.enlazador.ejemplos import (
     CODIGO_ERROR,
     CODIGO_LIBMAT,
     CODIGO_PRINCIPAL,
@@ -883,7 +883,7 @@ class TestEnlaceConCodigoDelEquipo(unittest.TestCase):
 
 
 class TestLineaDeComandos(unittest.TestCase):
-    """python -m enigma64.enlazador: analisis, enlace a .e64 y errores."""
+    """python -m spl.enlazador: analisis, enlace a .e64 y errores."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()

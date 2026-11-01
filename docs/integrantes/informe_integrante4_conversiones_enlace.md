@@ -14,7 +14,7 @@ El propósito de este módulo es proporcionar la capa de conversión de datos y 
 2. **Conversión `FLOAT64_TO_INT64` (`FPU_FLOAT_TO_INT`):** Transforma números en formato IEEE 754 de doble precisión a enteros de 64 bits con signo, truncando cualquier componente fraccionaria hacia cero ($[-1.0, 1.0) \to 0$) y gestionando rangos válidos, casos límite ($-2^{63}$) y valores especiales.
 3. **Mesa de Entrada Canónica (`FPU_VECTORES`):** Tabla de salto fija de 7 entradas de 5 bytes cada una, permitiendo a los programas invocar cualquier servicio de la FPU mediante saltos canónicos fijos independientes de la dirección física interna de las subrutinas.
 4. **Biblioteca FPU Unificada (`programas/fpu_lib.*`):** Ensamblaje integral de los módulos de la FPU (`fconv.s`, `fpu.s`, `fmul.s`) produciendo la biblioteca binaria en formatos `.bin` y `.hex`.
-5. **Capa de Abstracción en Python (`enigma64/fpu.py`):** Métodos de alto nivel (`int_to_float`, `int_to_float_bits`, `float_to_int`, `ejecutar_vector`) en `EmuladorFPUEnigma64`.
+5. **Capa de Abstracción en Python (`enigma64/fpu/__init__.py`):** Métodos de alto nivel (`int_to_float`, `int_to_float_bits`, `float_to_int`, `ejecutar_vector`) en `EmuladorFPUEnigma64`.
 6. **Suite de Pruebas Formales (`tests/test_fconv.py`):** 19 pruebas unitarias parametrizadas (111 aserciones/subtests) que validan conformidad bit a bit contra IEEE 754 y contra el oráculo nativo de 64 bits.
 
 ### Archivos del módulo
@@ -22,7 +22,7 @@ El propósito de este módulo es proporcionar la capa de conversión de datos y 
 | Archivo | Contenido |
 | :--- | :--- |
 | `enigma64/fconv.s` | Subrutinas `FPU_INT_TO_FLOAT`, `FPU_FLOAT_TO_INT` y tabla de salto `FPU_VECTORES` |
-| `enigma64/fpu.py` | Integración en la clase `EmuladorFPUEnigma64`, constantes `VECTOR_*` y compilación unificada |
+| `enigma64/fpu/__init__.py` | Integración en la clase `EmuladorFPUEnigma64`, constantes `VECTOR_*` y compilación unificada |
 | `programas/fpu_lib.s` | Código fuente ensamblador completo y autosuficiente de la biblioteca FPU |
 | `programas/fpu_lib.bin` | Binario crudo compilado de la biblioteca FPU (1425 bytes) |
 | `programas/fpu_lib.hex` | Volcado hexadecimal oficial de la biblioteca FPU |

@@ -6,7 +6,7 @@ Integra en secuencia las 4 herramientas del SPL construidas para Enigma-64:
   1. Preprocesador (spl.preprocesador)          -> #include, #define, condicionales y comentarios
   2. Compilador Lexer & Tablas (spl.compilador) -> Vocabulario, TDA, matrices, ID, NUMBER IEEE 754, STRING
   3. Ensamblador Lexer (spl.ensamblador)        -> 41 mnemónicos ISA, registros, directivas y etiquetas
-  4. Enlazador-Cargador (enigma64.enlazador)    -> Módulos .obj, reubicaciones, carga en RAM y CPU Enigma-64
+  4. Enlazador-Cargador (spl.enlazador)         -> Módulos .obj, reubicaciones, carga en RAM y CPU Enigma-64
 """
 
 from __future__ import annotations
@@ -26,13 +26,13 @@ from enigma64 import (
     CargadorEnigma,
     RAMMemory,
 )
-from enigma64.enlazador import (
+from spl.enlazador import (
     EnlazadorEnigma,
     ModuloObjeto,
     ResultadoEnlace,
     analizar_objeto,
 )
-from enigma64.enlazador.ejemplos import (
+from spl.enlazador.ejemplos import (
     construir_modulo_libmat,
     construir_modulo_principal,
 )

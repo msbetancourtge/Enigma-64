@@ -41,34 +41,50 @@ Enigma-64 es un computador Von Neumann de 64 bits con memoria paginada dispersa,
 ```text
 Enigma-64/
 ├── main.py                     Punto de entrada: lanza la interfaz gráfica del emulador
-├── requirements.txt            Dependencias del proyecto
+├── Makefile                    Atajos: escenarios del SPL, pruebas y módulo C
+├── requirements.txt            Dependencias del proyecto (pytest y ply)
+├── environment.yml             Entorno conda equivalente
 ├── enigma64/                   Núcleo del emulador
 │   ├── cpu.py                  Unidad de Control FSM (5 fases) y PrefetchBuffer
 │   ├── alu.py                  Unidad Aritmético-Lógica (ALU) pura de 64 bits
 │   ├── registros.py            Banco de registros y registro de estado (SR)
 │   ├── memoria.py              Controlador de memoria RAM física y buses
-│   ├── cargador.py             Cargador de ejecutables (.e64, .obj, .bin) y editor de bits
-│   ├── ensamblador.py          Ensamblador oficial de Enigma-64
+│   ├── cargador.py             Cargador de ejecutables (.e64, .obj, .tobj, .bin) y editor de bits
+│   ├── ensamblador.py          Ensamblador de dos pasadas de Enigma-64 (lo usan la FPU y el traductor)
 │   ├── perifericos.py          Subsistema MMIO y controlador de pantalla CRT
-│   ├── fpu.py                  Emulador de FPU y tabla canónica FPU_VECTORES
-│   ├── asm/                    Firmware y rutinas ensamblador de la FPU (.s)
-│   ├── enlazador/              Enlazador de módulos objeto reubicables (.obj)
-│   │   ├── objeto.py           Formato .obj, tablas de símbolos y marcas de reubicación
-│   │   ├── enlace.py           Motor de enlace en dos pasadas (EnlazadorEnigma)
-│   │   └── ejemplos.py         Módulos objeto de ejemplo
+│   ├── oraculo_ieee754.py      Oráculo IEEE 754 de referencia para las pruebas de la FPU
+│   ├── programas.py            Programas oficiales de prueba
+│   ├── fpu/                    Emulador de la FPU, tabla canónica FPU_VECTORES y sus rutinas en ensamblador (.s)
 │   └── ui/                     Interfaz gráfica interactiva (Tkinter)
 │       ├── shell/ventana.py    Ventana principal del emulador
-│       └── paneles/            Paneles interactivos: memoria RAM, MMIO y FPU
+│       ├── core/               Bus de eventos, tema, formato y widgets comunes
+│       ├── paneles/            Paneles: memoria, registros, ALU, CPU, cargador, mapa, MMIO, FPU, algoritmos y traducción
+│       └── servicios/          Lógica sin Tkinter de los paneles (máquina, MMIO, traducción...)
 ├── spl/                        Sistema de Procesamiento del Lenguaje (SPL)
 │   ├── preprocesador/          Preprocesador de directivas (#include, #define, etc.)
-│   ├── compilador/             Compilador de alto nivel (lexer PLY y tablas de símbolos)
+│   ├── compilador/             Analizador léxico del compilador (PLY) y tablas de símbolos en Python y C
 │   ├── ensamblador/            Analizador léxico del ensamblador SPL
+│   ├── enlazador/              Enlazador de módulos objeto: .obj binario y .tobj en texto (lex.py)
 │   ├── traductor/              Traductor de ensamblador CacaoCore-64 a Enigma-64
-│   └── pipeline.py             Orquestador integral del pipeline SPL
+│   ├── include/                Cabecera estándar enigma64.h
+│   ├── ejemplos/               Programas de los escenarios integrales del pipeline
+│   └── pipeline.py             Orquestador integral del pipeline SPL (python -m spl)
 ├── programas/                  Binarios ejecutables (.bin, .hex, .e64) y bibliotecas
-├── scripts/                    Utilidades de compilación y generación de binarios
+├── docs/
+│   ├── reportes/               Reportes técnicos en PDF (Tareas 09, 10, 17 y 27; Taller 01)
+│   ├── integrantes/            Informes técnicos individuales por módulo
+│   └── figuras/                Figuras de los reportes y bocetos SVG de la interfaz (mockups/)
 └── tests/                      Batería completa de pruebas automatizadas
+    ├── core/                   CPU, ALU, registros, memoria, periféricos y cargador
+    ├── fpu/                    Rutinas de la FPU y oráculo IEEE 754
+    ├── integration/            Algoritmos completos sobre la máquina emulada
+    ├── test_spl/               Preprocesador, compilador, ensamblador, enlazador, pipeline y traductor (traductor/)
+    └── ui/                     Interfaz gráfica
 ```
+
+`enigma64/` es la máquina y `spl/` la cadena de herramientas. Cada componente es un módulo, y pasa a ser un subpaquete solo cuando tiene varios archivos: `enigma64/fpu/` (emulador y rutinas `.s`), `enigma64/ui/` y cada fase de `spl/`.
+
+El Enlazador-Cargador del SPL tiene dos partes: el enlazador es una fase del SPL (`spl/enlazador/`) y el cargador es parte de la máquina (`enigma64/cargador.py`), que recurre al enlazador cuando recibe un módulo objeto.
 
 ---
 
@@ -92,17 +108,20 @@ pip install -r requirements.txt
 # Iniciar la interfaz gráfica interactiva
 python main.py
 
-# Analizar un módulo objeto reubicable (.obj)
-python -m enigma64.enlazador programas/objetos/principal.obj
+# Analizar módulos objeto (.tobj en texto u .obj binario); --tokens imprime los tokens del lexer
+python -m spl.enlazador spl/enlazador/objetos/principal.tobj spl/enlazador/objetos/libmat.tobj --tokens
 
 # Enlazar módulos objeto y generar un ejecutable .e64
-python -m enigma64.enlazador programas/objetos/principal.obj programas/objetos/libmat.obj -o programa.e64
+python -m spl.enlazador spl/enlazador/objetos/principal.tobj spl/enlazador/objetos/libmat.tobj -o programa.e64 --mapa
 
 # Ejecutar el pipeline completo del compilador SPL
 python -m spl --escenario 1
 
-# Ensamblar código SPL a bajo nivel
+# Tokenizar un archivo en ensamblador (analizador léxico del ensamblador SPL)
 python -m spl.ensamblador spl/ensamblador/ejemplos/prueba.asm
+
+# Traducir un programa de CacaoCore-64 a Enigma-64 y ejecutarlo
+python -m spl.traductor spl/traductor/ejemplos/cacao_euclides.asm --ejecutar
 ```
 
 ### Uso programático desde Python
@@ -179,10 +198,10 @@ La CPU implementa 41 instrucciones divididas en 6 grupos funcionales:
 
 ### Enlazador y Cargador de Programas
 - **Cargador (`CargadorEnigma`)**:
-  - Admite binarios planos (`.bin`), binarios estructurados (`.e64`) y módulos objeto (`.obj`).
+  - Admite binarios planos (`.bin`), binarios estructurados (`.e64`) y módulos objeto (`.obj` y `.tobj`), que enlaza antes de cargar.
   - Protege áreas reservadas del sistema (vectores en `0x00000000`, firmware en `0x00001000`) y restringe la carga de programas de usuario a `>= 0x00200000`.
 - **Enlazador (`EnlazadorEnigma`)**:
-  - Procesa módulos objeto reubicables en formato Big-Endian (`EOBJ`).
+  - Procesa módulos objeto reubicables en dos representaciones equivalentes: binaria Big-Endian (`.obj`, firma `EOBJ`) y de texto (`.tobj`). La de texto se analiza con un lexer de `lex.py` (PLY) con un estado exclusivo para el contenido de las secciones; ambas se convierten una en otra sin pérdidas.
   - Resuelve referencias externas contra la tabla global de símbolos (ESTAB) y genera la sección `.bss` inicializada en cero.
   - Aplica las 5 marcas de reubicación: `ABS64`, `ABS32`, `REL16`, `HI16` (con ajuste `+0x8000` por extensión de signo de `ADDI`) y `LO16`.
 
@@ -200,6 +219,7 @@ La CPU implementa 41 instrucciones divididas en 6 grupos funcionales:
 - **Preprocesador**: Expansión de macros, inclusión de cabeceras (`#include`) y compilación condicional (`#ifdef`, `#ifndef`).
 - **Compilador SPL**: Analizador léxico PLY para lenguaje imperativo estructurado (tipos primitivos, arreglos, matrices, TDA `struct`, estructuras de control) con gestión integrada de tablas de símbolos (`tablaID`, `tablaNum`, `tablaString`).
 - **Ensamblador SPL**: Analizador léxico PLY de la sintaxis ensambladora de Enigma-64.
+- **Enlazador-Cargador**: Analizador léxico PLY del módulo objeto en texto (`.tobj`), enlace de dos pasadas, reubicación y carga (ver *Enlazador y Cargador de Programas*).
 - **Traductor de compatibilidad**: Traducción automática de ensamblador CacaoCore-64 a Enigma-64 (`LOAD`, `STORE`, `LDB`, `STB`, `LEA`), con reubicación a espacio de usuario y alineación de desplazamientos a múltiplos de 8 bytes; asignación de los 16 registros de CacaoCore a R1–R7 con derrame a memoria, y traducción de su ALU de acumulador a las 16 operaciones de Enigma-64 (`python -m spl.traductor programa.asm --ejecutar`).
 
 ### Interfaz Gráfica (GUI)
@@ -207,6 +227,7 @@ La CPU implementa 41 instrucciones divididas en 6 grupos funcionales:
 - Monitor en tiempo real del banco de registros, banderas `SR` y panel de pruebas ALU.
 - Terminal CRT emulada conectada al puerto de salida MMIO (`0xFF001000`).
 - Calculadora reactiva de FPU con desglose de campos IEEE 754 (signo, exponente, mantisa).
+- Cargador de programas (`.e64`, `.obj`, `.tobj`, `.bin` y volcados `.txt`) y panel de traducción de CacaoCore-64 a Enigma-64.
 
 ---
 
@@ -218,18 +239,26 @@ El proyecto cuenta con una amplia suite de pruebas unitarias, de integración y 
 # Ejecutar la suite completa de pruebas
 python -m pytest
 
-# Ejecutar únicamente las pruebas del núcleo (CPU, ALU, registros, memoria, enlazador)
+# Ejecutar únicamente las pruebas del núcleo (CPU, ALU, registros, memoria, periféricos y cargador)
 python -m pytest tests/core/
 
 # Ejecutar las pruebas de la FPU
 python -m pytest tests/fpu/
 
-# Ejecutar las pruebas del sistema SPL y traductores
+# Ejecutar las pruebas del sistema SPL (incluye el enlazador; el traductor está en tests/test_spl/traductor/)
 python -m pytest tests/test_spl/
 
 # Ejecutar las pruebas de la interfaz gráfica
 python -m pytest tests/ui/
 ```
+
+---
+
+## Documentación
+
+- `docs/reportes/`: reportes técnicos de cada entrega: `Tarea_09_Diseno_Computador_Enigma64.pdf`, `Tarea_10_Reporte_Tecnico_Enigma64.pdf`, `Tarea_17_Reporte_Tecnico_Enigma64.pdf`, `Taller_01_SPL_Enigma64.pdf` y `Tarea_27_Reporte_Tecnico_Enigma64.pdf`.
+- `docs/integrantes/`: informe técnico de cada módulo, con el formato `informe_integranteN_tema.md`.
+- `enigma64/ui/README.md` y `programas/README.md`: detalle de la interfaz gráfica y de los programas oficiales.
 
 ---
 

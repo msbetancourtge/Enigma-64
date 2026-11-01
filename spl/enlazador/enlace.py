@@ -2,7 +2,7 @@
 Enlazador de Modulos Objeto - Enigma-64 (Noctua Systems).
 
 Segunda mitad del modulo Enlazador-Cargador. Recibe modulos objeto ya analizados
-(enigma64.enlazador.objeto) y sigue el esquema clasico del cargador-enlazador de
+(spl.enlazador.objeto) y sigue el esquema clasico del cargador-enlazador de
 dos pasadas:
 
   Pasada 1 - Asignacion: ubica cada seccion en el espacio de usuario respetando
@@ -24,14 +24,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from ..cargador import (
+from enigma64.cargador import (
     MAX_PHYSICAL_ADDR,
     USER_MEM_START,
     BinarioEnigma,
     CargadorEnigma,
     DireccionInvalida,
 )
-from ..registros import MASK64
+from enigma64.registros import MASK64
 from .objeto import (
     PERM_EJECUCION,
     REUB_ABS32,

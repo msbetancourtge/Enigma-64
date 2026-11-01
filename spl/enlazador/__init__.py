@@ -5,16 +5,18 @@ Enlazador del modulo Enlazador-Cargador de Enigma-64 (Noctua Systems).
     de seccion, tablas de exportacion e importacion y marcas de reubicacion.
   * enlace: asignacion de direcciones, tabla global de simbolos, resolucion de
     importaciones y aplicacion de las marcas sobre la imagen de memoria.
+  * lexer y texto: el mismo modulo objeto en formato de texto (.tobj), que se
+    tokeniza con lex.py (PLY).
 
-    from enigma64.enlazador import EnlazadorEnigma, analizar_objeto
+    from spl.enlazador import EnlazadorEnigma, analizar_objeto
 
-    modulo = analizar_objeto("principal.obj")
+    modulo = analizar_objeto("principal.tobj")      # o "principal.obj"
     print(modulo.informe())
 
-    resultado = EnlazadorEnigma(["principal.obj", "libmat.obj"]).enlazar(0x00200000)
+    resultado = EnlazadorEnigma(["principal.tobj", "libmat.tobj"]).enlazar(0x00200000)
     cargador.cargar_binario(resultado.binario)
 
-Linea de comandos:  python -m enigma64.enlazador modulo.obj [...] [-o salida.e64]
+Linea de comandos:  python -m spl.enlazador modulo.tobj [...] [-o salida.e64] [--tokens]
 """
 
 from .enlace import (

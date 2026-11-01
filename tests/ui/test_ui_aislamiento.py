@@ -95,8 +95,10 @@ def test_los_modulos_del_equipo_no_fueron_modificados():
     for nombre in MODULOS_HARDWARE:
         ruta = RAIZ / "enigma64" / f"{nombre}.py"
         if not ruta.exists():
+            ruta = RAIZ / "enigma64" / nombre / "__init__.py"
+        if not ruta.exists():
             continue
         assert "enigma64.ui" not in ruta.read_text(encoding="utf-8"), (
-            f"enigma64/{nombre}.py hace referencia a la interfaz; los modulos "
+            f"{ruta.relative_to(RAIZ).as_posix()} hace referencia a la interfaz; los modulos "
             f"de hardware deben seguir siendo independientes de ella."
         )

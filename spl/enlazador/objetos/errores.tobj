@@ -1,0 +1,28 @@
+; errores.tobj - modulo objeto con errores lexicos y de estructura
+;
+; Cada error se informa con su linea y columna y el analisis continua hasta el
+; final del archivo. El modulo se rechaza con un solo ObjetoInvalido.
+
+[MODULO] errores
+[ENTRADA] .text + 0x0000
+
+[SECCION] .text BITS R-X ALIN 1 {
+    14 50 00 2A         ; ADDI R5, R0, 42
+    0G 00               ; byte con un digito que no es hexadecimal
+}
+[SECCION] .data BITS RW- ALIN 8 @ {
+    00 00 00 00 00 00 00 00
+}
+
+[SIMBOLOS]
+main    GLOBAL  FUNCION  .text  0x0000
+dato    LOCAL   DATO     .data  0x1G
+"x\q"   LOCAL   DATO     .data  0x0000
+total   GLOBAL  DATO
+
+[TABLAS]
+[REUBICACIONES]
+.text   0x0002  LO16  dato  + 0x100000000
+.text   0x0002  HI32  dato
+
+[SECCION] .bss VACIA RW- ALIN 8 {

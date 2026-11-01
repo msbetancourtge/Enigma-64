@@ -21,7 +21,7 @@ El presente documento técnico formaliza el diseño, implementación y verificac
 | `enigma64/fsqrt.s` | Código ensamblador FPU | Subrutina `FSQRT` / `FPU_FSQRT`: filtro de casos especiales, cálculo de semilla de exponente e iteración de Newton-Raphson. |
 | `enigma64/oraculo_ieee754.py` | Módulo utilitario Python | `DesgloseIEEE754`, `OraculoIEEE754`, `simular_newton_raphson()`, métricas ULP y generador de catálogo de pruebas. |
 | `enigma64/fconv.s` | Tabla de Vectores FPU | Declaración del Vector 7 canónico `VEC_FSQRT: JMP FSQRT`. |
-| `enigma64/fpu.py` | Emulador oficial de la FPU | Compilación de `fsqrt.s` en `CODIGO_FPU_ASM`, métodos `raiz_cuadrada()` y `raiz_cuadrada_bits()`. |
+| `enigma64/fpu/__init__.py` | Emulador oficial de la FPU | Compilación de `fsqrt.s` en `CODIGO_FPU_ASM`, métodos `raiz_cuadrada()` y `raiz_cuadrada_bits()`. |
 | `programas/raiz_cuadrada.s` | Programa de usuario | Ejecutable en ensamblador que lee $A$ de RAM (`0x00205000`), ejecuta `FSQRT` y escribe el resultado en `0x00205008`. |
 | `programas/fpu_lib.s` | Biblioteca consolidada | Fuentes unificadas y sincronizadas de la biblioteca FPU completa. |
 | `tests/test_oraculo.py` | Pruebas unitarias del Oráculo | 16 pruebas exhaustivas del oráculo, desgloses, clasificaciones y simulación de Newton-Raphson. |

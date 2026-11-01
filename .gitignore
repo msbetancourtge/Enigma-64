@@ -73,8 +73,8 @@ CLAUDE.md
 claude.md
 CLAUDE.md
 
-# Reports script
-scripts/generar_reporte_pdf.py
-
-# Salidas de ejemplo del enlazador (python -m enigma64.enlazador.ejemplos)
+# Módulos de ejemplo del enlazador en .obj binario (spl.enlazador.ejemplos.exportar_ejemplos)
 programas/objetos/
+
+# Binario de la batería C que compila la verificación del SPL (python -m spl --verificar-c)
+spl/compilador/test_tablas

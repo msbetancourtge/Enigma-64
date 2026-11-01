@@ -7,7 +7,6 @@ Organizacion (inspirada en la del proyecto guia, con un modelo propio):
     servicios/  contratos y adaptadores hacia los modulos de hardware
     paneles/    un panel independiente por modulo; ninguno importa a otro
     shell/      la ventana que compone los paneles
-    mockups/    los bocetos de diseno previos a la implementacion
 
 Arranque:
 
