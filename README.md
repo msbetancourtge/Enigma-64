@@ -216,7 +216,8 @@ La CPU implementa 41 instrucciones divididas en 6 grupos funcionales:
 - Mesa de salto canónica desacoplada: `FPU_VECTORES`.
 
 ### Sistema de Procesamiento del Lenguaje (SPL)
-- **Preprocesador**: Expansión de macros, inclusión de cabeceras (`#include`) y compilación condicional (`#ifdef`, `#ifndef`).
+- **Preprocesador**: Expansión de macros (simples y parametrizadas), inclusión de cabeceras (`#include`) y compilación condicional (`#ifdef`, `#ifndef`).
+- **Librería de estructuras**: Biblioteca de estructuras de datos (vectores y matrices) importable mediante `#include "estructuras.inc"`.
 - **Compilador SPL**: Analizador léxico PLY para lenguaje imperativo estructurado (tipos primitivos, arreglos, matrices, TDA `struct`, estructuras de control) con gestión integrada de tablas de símbolos (`tablaID`, `tablaNum`, `tablaString`).
 - **Ensamblador SPL**: Analizador léxico PLY de la sintaxis ensambladora de Enigma-64.
 - **Enlazador-Cargador**: Analizador léxico PLY del módulo objeto en texto (`.tobj`), enlace de dos pasadas, reubicación y carga (ver *Enlazador y Cargador de Programas*).
