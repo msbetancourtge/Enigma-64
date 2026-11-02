@@ -33,6 +33,8 @@ from typing import Dict, List, Optional, Tuple
 
 import ply.lex as lex
 
+from spl.ensamblador.literales import LiteralInvalido
+
 from .alu import (
     MNEMONICOS_ALU,
     MNEMONICOS_TRANSFERENCIA,
@@ -266,7 +268,7 @@ class TraductorCacaoEnigma:
     def _leer_instruccion(self, texto: str, linea: int, programa: Programa) -> Optional[Instruccion]:
         try:
             mnemonico, operandos = dividir_instruccion(texto)
-        except RegistroInvalido as exc:
+        except (RegistroInvalido, LiteralInvalido) as exc:
             programa.errores.append((linea, f"{exc}: '{texto}'"))
             return None
         clase = _clasificar(mnemonico, operandos)
