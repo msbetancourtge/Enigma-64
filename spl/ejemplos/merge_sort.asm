@@ -25,7 +25,14 @@ PRINCIPAL:
         ADDI R4, R0, 0x002E
         SHL  R4, R4, 16             ; R4 = aux (BASE_BUFFERS)
         CALL MERGE_SORT
+
+        ; Salida opcional del vector ordenado hacia pantalla MMIO (0xFF001010)
+        ADDI R1, R0, 0x0022
+        SHL  R1, R1, 16             ; R1 = base del vector
+        CALL VEC_LEN                ; R5 = n
+        ADD  R2, R5, R0             ; R2 = n
         CALL EMITIR_VECTOR_MMIO
+
         HLT
 
 ; ------------------------------------------------------------------------------
@@ -137,7 +144,6 @@ MERGE_J_OK:
         ; Caso a <= b: v[k] = a, i++
         LOAD R1, [BP + 32]          ; R1 = base
         LOAD R2, [BP - 24]          ; R2 = k
-        ; R3 ya contiene a
         CALL VEC_SET
         LOAD R5, [BP - 8]
         ADDI R5, R5, 1
@@ -195,7 +201,113 @@ MERGE_FIN:
 
 ; ------------------------------------------------------------------------------
 ; EMITIR_VECTOR_MMIO: salida del vector ordenado por pantalla MMIO (0xFF001010)
-;   (Implementacion completa en Fase 3)
+;   Entradas: R1 = base, R2 = n. Preserva R1..R4, SP, BP.
+;   Emite cada entero convertido a caracteres ASCII separados por espacio (' ')
+;   y cierra con salto de linea ('\n').
 ; ------------------------------------------------------------------------------
 EMITIR_VECTOR_MMIO:
+        PUSH R1
+        PUSH R2
+        PUSH R3
+        PUSH R4
+        ENTER 32                    ; locales: [BP-8]=idx, [BP-16]=n, [BP-24]=base, [BP-32]=puerto
+
+        STORE R1, [BP - 24]         ; base
+        STORE R2, [BP - 16]         ; n
+        ADDI R5, R0, 0
+        STORE R5, [BP - 8]          ; idx = 0
+
+        ; Sintetizar direccion MMIO 0xFF001010
+        ADDI R5, R0, 1
+        SHL  R5, R5, 16
+        ADDI R5, R5, -256
+        SHL  R5, R5, 16
+        ADDI R5, R5, 4112           ; R5 = 0xFF001010
+        STORE R5, [BP - 32]         ; puerto_mmio
+
+MMIO_LOOP_ELEM:
+        ; Verificar si idx < n
+        LOAD R1, [BP - 8]           ; idx
+        LOAD R2, [BP - 16]          ; n
+        CMP  R1, R2                 ; idx - n
+        JN   MMIO_PROCESAR_ELEM     ; si idx < n (N=1), procesar
+        JMP  MMIO_FIN_TODO          ; si idx >= n, terminar salida
+
+MMIO_PROCESAR_ELEM:
+        ; Si idx > 0, emitir espacio de separacion
+        CMP  R1, R0
+        JZ   MMIO_LEER_DATO
+        ADDI R4, R0, 32             ; ASCII ' ' = 32
+        LOAD R5, [BP - 32]
+        STORE R4, [R5 + 0]
+
+MMIO_LEER_DATO:
+        LOAD R1, [BP - 24]          ; base
+        LOAD R2, [BP - 8]           ; idx
+        CALL VEC_GET                ; R5 = valor
+        ADD  R1, R5, R0             ; R1 = valor a imprimir
+
+        ; Caso valor == 0
+        CMP  R1, R0
+        JNZ  MMIO_CHECK_SIGNO
+        ADDI R4, R0, 48             ; ASCII '0'
+        LOAD R5, [BP - 32]
+        STORE R4, [R5 + 0]
+        JMP  MMIO_SIGUIENTE_ELEM
+
+MMIO_CHECK_SIGNO:
+        JN   MMIO_ES_NEGATIVO
+        JMP  MMIO_EMITIR_DIGITOS
+
+MMIO_ES_NEGATIVO:
+        ADDI R4, R0, 45             ; ASCII '-'
+        LOAD R5, [BP - 32]
+        STORE R4, [R5 + 0]
+        SUB  R1, R0, R1             ; R1 = 0 - R1 (positivo)
+
+MMIO_EMITIR_DIGITOS:
+        ADDI R2, R0, 10             ; divisor = 10
+        ADDI R4, R0, 0              ; contador de digitos = 0
+
+MMIO_LOOP_DIV:
+        CMP  R1, R0
+        JZ   MMIO_LOOP_POP_DIGITOS
+        DIV  R3, R1, R2             ; cociente
+        MUL  R5, R3, R2
+        SUB  R5, R1, R5             ; residuo = R1 - cociente * 10
+        ADDI R5, R5, 48             ; digito ASCII
+        PUSH R5
+        ADDI R4, R4, 1
+        ADD  R1, R3, R0
+        JMP  MMIO_LOOP_DIV
+
+MMIO_LOOP_POP_DIGITOS:
+        CMP  R4, R0
+        JZ   MMIO_SIGUIENTE_ELEM
+        POP  R3                     ; caracter ASCII del digito
+        LOAD R5, [BP - 32]
+        STORE R3, [R5 + 0]          ; emitir a pantalla MMIO
+        SUBI R4, R4, 1
+        JMP  MMIO_LOOP_POP_DIGITOS
+
+MMIO_SIGUIENTE_ELEM:
+        LOAD R5, [BP - 8]
+        ADDI R5, R5, 1
+        STORE R5, [BP - 8]          ; idx = idx + 1
+        JMP  MMIO_LOOP_ELEM
+
+MMIO_FIN_TODO:
+        LOAD R2, [BP - 16]          ; n
+        CMP  R2, R0
+        JZ   MMIO_SALIR
+        ADDI R4, R0, 10             ; ASCII '\n' = 10
+        LOAD R5, [BP - 32]
+        STORE R4, [R5 + 0]
+
+MMIO_SALIR:
+        LEAVE                       ; desarma marco ENTER 32
+        POP  R4
+        POP  R3
+        POP  R2
+        POP  R1
         RET
