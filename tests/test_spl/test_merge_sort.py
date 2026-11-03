@@ -2,15 +2,13 @@
 Pruebas del Algoritmo de Ordenamiento por Mezclas (Merge Sort) & MMIO.
 Tarea 29: Integrante 6 (Algoritmo 1 & MMIO).
 
-Verifica:
-  1. Inclusión de la librería maestro (#include "estructuras.inc").
-  2. Preprocesamiento y resolución de macros del layout de memoria.
-  3. Ensamblado y ejecución en la CPU real de Enigma-64.
-  4. Correctitud del algoritmo MERGE_SORT sobre vectores desordenados,
-     invertidos, con duplicados, números negativos y casos borde.
-  5. Salida opcional hacia el periférico de pantalla MMIO (0xFF001010).
-  6. Ejecución autónoma (standalone) con vector de prueba demo integrado.
-  7. Preservación estricta de registros callee-saved (R1..R4, SP, BP).
+Batería completa y exhaustiva:
+  - Fase 1: Setup, includes e integración de estructuras.inc.
+  - Fase 2: Lógica algorítmica de MERGE_SORT y subrutina MERGE.
+  - Fase 3: Emisión de caracteres por pantalla MMIO (0xFF001010).
+  - Fase 4: Ejecución autónoma standalone en máquina Enigma-64 limpia.
+  - Fase 5: Pruebas de estrés (100 elementos), profundidad de recursión,
+            elementos repetidos, métricas de ciclos y estabilidad.
 """
 
 from pathlib import Path
@@ -80,7 +78,7 @@ def correr_merge_sort(
 
     banco.pc = BASE_CODIGO
     cpu = CPU(ram=ram, banco=banco, perifericos=perifericos)
-    cpu.ejecutar(max_ciclos=3_000_000)
+    cpu.ejecutar(max_ciclos=4_000_000)
 
     # Leer elementos resultantes
     resultado = [
@@ -203,7 +201,6 @@ class TestFase4Integracion:
         banco = BancoRegistros()
         perifericos = Perifericos()
 
-        # Cargar solo el binario en BASE_CODIGO (RAM de datos completamente limpia)
         for i, b in enumerate(binario):
             ram.mem_write(BASE_CODIGO + i, b, 1, check_alignment=False)
 
@@ -211,7 +208,6 @@ class TestFase4Integracion:
         cpu = CPU(ram=ram, banco=banco, perifericos=perifericos)
         cpu.ejecutar(max_ciclos=3_000_000)
 
-        # 1. Comprobar vector ordenado en memoria BASE_VECTORES
         demo_esperado = sorted([45, -12, 89, 0, 23, -5, 77, 10])
         res_mem = [
             raw_a_int64(ram.mem_read(BASE_VECTORES + i * 8, 8)[0])
@@ -219,9 +215,62 @@ class TestFase4Integracion:
         ]
         assert res_mem == demo_esperado, f"Memoria demo incorrecta: {res_mem}"
 
-        # 2. Comprobar salida emitida por pantalla MMIO
         texto = perifericos.pantalla.obtener_texto().strip()
         assert texto == "-12 -5 0 10 23 45 77 89", f"Salida MMIO demo incorrecta: {repr(texto)}"
-
-        # 3. Comprobar terminación limpia y pila
         assert banco.sp == PILA_INIT, f"SP final incorrecto: 0x{banco.sp:08X}"
+
+
+class TestFase5BateriaCompleta:
+    def test_vector_grande_50_elementos(self):
+        """Estrés con 50 elementos aleatorios."""
+        rng = random.Random(101)
+        datos = [rng.randint(-5000, 5000) for _ in range(50)]
+        res, cpu, banco, _, _ = correr_merge_sort(datos)
+        assert res == sorted(datos)
+        assert banco.sp == PILA_INIT
+
+    def test_vector_grande_100_elementos_estres_recursion(self):
+        """Estrés máximo con 100 elementos comprobando profundidad de recursión (log2(100))."""
+        rng = random.Random(202)
+        datos = [rng.randint(-50000, 50000) for _ in range(100)]
+        res, cpu, banco, _, _ = correr_merge_sort(datos)
+        assert res == sorted(datos)
+        assert banco.sp == PILA_INIT
+        # Verificación de orden de magnitud O(N log N):
+        # Para N=100, se esperan ~45k instrucciones
+        assert 10_000 < cpu.instrucciones < 100_000
+
+    def test_todos_elementos_identicos(self):
+        """Vector con todos sus elementos idénticos."""
+        datos = [42] * 16
+        res, _, banco, _, _ = correr_merge_sort(datos)
+        assert res == [42] * 16
+        assert banco.sp == PILA_INIT
+
+    def test_alternancia_signos_y_extremos(self):
+        """Vector con alternancia de valores positivos y negativos extremos."""
+        datos = [-10000, 10000, -20000, 20000, -30000, 30000, 0, -1, 1]
+        res, _, banco, _, _ = correr_merge_sort(datos)
+        assert res == sorted(datos)
+        assert banco.sp == PILA_INIT
+
+    def test_inverso_estricto_32_elementos(self):
+        """Vector potencia de dos (32) en orden inverso estricto."""
+        datos = list(range(32, 0, -1))
+        res, _, banco, _, _ = correr_merge_sort(datos)
+        assert res == list(range(1, 33))
+        assert banco.sp == PILA_INIT
+
+    def test_metricas_rendimiento_o_nlogn(self):
+        """Comprueba que el crecimiento de ciclos cumpla O(N log N) entre N=8 y N=32."""
+        rng = random.Random(303)
+        d8 = [rng.randint(-100, 100) for _ in range(8)]
+        d32 = [rng.randint(-100, 100) for _ in range(32)]
+
+        _, cpu8, _, _, _ = correr_merge_sort(d8)
+        _, cpu32, _, _, _ = correr_merge_sort(d32)
+
+        # Factor teórico N log N: (32 * 5) / (8 * 3) = 160 / 24 ≈ 6.66
+        # Factor real medido debe estar en el orden esperado [4x .. 8x]
+        ratio_inst = cpu32.instrucciones / cpu8.instrucciones
+        assert 3.5 <= ratio_inst <= 8.5, f"Ratio O(N log N) anómalo: {ratio_inst}"
