@@ -18,15 +18,64 @@ PRINCIPAL:
         ADDI SP, R0, 0x0040
         SHL  SP, SP, 16             ; SP = 0x00400000 (alineada a 8 bytes)
         ADDI R1, R0, 0x0022
-        SHL  R1, R1, 16             ; R1 = base del vector (BASE_VECTORES)
+        SHL  R1, R1, 16             ; R1 = base del vector (BASE_VECTORES = 0x00220000)
+        ADDI R4, R0, 0x002E
+        SHL  R4, R4, 16             ; R4 = aux (BASE_BUFFERS = 0x002E0000)
+
+        ; Verificar si la memoria ya fue configurada externamente [base - 16] != 0
+        LOAD R5, [R1 - 16]
+        CMP  R5, R0
+        JNZ  EJECUTAR_ORDENAMIENTO
+
+        ; Si [base - 8] != 0, tambien fue configurado externamente
+        CALL VEC_LEN                ; R5 = n
+        CMP  R5, R0
+        JNZ  EJECUTAR_ORDENAMIENTO
+
+        ; --- Inicializacion Autonoma por Defecto (Vector Demo: 8 elementos) ---
+        ; Contenido: [45, -12, 89, 0, 23, -5, 77, 10]
+        ADDI R5, R0, 8
+        STORE R5, [R1 - 8]          ; cabecera n = 8
+
+        ADDI R2, R0, 0
+        ADDI R3, R0, 45
+        CALL VEC_SET                ; v[0] = 45
+
+        ADDI R2, R0, 1
+        ADDI R3, R0, -12
+        CALL VEC_SET                ; v[1] = -12
+
+        ADDI R2, R0, 2
+        ADDI R3, R0, 89
+        CALL VEC_SET                ; v[2] = 89
+
+        ADDI R2, R0, 3
+        ADDI R3, R0, 0
+        CALL VEC_SET                ; v[3] = 0
+
+        ADDI R2, R0, 4
+        ADDI R3, R0, 23
+        CALL VEC_SET                ; v[4] = 23
+
+        ADDI R2, R0, 5
+        ADDI R3, R0, -5
+        CALL VEC_SET                ; v[5] = -5
+
+        ADDI R2, R0, 6
+        ADDI R3, R0, 77
+        CALL VEC_SET                ; v[6] = 77
+
+        ADDI R2, R0, 7
+        ADDI R3, R0, 10
+        CALL VEC_SET                ; v[7] = 10
+
+EJECUTAR_ORDENAMIENTO:
         ADDI R2, R0, 0              ; R2 = lo = 0
         CALL VEC_LEN                ; R5 = n (cabecera en base - 8)
         ADD  R3, R5, R0             ; R3 = hi = n
-        ADDI R4, R0, 0x002E
-        SHL  R4, R4, 16             ; R4 = aux (BASE_BUFFERS)
         CALL MERGE_SORT
 
-        ; Salida opcional del vector ordenado hacia pantalla MMIO (0xFF001010)
+        ; Salida del vector ordenado hacia pantalla MMIO (0xFF001010)
         ADDI R1, R0, 0x0022
         SHL  R1, R1, 16             ; R1 = base del vector
         CALL VEC_LEN                ; R5 = n

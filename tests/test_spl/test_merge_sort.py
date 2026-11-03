@@ -9,7 +9,8 @@ Verifica:
   4. Correctitud del algoritmo MERGE_SORT sobre vectores desordenados,
      invertidos, con duplicados, números negativos y casos borde.
   5. Salida opcional hacia el periférico de pantalla MMIO (0xFF001010).
-  6. Preservación estricta de registros callee-saved (R1..R4, SP, BP).
+  6. Ejecución autónoma (standalone) con vector de prueba demo integrado.
+  7. Preservación estricta de registros callee-saved (R1..R4, SP, BP).
 """
 
 from pathlib import Path
@@ -68,6 +69,8 @@ def correr_merge_sort(
         ram.mem_write(BASE_CODIGO + i, b, 1, check_alignment=False)
 
     n = len(elementos)
+    # Marcar memoria como configurada explícitamente en [base - 16] para omitir el demo
+    ram.mem_write(BASE_VECTORES - 16, 1, 8)
     # Escribir cabecera: longitud en base - 8 (la lee VEC_LEN)
     ram.mem_write(BASE_VECTORES - 8, n, 8)
 
@@ -184,3 +187,41 @@ class TestFase3MMIO:
         assert res == []
         texto = perifericos.pantalla.obtener_texto().strip()
         assert texto == ""
+
+
+class TestFase4Integracion:
+    def test_ejecucion_autonoma_demo(self):
+        """
+        Verifica que merge_sort.asm se pueda ejecutar directamente en una máquina limpia
+        sin inicialización previa en RAM, cargando autónomamente el vector de prueba demo,
+        ordenándolo y emitiéndolo a pantalla MMIO.
+        """
+        res = preprocesar_archivo(str(MERGE_SORT_ASM))
+        binario = ensamblar(res.texto, direccion_base=BASE_CODIGO)
+
+        ram = RAMMemory()
+        banco = BancoRegistros()
+        perifericos = Perifericos()
+
+        # Cargar solo el binario en BASE_CODIGO (RAM de datos completamente limpia)
+        for i, b in enumerate(binario):
+            ram.mem_write(BASE_CODIGO + i, b, 1, check_alignment=False)
+
+        banco.pc = BASE_CODIGO
+        cpu = CPU(ram=ram, banco=banco, perifericos=perifericos)
+        cpu.ejecutar(max_ciclos=3_000_000)
+
+        # 1. Comprobar vector ordenado en memoria BASE_VECTORES
+        demo_esperado = sorted([45, -12, 89, 0, 23, -5, 77, 10])
+        res_mem = [
+            raw_a_int64(ram.mem_read(BASE_VECTORES + i * 8, 8)[0])
+            for i in range(len(demo_esperado))
+        ]
+        assert res_mem == demo_esperado, f"Memoria demo incorrecta: {res_mem}"
+
+        # 2. Comprobar salida emitida por pantalla MMIO
+        texto = perifericos.pantalla.obtener_texto().strip()
+        assert texto == "-12 -5 0 10 23 45 77 89", f"Salida MMIO demo incorrecta: {repr(texto)}"
+
+        # 3. Comprobar terminación limpia y pila
+        assert banco.sp == PILA_INIT, f"SP final incorrecto: 0x{banco.sp:08X}"
