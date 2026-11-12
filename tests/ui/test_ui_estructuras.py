@@ -250,6 +250,63 @@ def test_programa_con_errores_no_lanza(servicio):
         servicio.cargar()
 
 
+def _vector(servicio, nombre):
+    # instantaneas() resuelve las longitudes que copian otra (R copia la de Q).
+    foto = next(f for f in servicio.instantaneas() if f["nombre"] == nombre)
+    return [_con_signo(p) for p in foto["palabras"][0]]
+
+
+def _matriz(servicio, nombre):
+    return [[_con_signo(p) for p in fila] for fila in servicio.instantanea(nombre)["palabras"]]
+
+
+def test_el_catalogo_incluye_los_algoritmos_2_y_3_con_sus_entradas(servicio):
+    claves = {p["clave"]: p for p in servicio.programas()}
+    for clave in ("producto_punto", "busqueda_binaria", "multiplicacion_matrices", "prueba_mat"):
+        assert claves[clave]["observables"], clave
+    assert {e["nombre"] for e in claves["producto_punto"]["entradas"]} == {"A", "B"}
+    assert {e["nombre"] for e in claves["multiplicacion_matrices"]["entradas"]} == {"A", "B", "x"}
+
+
+def test_producto_punto_con_la_entrada_del_usuario(servicio):
+    servicio.observar_programa(_programa(servicio, "producto_punto"))
+    a = [1, -2, 3, 4, 5, -6, 7, 8, 9, 10] * 4          # 40 elementos
+    b = [2, 2, -1, 0, 3, 1, -1, 2, 0, 1] * 4
+    assert servicio.definir_vector("A", a)["base"] == BASE_VECTORES
+    assert servicio.definir_vector("B", b)["base"] == BASE_VECTORES + 0x1000
+    _cargar(servicio, "producto_punto")
+    estado = servicio.ejecutar_hasta_fin()
+    esperado = sum(x * y for x, y in zip(a, b))
+    assert _vector(servicio, "DOT") == [esperado]
+    assert _con_signo(estado["registros"]["R5"]) == esperado
+
+
+def test_entradas_escritas_antes_de_elegir_el_programa_se_recolocan(servicio):
+    servicio.definir_vector("Q", [7, 100])            # auto: cae en 0x00220000
+    servicio.definir_vector("V", [-3, 0, 7, 12])
+    servicio.observar_programa(_programa(servicio, "busqueda_binaria"))
+    bases = {e["nombre"]: e["base"] for e in servicio.entradas_publicas()}
+    assert bases == {"V": BASE_VECTORES, "Q": BASE_VECTORES + 0x1000}
+    _cargar(servicio, "busqueda_binaria")
+    servicio.ejecutar_hasta_fin()
+    assert _vector(servicio, "R") == [2, -1]
+
+
+def test_multiplicacion_de_matrices_y_matriz_por_vector(servicio):
+    servicio.observar_programa(_programa(servicio, "multiplicacion_matrices"))
+    a = [[1, 2, 0], [0, 1, -1], [3, 0, 2], [1, 1, 1]]  # 4 x 3
+    b = [[2, 1], [0, -1], [1, 4]]                     # 3 x 2
+    x = [1, 2, 3]
+    servicio.definir_matriz("A", a)
+    servicio.definir_matriz("B", b)
+    servicio.definir_vector("x", x)
+    _cargar(servicio, "multiplicacion_matrices")
+    servicio.ejecutar_hasta_fin()
+    assert _matriz(servicio, "C") == [[sum(a[i][k] * b[k][j] for k in range(3))
+                                       for j in range(2)] for i in range(4)]
+    assert _vector(servicio, "y") == [sum(a[i][k] * x[k] for k in range(3)) for i in range(4)]
+
+
 def test_una_cabecera_con_basura_no_congela_el_dibujo(servicio, maquina):
     maquina.memoria.escribir(BASE_VECTORES - 8, 10 ** 9, 8)
     servicio.observar("X", "vector", BASE_VECTORES, longitud=None)

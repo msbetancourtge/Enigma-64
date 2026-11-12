@@ -56,6 +56,19 @@
 #define TAM_BUFFERS 0x00020000
 #define LIMITE_BUFFERS 0x00300000
 
+// ------------------------------------------------------------------------------
+// Desplazamientos estandar para varias estructuras dentro de una misma zona.
+// Un programa que usa dos vectores o tres matrices las coloca en
+// BASE + 0, BASE + DESP_x_2, BASE + DESP_x_3. Cada hueco deja sitio a los datos
+// de la estructura anterior mas la cabecera inline de 16 bytes de la siguiente:
+//   vectores: 0x1000 = 512 palabras  -> hasta 510 elementos por vector
+//   matrices: 0x3000 = 1536 palabras -> holgado para 32 x 32 (1024 palabras)
+// Caben en el inmediato de 16 bits con signo de ADDI (<= 0x7FFF).
+// ------------------------------------------------------------------------------
+#define DESP_VECTOR_2 0x1000
+#define DESP_MATRIZ_2 0x3000
+#define DESP_MATRIZ_3 0x6000
+
 // ==============================================================================
 // Macros Parametrizadas de Acceso y Direccionamiento
 // ==============================================================================

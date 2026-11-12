@@ -8,10 +8,10 @@
 ;
 ; Distribucion de memoria:
 ;   - Matriz A (FA x K)  : 0x00260000 (slot descriptor 0 en 0x00210000)
-;   - Matriz B (K x CB)  : 0x00260200 (slot descriptor 1 en 0x00210020)
-;   - Matriz C (FA x CB) : 0x00260400 (slot descriptor 2 en 0x00210040)
+;   - Matriz B (K x CB)  : 0x00263000 (slot descriptor 1 en 0x00210020)
+;   - Matriz C (FA x CB) : 0x00266000 (slot descriptor 2 en 0x00210040)
 ;   - Vector x (K)       : 0x00220000 (slot descriptor 3 en 0x00210060)
-;   - Vector y (FA)      : 0x00220100 (slot descriptor 4 en 0x00210080)
+;   - Vector y (FA)      : 0x00221000 (slot descriptor 4 en 0x00210080)
 ;   - Registro R5        : conserva C[0][0] al finalizar con HLT
 ; ==============================================================================
 #define INCLUIR_MATRICES
@@ -68,7 +68,7 @@ PRINCIPAL:
         ADDI R4, R0, 2
         CALL MAT_SET                ; A[1][2] = 2
 
-        ; Matriz B (3 x 2) en 0x00260200 (slot 1):
+        ; Matriz B (3 x 2) en 0x00263000 (slot 1):
         ;   [ 2,  1 ]
         ;   [ 0, -3 ]
         ;   [ 4,  5 ]
@@ -78,7 +78,7 @@ PRINCIPAL:
         ADDI R1, R0, 1              ; slot 1
         ADDI R2, R0, 0x0026
         SHL  R2, R2, 16
-        ADDI R2, R2, 512            ; base_B = 0x00260200
+        ADDI R2, R2, DESP_MATRIZ_2            ; base_B = 0x00263000
         ADDI R3, R0, 3              ; filas = 3
         ADDI R4, R0, 2              ; cols = 2
         CALL DESC_MAT_INIT
@@ -137,9 +137,9 @@ EJECUTAR_MULTIPLICACION:
         ADDI R1, R0, 0x0026
         SHL  R1, R1, 16             ; R1 = base_A (0x00260000)
         ADD  R2, R1, R0
-        ADDI R2, R2, 512            ; R2 = base_B (0x00260200)
+        ADDI R2, R2, DESP_MATRIZ_2            ; R2 = base_B (0x00263000)
         ADD  R3, R1, R0
-        ADDI R3, R3, 1024           ; R3 = base_C (0x00260400)
+        ADDI R3, R3, DESP_MATRIZ_3           ; R3 = base_C (0x00266000)
 
         PUSH R1
         ADD  R1, R2, R0
@@ -161,14 +161,14 @@ VERIFICAR_MAT_VEC:
         JZ   FIN_PROGRAMA_MAT
 
         ADD  R3, R2, R0
-        ADDI R3, R3, 256            ; R3 = base_y (0x00220100)
+        ADDI R3, R3, DESP_VECTOR_2            ; R3 = base_y (0x00221000)
         CALL MAT_VEC_MUL
 
 FIN_PROGRAMA_MAT:
         ; Si C fue calculada, dejar C[0][0] en R5; de lo contrario dejar y[0]
         ADDI R1, R0, 0x0026
         SHL  R1, R1, 16
-        ADDI R1, R1, 1024           ; base_C = 0x00260400
+        ADDI R1, R1, DESP_MATRIZ_3           ; base_C = 0x00266000
         CALL MAT_ROWS
         CMP  R5, R0
         JZ   LEER_Y0_FINAL
@@ -180,7 +180,7 @@ FIN_PROGRAMA_MAT:
 LEER_Y0_FINAL:
         ADDI R1, R0, 0x0022
         SHL  R1, R1, 16
-        ADDI R1, R1, 256            ; base_y = 0x00220100
+        ADDI R1, R1, DESP_VECTOR_2            ; base_y = 0x00221000
         ADDI R2, R0, 0
         CALL VEC_GET                ; R5 = y[0]
         HLT

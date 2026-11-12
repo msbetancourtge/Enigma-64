@@ -7,7 +7,7 @@
 ;
 ; Distribucion de memoria:
 ;   - Vector A      : 0x00220000 (slot descriptor 0 en 0x00210000)
-;   - Vector B      : 0x00220100 (slot descriptor 1 en 0x00210020)
+;   - Vector B      : 0x00221000 (slot descriptor 1 en 0x00210020)
 ;   - Resultado     : 0x002E0000 (vector de longitud 1 con dot(A, B), slot 2)
 ;   - Registro R5   : conserva el valor final de dot(A, B) al ejecutar HLT
 ; ==============================================================================
@@ -61,11 +61,11 @@ PRINCIPAL:
         ADDI R3, R0, -5
         CALL VEC_SET                ; A[4] = -5
 
-        ; Inicializar Vector B en 0x00220100 (slot 1)
+        ; Inicializar Vector B en 0x00221000 (slot 1)
         ADDI R1, R0, 1              ; slot 1
         ADDI R2, R0, 0x0022
         SHL  R2, R2, 16
-        ADDI R2, R2, 256            ; base_B = 0x00220100
+        ADDI R2, R2, DESP_VECTOR_2            ; base_B = 0x00221000
         ADDI R3, R0, 5              ; N = 5
         CALL DESC_VEC_INIT
 
@@ -97,9 +97,9 @@ EJECUTAR_PRODUCTO_PUNTO:
         CALL VEC_LEN                ; R5 = N
         ADD  R3, R5, R0             ; R3 = N
 
-        ; R2 = base_B (0x00220100)
+        ; R2 = base_B (0x00221000)
         ADD  R2, R1, R0
-        ADDI R2, R2, 256
+        ADDI R2, R2, DESP_VECTOR_2
 
         CALL VEC_DOT                ; R5 = dot(A, B)
         ADD  R4, R5, R0             ; R4 = resultado preservado

@@ -71,8 +71,14 @@ La pestaña guía al usuario en tres pasos numerados:
    automática (sin solapes) o la que indique el usuario. Los errores (filas
    irregulares, solapes, nombres inválidos) se muestran en rojo sin perder lo
    que ya estaba.
-2. **Programa.** Se elige un programa (merge sort del Integrante 6, prueba de
-   cabeceras del Integrante 4 u otro `.asm`) y *Compilar y cargar* lo pasa por
+2. **Programa.** Se elige un programa (merge sort del Integrante 6; producto
+   punto, busqueda binaria y multiplicacion de matrices del Integrante 7; las
+   pruebas `prueba_mat` y de cabeceras de los Integrantes 3 y 4, u otro `.asm`).
+   Cada programa conocido declara sus *entradas* (por ejemplo `A` y `B` del
+   producto punto en `0x00220000` y `0x00221000`): con base *auto*, una
+   estructura con ese nombre se escribe justo donde el programa la lee, y si se
+   escribio antes de elegir el programa se recoloca al elegirlo.
+   *Compilar y cargar* lo pasa por
    Preprocesador → Ensamblador → `.e64` → `CargadorEnigma`, con `SP = 0x00400000`.
    Los datos de entrada del usuario se reescriben en cada carga, de modo que
    *Reiniciar* siempre parte de la misma entrada.
@@ -114,6 +120,9 @@ para que la escritura a `0xFF001010` del merge sort no falle.
   descriptores, merge sort sobre la entrada del usuario y sobre su vector demo,
   salida MMIO, accesos leídos/escritos, recarga desde la entrada, etiqueta de
   subrutina, cambio de programa, programa con errores y cabecera con basura.
+* **Algoritmos 2 y 3 desde la GUI:** catalogo con sus entradas, producto punto
+  de 40 elementos, busqueda binaria con entradas recolocadas al elegir el
+  programa, y C = A x B con y = A x x sobre datos del usuario.
 * **Panel (requiere servidor X):** arranque con el merge sort, dibujo de la
   entrada, aviso de entrada inválida, ejecución con entrada/salida, celdas
   iluminadas y eventos del bus, selección de celda, cambio de formato y

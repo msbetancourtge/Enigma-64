@@ -35,13 +35,19 @@ RUTA_ASM_PRODUCTO_PUNTO: Path = RUTA_EJEMPLOS_DEFAULT / "producto_punto.asm"
 RUTA_ASM_BUSQUEDA_BINARIA: Path = RUTA_EJEMPLOS_DEFAULT / "busqueda_binaria.asm"
 RUTA_ASM_MULTIPLICACION_MATRICES: Path = RUTA_EJEMPLOS_DEFAULT / "multiplicacion_matrices.asm"
 
+#: Desplazamientos estandar entre estructuras de una misma zona (mismos valores
+#: que DESP_VECTOR_2 / DESP_MATRIZ_2 / DESP_MATRIZ_3 de layout_datos.inc).
+DESP_VECTOR_2: int = 0x1000   # 512 palabras: hasta 510 elementos por vector
+DESP_MATRIZ_2: int = 0x3000   # 1536 palabras: holgado para matrices 32 x 32
+DESP_MATRIZ_3: int = 0x6000
+
 BASE_VEC_A: int = BASE_VECTORES            # 0x00220000
-BASE_VEC_B: int = BASE_VECTORES + 0x100    # 0x00220100
+BASE_VEC_B: int = BASE_VECTORES + DESP_VECTOR_2  # 0x00221000
 BASE_VEC_RES: int = BASE_BUFFERS           # 0x002E0000
 
 BASE_MAT_A: int = BASE_MATRICES            # 0x00260000
-BASE_MAT_B: int = BASE_MATRICES + 0x200    # 0x00260200
-BASE_MAT_C: int = BASE_MATRICES + 0x400    # 0x00260400
+BASE_MAT_B: int = BASE_MATRICES + DESP_MATRIZ_2  # 0x00263000
+BASE_MAT_C: int = BASE_MATRICES + DESP_MATRIZ_3  # 0x00266000
 
 
 def ejecutar_merge_sort(
@@ -168,8 +174,8 @@ def ejecutar_multiplicacion_matrices(
 ) -> Tuple[List[List[int]], Optional[List[int]], ResultadoEjecucionEstructuras]:
     """
     Compila y ejecuta el Problema 3 (multiplicacion_matrices.asm) sobre la CPU Enigma-64.
-    Calcula C = A * B en 0x00260400 y, si se suministra vector_x (o en modo autonomo),
-    calcula tambien y = A * x en 0x00220100.
+    Calcula C = A * B en 0x00266000 y, si se suministra vector_x (o en modo autonomo),
+    calcula tambien y = A * x en 0x00221000.
     Retorna (matriz_c, vector_y_opcional, ResultadoEjecucionEstructuras).
     """
     estructuras = None
@@ -232,7 +238,7 @@ def ejecutar_matriz_por_vector(
 ) -> Tuple[List[int], ResultadoEjecucionEstructuras]:
     """
     Compila y ejecuta multiplicacion_matrices.asm precargando unicamente la matriz A y el
-    vector x para obtener y = A * x en 0x00220100.
+    vector x para obtener y = A * x en 0x00221000.
     """
     desc_a = DescriptorMatriz.desde_filas(
         nombre="mat_a",

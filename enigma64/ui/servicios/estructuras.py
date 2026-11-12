@@ -62,6 +62,13 @@ except Exception as exc:  # pragma: no cover - solo si falta el modulo
     TIPO_VECTOR, TIPO_MATRIZ = 1, 2
     _FALLO_ESTRUCTURAS = f"{type(exc).__name__}: {exc}"
 
+try:  # desplazamientos estandar de layout_datos.inc (Integrante 7)
+    from spl.estructuras.algoritmos import (  # type: ignore
+        DESP_MATRIZ_2, DESP_MATRIZ_3, DESP_VECTOR_2,
+    )
+except Exception:  # pragma: no cover - solo si falta el modulo
+    DESP_VECTOR_2, DESP_MATRIZ_2, DESP_MATRIZ_3 = 0x1000, 0x3000, 0x6000
+
 MASCARA_64 = (1 << 64) - 1
 
 #: Carpeta con los programas en ensamblador que usan la libreria.
@@ -110,6 +117,70 @@ OBSERVABLES_CONOCIDOS: Dict[str, Dict[str, Any]] = {
         "observables": [
             {"nombre": "V", "tipo": "vector", "base": BASE_VECTORES, "longitud": None},
             {"nombre": "AUX", "tipo": "vector", "base": BASE_BUFFERS, "longitud": "V"},
+        ],
+    },
+    "producto_punto": {
+        "descripcion": "Producto punto dot(A, B) con VEC_GET (Integrante 7). Escribe los "
+                       "vectores A y B de igual longitud (base auto); sin datos usa "
+                       "A = [3,-4,7,2,-5] y B = [6,5,2,-3,-4]. El resultado queda en DOT y R5.",
+        "entradas": [
+            {"nombre": "A", "tipo": "vector", "base": BASE_VECTORES, "ranura": 0},
+            {"nombre": "B", "tipo": "vector", "base": BASE_VECTORES + DESP_VECTOR_2,
+             "ranura": 1},
+        ],
+        "observables": [
+            {"nombre": "A", "tipo": "vector", "base": BASE_VECTORES, "longitud": None},
+            {"nombre": "B", "tipo": "vector", "base": BASE_VECTORES + DESP_VECTOR_2,
+             "longitud": None},
+            {"nombre": "DOT", "tipo": "vector", "base": BASE_BUFFERS, "longitud": None},
+        ],
+    },
+    "busqueda_binaria": {
+        "descripcion": "Busqueda binaria O(log N) (Integrante 7). Escribe V ordenado y las "
+                       "consultas Q (base auto); R[k] recibe el indice de Q[k] en V o -1.",
+        "entradas": [
+            {"nombre": "V", "tipo": "vector", "base": BASE_VECTORES, "ranura": 0},
+            {"nombre": "Q", "tipo": "vector", "base": BASE_VECTORES + DESP_VECTOR_2,
+             "ranura": 1},
+        ],
+        "observables": [
+            {"nombre": "V", "tipo": "vector", "base": BASE_VECTORES, "longitud": None},
+            {"nombre": "Q", "tipo": "vector", "base": BASE_VECTORES + DESP_VECTOR_2,
+             "longitud": None},
+            {"nombre": "R", "tipo": "vector", "base": BASE_BUFFERS, "longitud": "Q"},
+        ],
+    },
+    "multiplicacion_matrices": {
+        "descripcion": "C = A x B y y = A x x con MAT_GET / MAT_SET (Integrante 7). Escribe "
+                       "las matrices A y B (columnas de A = filas de B) y, si quieres, el "
+                       "vector x; sin datos usa A 2x3, B 3x2 y x de 3.",
+        "entradas": [
+            {"nombre": "A", "tipo": "matriz", "base": BASE_MATRICES, "ranura": 0},
+            {"nombre": "B", "tipo": "matriz", "base": BASE_MATRICES + DESP_MATRIZ_2,
+             "ranura": 1},
+            {"nombre": "x", "tipo": "vector", "base": BASE_VECTORES, "ranura": 3},
+        ],
+        "observables": [
+            {"nombre": "A", "tipo": "matriz", "base": BASE_MATRICES,
+             "filas": None, "columnas": None},
+            {"nombre": "B", "tipo": "matriz", "base": BASE_MATRICES + DESP_MATRIZ_2,
+             "filas": None, "columnas": None},
+            {"nombre": "C", "tipo": "matriz", "base": BASE_MATRICES + DESP_MATRIZ_3,
+             "filas": None, "columnas": None},
+            {"nombre": "x", "tipo": "vector", "base": BASE_VECTORES, "longitud": None},
+            {"nombre": "y", "tipo": "vector", "base": BASE_VECTORES + DESP_VECTOR_2,
+             "longitud": None},
+        ],
+    },
+    "prueba_mat": {
+        "descripcion": "Prueba de mat.asm: MAT_SET/MAT_GET, MAT_CLEAR y tres niveles de "
+                       "llamadas anidadas con marcos ENTER/LEAVE (Integrante 3).",
+        "observables": [
+            {"nombre": "M", "tipo": "matriz", "base": BASE_MATRICES,
+             "filas": None, "columnas": None},
+            {"nombre": "N", "tipo": "matriz", "base": BASE_MATRICES + 0x100,
+             "filas": None, "columnas": None},
+            {"nombre": "RES", "tipo": "vector", "base": BASE_BUFFERS, "longitud": 9},
         ],
     },
     "prueba_cabeceras_cargador": {
@@ -253,6 +324,8 @@ class AdaptadorEstructuras(ServicioBase):
         self._simbolos_por_direccion: List[Tuple[int, str]] = []
         self._valores_al_cargar: Dict[str, List[int]] = {}
         self._ultimo_mnemonico = ""
+        #: Programa elegido: sus "entradas" fijan donde espera cada dato.
+        self.programa_activo: Optional[Dict[str, Any]] = None
 
     # =======================================================================
     # Catalogo de programas
@@ -277,9 +350,13 @@ class AdaptadorEstructuras(ServicioBase):
                 "ruta": str(ruta),
                 "descripcion": conocido.get("descripcion", _resumen(fuente)),
                 "observables": [dict(o) for o in conocido.get("observables", [])],
+                "entradas": [dict(e) for e in conocido.get("entradas", [])],
             })
-        # Los programas con observables conocidos van primero.
-        salida.sort(key=lambda p: (not p["observables"], p["clave"]))
+        # Primero los programas conocidos, en el orden de OBSERVABLES_CONOCIDOS
+        # (el merge sort, que pide el enunciado, encabeza la lista).
+        orden = list(OBSERVABLES_CONOCIDOS)
+        salida.sort(key=lambda p: (orden.index(p["clave"]) if p["clave"] in orden
+                                   else len(orden), p["clave"]))
         return salida
 
     def leer_archivo(self, ruta: str) -> str:
@@ -309,6 +386,27 @@ class AdaptadorEstructuras(ServicioBase):
             raise ValueError(f"no queda espacio en la zona de {tipo}es")
         return base
 
+    def _ubicacion_esperada(self, nombre: str, tipo: str) -> Optional[Dict[str, Any]]:
+        """
+        La base y la ranura en que el programa elegido busca la estructura
+        `nombre` (por ejemplo A y B del producto punto). Asi una base "auto"
+        cae justo donde el programa la va a leer.
+        """
+        for spec in (self.programa_activo or {}).get("entradas", []):
+            if spec["nombre"] == nombre and spec["tipo"] == tipo:
+                return spec
+        return None
+
+    def _ubicar(self, nombre: str, tipo: str, tam: int, base: Optional[int],
+                ranura: Optional[int]) -> Tuple[int, int]:
+        esperada = self._ubicacion_esperada(nombre, tipo) if base is None else None
+        if esperada is not None:
+            base = esperada["base"]
+            ranura = esperada["ranura"] if ranura is None else ranura
+        base = self._siguiente_base(tipo, tam) if base is None else base
+        ranura = self._siguiente_ranura() if ranura is None else ranura
+        return base, ranura
+
     def _siguiente_ranura(self) -> int:
         usadas = {e["ranura"] for e in self.entradas.values() if e.get("ranura") is not None}
         ranura = 0
@@ -337,8 +435,7 @@ class AdaptadorEstructuras(ServicioBase):
             if not valores:
                 raise ValueError("el vector necesita al menos un valor")
             tam = len(valores) * 8
-            base = self._siguiente_base("vector", tam) if base is None else base
-            ranura = self._siguiente_ranura() if ranura is None else ranura
+            base, ranura = self._ubicar(nombre, "vector", tam, base, ranura)
             descriptor = DescriptorVector(nombre=nombre, elementos=list(valores),
                                           direccion_base=base, slot_cabecera=ranura)
             self._comprobar_solapes(nombre, descriptor)
@@ -365,8 +462,7 @@ class AdaptadorEstructuras(ServicioBase):
             if not filas or not filas[0]:
                 raise ValueError("la matriz necesita al menos una fila y una columna")
             tam = len(filas) * len(filas[0]) * 8
-            base = self._siguiente_base("matriz", tam) if base is None else base
-            ranura = self._siguiente_ranura() if ranura is None else ranura
+            base, ranura = self._ubicar(nombre, "matriz", tam, base, ranura)
             descriptor = DescriptorMatriz.desde_filas(
                 nombre=nombre, filas_2d=[list(f) for f in filas],
                 direccion_base=base, slot_cabecera=ranura)
@@ -439,7 +535,13 @@ class AdaptadorEstructuras(ServicioBase):
         return dict(spec)
 
     def observar_programa(self, programa: Dict[str, Any]) -> List[str]:
-        """Observa lo que el programa elegido declara como interesante."""
+        """
+        Observa lo que el programa elegido declara como interesante y mueve a
+        su sitio las entradas del usuario que el programa espera por nombre
+        (si se escribieron antes de elegirlo, con base auto).
+        """
+        self.programa_activo = programa
+        self._recolocar_entradas()
         # Lo que aporto el programa anterior (o la deteccion) ya no aplica.
         for nombre in [n for n, s in self.observadas.items() if s.get("origen") != "usuario"]:
             del self.observadas[nombre]
@@ -451,6 +553,30 @@ class AdaptadorEstructuras(ServicioBase):
             self.observar(origen="programa", **spec)
             nombres.append(spec["nombre"])
         return nombres
+
+    def _recolocar_entradas(self) -> List[str]:
+        """
+        Mueve a la vez todas las entradas que el programa espera en otro sitio
+        (se sacan primero para que no choquen entre ellas, p. ej. V y Q que
+        intercambian posicion). Si una no cabe, vuelve a donde estaba.
+        """
+        pendientes = []
+        for nombre, entrada in list(self.entradas.items()):
+            esperada = self._ubicacion_esperada(nombre, entrada["tipo"])
+            if esperada is None or (entrada["base"], entrada["ranura"]) == (
+                    esperada["base"], esperada["ranura"]):
+                continue
+            pendientes.append((self.entradas.pop(nombre), esperada))
+        movidas = []
+        for entrada, esperada in pendientes:
+            definir = self.definir_vector if entrada["tipo"] == "vector" else self.definir_matriz
+            try:
+                definir(entrada["nombre"], entrada["valores"], base=esperada["base"],
+                        ranura=esperada["ranura"])
+                movidas.append(entrada["nombre"])
+            except Exception:
+                self.entradas[entrada["nombre"]] = entrada  # se queda donde estaba
+        return movidas
 
     def detectar(self) -> List[Dict[str, Any]]:
         """

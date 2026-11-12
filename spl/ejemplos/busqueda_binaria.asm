@@ -7,7 +7,7 @@
 ;
 ; Distribucion de memoria:
 ;   - Vector ordenado V : 0x00220000 (slot descriptor 0 en 0x00210000)
-;   - Vector consultas Q: 0x00220100 (slot descriptor 1 en 0x00210020)
+;   - Vector consultas Q: 0x00221000 (slot descriptor 1 en 0x00210020)
 ;   - Vector indices R  : 0x002E0000 (slot descriptor 2 en 0x00210040)
 ;   - Registro R5       : indice encontrado para Q[0] (o -1 si no existe)
 ; ==============================================================================
@@ -71,12 +71,12 @@ PRINCIPAL:
         ADDI R3, R0, 88
         CALL VEC_SET                ; V[7] = 88
 
-        ; Vector de consultas Q (M = 4) en 0x00220100: [23, -20, 88, 19]
+        ; Vector de consultas Q (M = 4) en 0x00221000: [23, -20, 88, 19]
         ; Indices esperados en R: [5, 0, 7, -1]
         ADDI R1, R0, 1              ; slot 1
         ADDI R2, R0, 0x0022
         SHL  R2, R2, 16
-        ADDI R2, R2, 256            ; base_Q = 0x00220100
+        ADDI R2, R2, DESP_VECTOR_2            ; base_Q = 0x00221000
         ADDI R3, R0, 4              ; M = 4
         CALL DESC_VEC_INIT
 
@@ -101,7 +101,7 @@ EJECUTAR_BUSQUEDAS:
         ; Inicializar vector de resultados R en 0x002E0000 con longitud M = VEC_LEN(Q)
         ADDI R1, R0, 0x0022
         SHL  R1, R1, 16
-        ADDI R1, R1, 256            ; R1 = base_Q (0x00220100)
+        ADDI R1, R1, DESP_VECTOR_2            ; R1 = base_Q (0x00221000)
         CALL VEC_LEN                ; R5 = M
         ADD  R4, R5, R0             ; R4 = M
 
@@ -117,7 +117,7 @@ EJECUTAR_BUSQUEDAS:
 BB_LOOP_CONSULTAS:
         ADDI R1, R0, 0x0022
         SHL  R1, R1, 16
-        ADDI R1, R1, 256            ; R1 = base_Q
+        ADDI R1, R1, DESP_VECTOR_2            ; R1 = base_Q
         CALL VEC_LEN                ; R5 = M
         CMP  R4, R5                 ; q - M
         JN   BB_PROCESAR_CONSULTA

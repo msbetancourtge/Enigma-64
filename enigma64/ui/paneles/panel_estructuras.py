@@ -446,6 +446,13 @@ class PanelEstructuras(PanelBase):
         self.descripcion.configure(text=programa["descripcion"])
         self.servicio.observar_programa(programa)
         self.estado_programa.configure(text=programa["ruta"], fg=PALETA["texto_debil"])
+        self._refrescar_entradas()
+        esperadas = programa.get("entradas", [])
+        if esperadas:
+            nombres = ", ".join(f"{e['nombre']} ({e['tipo']} en {hex32(e['base'])})"
+                                for e in esperadas)
+            self._mensaje(f"Este programa lee: {nombres}. Con base «auto» cada nombre "
+                          "cae en su sitio.", PALETA["texto_debil"])
         self.refrescar()
 
     def examinar(self) -> None:
