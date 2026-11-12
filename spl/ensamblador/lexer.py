@@ -13,6 +13,8 @@ from dataclasses import dataclass
 import ply.lex as lex
 from ply.lex import TOKEN
 
+from spl.ensamblador.literales import LiteralInvalido, literal_a_bits
+
 
 # Vocabulario del ensamblador
 
@@ -51,6 +53,7 @@ _OPERANDOS = frozenset({
 
 _MIN_64 = -(1 << 63)          # menor entero con signo de 64 bits
 _MAX_64 = (1 << 64) - 1       # mayor entero sin signo de 64 bits
+_MAX_DIGITOS_64 = len(str(_MAX_64))  # 20: con mas digitos no cabe en 64 bits
 
 
 # Definiciones regulares
@@ -142,9 +145,18 @@ class EnsambladorLexer:
     def t_ENTERO_BIN(self, t):
         return self._literal_entero(t, 2)
 
+    # Ademas del texto, el token lleva en t.bits el patron IEEE-754 del double
     @TOKEN(FLOTANTE)
     def t_FLOTANTE(self, t):
-        return self._separar_signo(t)
+        t = self._separar_signo(t)
+        if t.type == 'MENOS':
+            return t
+        try:
+            t.bits = literal_a_bits(t.value)
+        except LiteralInvalido:
+            self._reportar(t, 'literal fuera del rango de double')
+            return None
+        return t
 
     @TOKEN(ENTERO_DEC)
     def t_ENTERO_DEC(self, t):
@@ -229,6 +241,10 @@ class EnsambladorLexer:
         if t.type == 'MENOS':
             return t
         digitos = t.value.lstrip('-')
+        # int() lanza ValueError con mas de 4300 digitos decimales: medir antes
+        if base == 10 and len(digitos.lstrip('0')) > _MAX_DIGITOS_64:
+            self._reportar(t, 'literal fuera del rango de 64 bits')
+            return None
         valor = int(digitos if base == 10 else digitos[2:], base)
         if t.value.startswith('-'):
             valor = -valor

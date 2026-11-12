@@ -7,6 +7,7 @@ from spl.preprocesador.motor import (
     preprocesar_texto,
     PreprocesadorError,
     ResultadoPreprocesamiento,
+    MacroDef,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "preprocesar_texto",
     "PreprocesadorError",
     "ResultadoPreprocesamiento",
+    "MacroDef",
 ]

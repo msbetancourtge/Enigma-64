@@ -35,6 +35,7 @@ from ..paneles.panel_alu import PanelALU
 from ..paneles.panel_cargador import PanelCargador
 from ..paneles.panel_consola import PanelConsola
 from ..paneles.panel_cpu import PanelCPU
+from ..paneles.panel_estructuras import PanelEstructuras
 from ..paneles.panel_fpu import PanelFPU
 from ..paneles.panel_mapa import PanelMapa
 from ..paneles.panel_memoria import PanelMemoria
@@ -54,6 +55,7 @@ PESTANAS = (
     (PanelMMIO, "mmio", "I/O mapeada"),
     (PanelAlgoritmos, "algoritmos", "Algoritmos"),
     (PanelTraduccion, "traduccion", "Traductor"),
+    (PanelEstructuras, "estructuras", "Estructuras"),
 )
 
 #: Ancho reservado a la columna de contexto de la derecha.

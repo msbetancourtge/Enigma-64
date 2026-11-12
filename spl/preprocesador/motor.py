@@ -47,6 +47,30 @@ class _SimpleToken:
     lexpos: int = 0
 
 
+class MacroDef(str):
+    """
+    Representa una definicion de macro, compatible con str.
+    Para macros parametrizadas:
+      - params: lista de nombres de parametros formales (ej. ['base', 'i'])
+      - es_parametrizada: True
+      - cuerpo: texto de reemplazo (ej. 'base + (i << 3)')
+    Para macros simples (objeto):
+      - params: None
+      - es_parametrizada: False
+      - cuerpo: valor string
+    """
+    params: list[str] | None
+    es_parametrizada: bool
+    cuerpo: str
+
+    def __new__(cls, valor: str, params: list[str] | None = None):
+        obj = super().__new__(cls, valor)
+        obj.params = params
+        obj.es_parametrizada = (params is not None)
+        obj.cuerpo = valor
+        return obj
+
+
 class _CondFrame:
     """Representa un marco de contexto condicional (#ifdef / #ifndef)."""
     def __init__(self, tipo: str, activo: bool, cumplido: bool, linea: int, archivo: str):
@@ -74,7 +98,8 @@ class Preprocesador:
         self.macros: dict[str, str] = {}
         if definiciones:
             for k, v in definiciones.items():
-                self.macros[str(k)] = str(v) if v is not None else "1"
+                val_str = str(v) if v is not None else "1"
+                self.macros[str(k)] = MacroDef(val_str, params=None)
 
         self.limite_profundidad = limite_profundidad
         self.pragma_once_archivos: set[str] = set()
@@ -102,8 +127,7 @@ class Preprocesador:
         if not es_sistema:
             if dir_archivo_actual and os.path.isdir(dir_archivo_actual):
                 candidatos.append(os.path.join(dir_archivo_actual, nombre_header))
-            else:
-                candidatos.append(os.path.join(os.getcwd(), nombre_header))
+            candidatos.append(os.path.join(os.getcwd(), nombre_header))
 
         for d in self.dirs_inclusion:
             candidatos.append(os.path.join(d, nombre_header))
@@ -121,6 +145,96 @@ class Preprocesador:
 
         return None
 
+    def _parsear_args_llamada_macro(
+        self,
+        tokens: list[Any],
+        start_idx: int,
+        macro_nombre: str,
+        archivo: str,
+        linea: int,
+    ) -> tuple[list[str], int]:
+        """
+        Parsea los argumentos de una llamada a macro parametrizada NOMBRE(...).
+        start_idx apunta al token '(' de apertura.
+        Retorna (lista_args, next_idx) donde next_idx es el indice tras ')'.
+        """
+        assert tokens[start_idx].value == '('
+        depth = 1
+        args: list[str] = []
+        cur_toks: list[str] = []
+        idx = start_idx + 1
+
+        while idx < len(tokens):
+            t = tokens[idx]
+            if t.value == '(':
+                depth += 1
+                cur_toks.append(t.value)
+            elif t.value == ')':
+                depth -= 1
+                if depth == 0:
+                    arg_str = "".join(cur_toks).strip()
+                    if arg_str or args or cur_toks:
+                        if not args and not arg_str:
+                            pass
+                        else:
+                            args.append(arg_str)
+                    idx += 1
+                    return args, idx
+                else:
+                    cur_toks.append(t.value)
+            elif t.value == ',' and depth == 1:
+                arg_str = "".join(cur_toks).strip()
+                args.append(arg_str)
+                cur_toks = []
+            else:
+                cur_toks.append(t.value)
+            idx += 1
+
+        raise PreprocesadorError(archivo, linea, f"llamada a macro '{macro_nombre}' sin cerrar con ')'")
+
+    def _expandir_macro_param_cuerpo(
+        self,
+        macro_nombre: str,
+        macro: Any,
+        params: list[str],
+        args: list[str],
+        expanding: set[str] | None = None,
+        archivo: str = "<stdin>",
+        linea: int = 1,
+    ) -> str:
+        param_map = dict(zip(params, args))
+        cuerpo = getattr(macro, 'cuerpo', str(macro))
+        lex_body = PreprocesadorLexer()
+        lex_body.input(cuerpo)
+        subst_parts = []
+        while True:
+            btok = lex_body.token()
+            if not btok:
+                break
+            if btok.type == 'IDENTIFIER' and btok.value in param_map:
+                subst_parts.append(param_map[btok.value])
+            else:
+                subst_parts.append(btok.value)
+
+        subst_text = "".join(subst_parts)
+
+        nuevo_expanding = (expanding or set()) | {macro_nombre}
+        sub_lexer = PreprocesadorLexer()
+        sub_lexer.input(subst_text)
+        rescan_tokens = []
+        while True:
+            rtok = sub_lexer.token()
+            if not rtok:
+                break
+            rescan_tokens.append(rtok)
+
+        return self.expandir_linea_tokens(
+            rescan_tokens,
+            expanding=nuevo_expanding,
+            archivo=archivo,
+            linea=linea,
+        )
+
     def expandir_macro(self, nombre: str, expanding: set[str] | None = None) -> str:
         """
         Expande una macro recursivamente evitando bucles infinitos.
@@ -137,31 +251,87 @@ class Preprocesador:
 
         nuevo_expanding = expanding | {nombre}
         sub_lexer = PreprocesadorLexer()
-        sub_lexer.input(val)
-        partes = []
-
+        sub_lexer.input(str(val))
+        tokens = []
         while True:
             tok = sub_lexer.token()
             if not tok:
                 break
-            if tok.type == 'IDENTIFIER' and tok.value in self.macros and tok.value not in nuevo_expanding:
-                partes.append(self.expandir_macro(tok.value, nuevo_expanding))
-            else:
-                partes.append(tok.value)
+            tokens.append(tok)
 
-        return "".join(partes)
+        return self.expandir_linea_tokens(tokens, expanding=nuevo_expanding)
 
-    def expandir_linea_tokens(self, tokens_linea: list[Any]) -> str:
+    def expandir_linea_tokens(
+        self,
+        tokens_linea: list[Any],
+        expanding: set[str] | None = None,
+        archivo: str = "<stdin>",
+        linea: int = 1,
+    ) -> str:
         """
         Reemplaza identificadores con sus valores de macro en una lista de tokens.
+        Soporta macros simples y macros parametrizadas.
         No toca cadenas, caracteres ni numeros.
         """
-        resultado = []
-        for tok in tokens_linea:
+        resultado: list[str] = []
+        i = 0
+        n = len(tokens_linea)
+
+        while i < n:
+            tok = tokens_linea[i]
+
             if tok.type == 'IDENTIFIER' and tok.value in self.macros:
-                resultado.append(self.expandir_macro(tok.value))
-            else:
-                resultado.append(tok.value)
+                nombre = tok.value
+                macro = self.macros[nombre]
+                es_param = getattr(macro, 'es_parametrizada', False)
+
+                if es_param:
+                    if expanding and nombre in expanding:
+                        resultado.append(tok.value)
+                        i += 1
+                        continue
+
+                    j = i + 1
+                    while j < n and tokens_linea[j].type in ('WHITESPACE', 'DIR_WHITESPACE'):
+                        j += 1
+
+                    if j < n and tokens_linea[j].value == '(':
+                        params = getattr(macro, 'params', []) or []
+                        tok_line = getattr(tok, 'lineno', linea)
+                        args, next_idx = self._parsear_args_llamada_macro(
+                            tokens_linea, j, nombre, archivo, tok_line
+                        )
+                        if len(params) == 1 and len(args) == 0:
+                            args = [""]
+
+                        if len(args) != len(params):
+                            raise PreprocesadorError(
+                                archivo,
+                                tok_line,
+                                f"macro '{nombre}' esperaba {len(params)} argumentos, pero recibio {len(args)}"
+                            )
+
+                        cuerpo_exp = self._expandir_macro_param_cuerpo(
+                            nombre, macro, params, args, expanding, archivo, tok_line
+                        )
+                        resultado.append(cuerpo_exp)
+                        i = next_idx
+                        continue
+                    else:
+                        resultado.append(tok.value)
+                        i += 1
+                        continue
+                else:
+                    if expanding and nombre in expanding:
+                        resultado.append(tok.value)
+                    else:
+                        resultado.append(self.expandir_macro(nombre, expanding))
+                    i += 1
+                    continue
+
+            resultado.append(tok.value)
+            i += 1
+
         return "".join(resultado)
 
     def procesar_archivo(self, ruta: str, display_name: str | None = None) -> tuple[list[str], list[tuple[str, int]]]:
@@ -203,7 +373,13 @@ class Preprocesador:
         Devuelve (lineas_salida, mapa_lineas).
         """
         real_path = canon_path or (os.path.realpath(archivo) if archivo != "<stdin>" and os.path.exists(archivo) else None)
-        directorio_origen = dir_actual or (os.path.dirname(os.path.abspath(archivo)) if archivo != "<stdin>" and os.path.exists(archivo) else None)
+        if dir_actual and os.path.isdir(dir_actual):
+            directorio_origen = dir_actual
+        elif archivo != "<stdin>":
+            dir_cand = os.path.dirname(os.path.abspath(archivo))
+            directorio_origen = dir_cand if os.path.isdir(dir_cand) else None
+        else:
+            directorio_origen = None
 
         if real_path:
             if real_path in self.include_stack_paths:
@@ -252,7 +428,9 @@ class Preprocesador:
             if tok.type == 'DIRECTIVE_START':
                 # Si habia tokens acumulados en la linea antes de la directiva, emitirlos
                 if tokens_linea_actual and self.esta_activo():
-                    linea_proc = self.expandir_linea_tokens(tokens_linea_actual)
+                    linea_proc = self.expandir_linea_tokens(
+                        tokens_linea_actual, archivo=archivo, linea=linea_origen_actual
+                    )
                     lineas_salida.append(linea_proc)
                     mapa_lineas.append((archivo, linea_origen_actual))
                     tokens_linea_actual = []
@@ -283,7 +461,9 @@ class Preprocesador:
             # Salto de linea
             if tok.type == 'NEWLINE':
                 if self.esta_activo():
-                    linea_proc = self.expandir_linea_tokens(tokens_linea_actual)
+                    linea_proc = self.expandir_linea_tokens(
+                        tokens_linea_actual, archivo=archivo, linea=linea_origen_actual
+                    )
                     lineas_salida.append(linea_proc)
                     mapa_lineas.append((archivo, linea_origen_actual))
                 tokens_linea_actual = []
@@ -296,7 +476,9 @@ class Preprocesador:
                 if self.esta_activo():
                     # La primera parte termina la linea actual
                     tokens_linea_actual.append(_SimpleToken(type='WHITESPACE', value=nl_partes[0], lineno=tok.lineno, lexpos=tok.lexpos))
-                    linea_proc = self.expandir_linea_tokens(tokens_linea_actual)
+                    linea_proc = self.expandir_linea_tokens(
+                        tokens_linea_actual, archivo=archivo, linea=linea_origen_actual
+                    )
                     lineas_salida.append(linea_proc)
                     mapa_lineas.append((archivo, linea_origen_actual))
                     tokens_linea_actual = []
@@ -327,7 +509,9 @@ class Preprocesador:
 
         # Emitir ultima linea si no termino con newline
         if tokens_linea_actual and self.esta_activo():
-            linea_proc = self.expandir_linea_tokens(tokens_linea_actual)
+            linea_proc = self.expandir_linea_tokens(
+                tokens_linea_actual, archivo=archivo, linea=linea_origen_actual
+            )
             lineas_salida.append(linea_proc)
             mapa_lineas.append((archivo, linea_origen_actual))
 
@@ -407,8 +591,52 @@ class Preprocesador:
             if idx >= len(tokens) or tokens[idx].type not in ('DIR_IDENTIFIER', 'IDENTIFIER'):
                 raise PreprocesadorError(archivo, linea, "se esperaba un nombre de macro en #define")
 
-            macro_nombre = tokens[idx].value
+            tok_nombre = tokens[idx]
+            macro_nombre = tok_nombre.value
             idx += 1
+
+            # Comprobar si es macro parametrizada:
+            # En C, '(' debe seguir inmediatamente al identificador sin espacio intermedio
+            es_param = False
+            params: list[str] | None = None
+            if idx < len(tokens) and tokens[idx].value == '(' and (tokens[idx].lexpos == tok_nombre.lexpos + len(macro_nombre)):
+                es_param = True
+                params = []
+                idx += 1  # consumir '('
+
+                # Consumir parametros
+                while idx < len(tokens):
+                    while idx < len(tokens) and tokens[idx].type in ('DIR_WHITESPACE', 'WHITESPACE', 'DIR_CONTINUE'):
+                        idx += 1
+                    if idx >= len(tokens):
+                        raise PreprocesadorError(archivo, linea, "lista de parametros no cerrada en #define")
+
+                    if tokens[idx].value == ')':
+                        idx += 1
+                        break
+
+                    if tokens[idx].type not in ('DIR_IDENTIFIER', 'IDENTIFIER'):
+                        raise PreprocesadorError(archivo, linea, f"parametro invalido en #define: '{tokens[idx].value}'")
+
+                    param_nom = tokens[idx].value
+                    if param_nom in params:
+                        raise PreprocesadorError(archivo, linea, f"parametro duplicado '{param_nom}' en #define")
+                    params.append(param_nom)
+                    idx += 1
+
+                    while idx < len(tokens) and tokens[idx].type in ('DIR_WHITESPACE', 'WHITESPACE', 'DIR_CONTINUE'):
+                        idx += 1
+                    if idx >= len(tokens):
+                        raise PreprocesadorError(archivo, linea, "lista de parametros no cerrada en #define")
+
+                    if tokens[idx].value == ',':
+                        idx += 1
+                        continue
+                    elif tokens[idx].value == ')':
+                        idx += 1
+                        break
+                    else:
+                        raise PreprocesadorError(archivo, linea, f"sintaxis invalida en lista de parametros de #define: '{tokens[idx].value}'")
 
             # Resto de tokens es el valor del macro
             val_tokens = []
@@ -426,7 +654,10 @@ class Preprocesador:
 
             raw_valor = "".join(val_tokens).strip()
             macro_valor = self._normalizar_espacios_macro(raw_valor)
-            self.macros[macro_nombre] = macro_valor
+            if es_param:
+                self.macros[macro_nombre] = MacroDef(macro_valor, params=params)
+            else:
+                self.macros[macro_nombre] = MacroDef(macro_valor, params=None)
             return [], []
 
         if tipo == 'DIR_UNDEF' or val == 'undef':

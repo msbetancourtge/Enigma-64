@@ -39,6 +39,8 @@ from typing import Callable, FrozenSet, List, Optional, Sequence, Set, Tuple
 import ply.lex as lex
 from ply.lex import TOKEN
 
+from spl.ensamblador.literales import LiteralInvalido, entero_decimal_64, literal_a_double
+
 from .registros import (
     ACC,
     REG_CERO,
@@ -61,7 +63,7 @@ _COMA = _ESP + "," + _ESP
 
 REGISTRO = r"[Rr](?:1[0-5]|[0-9])(?![A-Za-z0-9_])"  # (R|r)(1[0-5]|[0-9])
 NUMERO = r"[+-]?\d+(?![\d.xX])"  # [+-]?\d+ (no flotante, no hexadecimal)
-FLOTANTE = r"[+-]?\d+\.\d+"  # [+-]?(\d+\.\d+)
+FLOTANTE = r"[+-]?(?:\d+\.\d+(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)"  # 3.14, 1.5e-3, 1e-07
 MEMORIA = r"0x[0-9A-Fa-f]+"  # 0x... : direccion de memoria directa
 VARIABLE = r"[a-z_][a-z0-9_]*"  # identificador en minuscula: variable de .data
 ETIQUETA = r"[A-Z_][A-Z0-9_]*"  # identificador en MAYUSCULA: etiqueta
@@ -166,9 +168,9 @@ def parsear_operando(texto: str) -> Operando:
     if re.fullmatch(r"[Rr]\d+", t):
         raise RegistroInvalido(f"registro invalido '{t}' (CacaoCore tiene R0..R15)")
     if re.fullmatch(NUMERO, t):
-        return Operando("imm", int(t), t)
+        return Operando("imm", entero_decimal_64(t), t)  # int() falla con > 4300 digitos
     if re.fullmatch(FLOTANTE, t):
-        return Operando("float", float(t), t)
+        return Operando("float", literal_a_double(t), t)
     if re.fullmatch(MEMORIA, t):
         return Operando("mem", int(t, 16), t)
     interior = re.fullmatch(r"\[\s*(.*?)\s*\]", t)
@@ -339,7 +341,7 @@ class TraductorALU:
         try:
             for _token in iter(self.lexer.token, None):
                 reconocidas += 1
-        except RegistroInvalido as exc:
+        except (RegistroInvalido, LiteralInvalido) as exc:
             self._error(str(exc))
             return []
         if reconocidas > 1:
