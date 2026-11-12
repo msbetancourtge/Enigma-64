@@ -65,6 +65,10 @@ class Evento:
     # Unidad de punto flotante
     FPU_EJECUTADA = "fpu.ejecutada"
 
+    # Estructuras de datos: vectores y matrices (Tarea 29)
+    ESTRUCTURA_DEFINIDA = "estructuras.definida"
+    ESTRUCTURAS_ACTUALIZADAS = "estructuras.actualizadas"
+
     # Navegacion y traza (Integrante 5)
     IR_A_DIRECCION = "ui.ir_a_direccion"
     TRAZA = "ui.traza"

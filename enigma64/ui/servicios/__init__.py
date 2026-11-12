@@ -10,11 +10,12 @@ from .puertos import (
     PuertoFPU, PuertoMMIO, PuertoMemoria, PuertoRegistros, ServicioBase,
     ServicioNoDisponible,
 )
+from .estructuras import AdaptadorEstructuras
 from .traduccion import AdaptadorTraduccion
 
 __all__ = [
-    "AdaptadorALU", "AdaptadorCPU", "AdaptadorCargador", "AdaptadorFPU",
-    "AdaptadorMemoria", "AdaptadorMMIO", "AdaptadorRegistros", "AdaptadorTraduccion",
+    "AdaptadorALU", "AdaptadorCPU", "AdaptadorCargador", "AdaptadorEstructuras",
+    "AdaptadorFPU", "AdaptadorMemoria", "AdaptadorMMIO", "AdaptadorRegistros", "AdaptadorTraduccion",
     "Maquina", "construir_maquina",
     "FASES_FSM", "MICRO_REGISTROS",
     "PuertoALU", "PuertoCPU", "PuertoCargador", "PuertoFPU", "PuertoMMIO",

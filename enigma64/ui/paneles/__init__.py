@@ -14,6 +14,7 @@ arrancar por separado:
     python -m enigma64.ui.paneles.panel_mmio
     python -m enigma64.ui.paneles.panel_algoritmos
     python -m enigma64.ui.paneles.panel_traduccion
+    python -m enigma64.ui.paneles.panel_estructuras
     python -m enigma64.ui.paneles.panel_mapa
     python -m enigma64.ui.paneles.panel_consola
 """
@@ -24,6 +25,7 @@ from .panel_alu import PanelALU
 from .panel_cargador import PanelCargador
 from .panel_consola import PanelConsola
 from .panel_cpu import PanelCPU
+from .panel_estructuras import PanelEstructuras
 from .panel_fpu import PanelFPU
 from .panel_mapa import PanelMapa
 from .panel_memoria import PanelMemoria
@@ -33,8 +35,9 @@ from .panel_traduccion import PanelTraduccion
 
 #: Todos los paneles, en el orden en que se presentan en la documentacion.
 PANELES = (PanelMemoria, PanelRegistros, PanelALU, PanelFPU, PanelCargador,
-           PanelCPU, PanelMMIO, PanelAlgoritmos, PanelTraduccion, PanelMapa, PanelConsola)
+           PanelCPU, PanelMMIO, PanelAlgoritmos, PanelTraduccion, PanelEstructuras, PanelMapa,
+           PanelConsola)
 
 __all__ = ["PanelBase", "PanelALU", "PanelAlgoritmos", "PanelCargador",
-           "PanelConsola", "PanelCPU", "PanelFPU", "PanelMapa", "PanelMemoria", "PanelMMIO",
+           "PanelConsola", "PanelCPU", "PanelEstructuras", "PanelFPU", "PanelMapa", "PanelMemoria", "PanelMMIO",
            "PanelRegistros", "PanelTraduccion", "PANELES"]

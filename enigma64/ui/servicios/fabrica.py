@@ -23,6 +23,7 @@ from .adaptadores import (
     AdaptadorALU, AdaptadorAlgoritmos, AdaptadorCPU, AdaptadorCargador,
     AdaptadorFPU, AdaptadorMemoria, AdaptadorMMIO, AdaptadorRegistros,
 )
+from .estructuras import AdaptadorEstructuras
 from .traduccion import AdaptadorTraduccion
 
 
@@ -53,6 +54,11 @@ class Maquina:
         # Tarea 27: traductor CacaoCore-64 -> Enigma-64 sobre la misma maquina.
         self.traduccion = AdaptadorTraduccion(
             memoria=self.memoria, cargador=self.cargador, cpu=self.cpu,
+        )
+        # Tarea 29: panel visual de vectores y matrices sobre la misma maquina.
+        self.estructuras = AdaptadorEstructuras(
+            memoria=self.memoria, registros=self.registros, cargador=self.cargador,
+            cpu=self.cpu, mmio=self.mmio,
         )
 
     # -- diagnostico --------------------------------------------------------
