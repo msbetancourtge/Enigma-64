@@ -14,6 +14,23 @@ Linea de comandos:
     python -m spl.estructuras spl/ejemplos/merge_sort.asm [-o salida.e64] [--ejecutar]
 """
 
+from .algoritmos import (
+    BASE_MAT_A,
+    BASE_MAT_B,
+    BASE_MAT_C,
+    BASE_VEC_A,
+    BASE_VEC_B,
+    BASE_VEC_RES,
+    RUTA_ASM_BUSQUEDA_BINARIA,
+    RUTA_ASM_MERGE_SORT,
+    RUTA_ASM_MULTIPLICACION_MATRICES,
+    RUTA_ASM_PRODUCTO_PUNTO,
+    ejecutar_busqueda_binaria,
+    ejecutar_matriz_por_vector,
+    ejecutar_merge_sort,
+    ejecutar_multiplicacion_matrices,
+    ejecutar_producto_punto,
+)
 from .cargador import (
     ResultadoCompilacionEstructuras,
     ResultadoEjecucionEstructuras,
@@ -115,4 +132,20 @@ __all__ = [
     "compilar_a_binario_e64",
     "exportar_estructuras_e64",
     "cargar_y_ejecutar_estructuras",
+    # Ejecutores de los 3 Problemas Computacionales (Integrante 7)
+    "RUTA_ASM_MERGE_SORT",
+    "RUTA_ASM_PRODUCTO_PUNTO",
+    "RUTA_ASM_BUSQUEDA_BINARIA",
+    "RUTA_ASM_MULTIPLICACION_MATRICES",
+    "BASE_VEC_A",
+    "BASE_VEC_B",
+    "BASE_VEC_RES",
+    "BASE_MAT_A",
+    "BASE_MAT_B",
+    "BASE_MAT_C",
+    "ejecutar_merge_sort",
+    "ejecutar_producto_punto",
+    "ejecutar_busqueda_binaria",
+    "ejecutar_multiplicacion_matrices",
+    "ejecutar_matriz_por_vector",
 ]
