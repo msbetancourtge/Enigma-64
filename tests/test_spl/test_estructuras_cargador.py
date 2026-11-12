@@ -125,24 +125,16 @@ class TestEmpaquetadoEstructurasInc:
         assert "0x00210000 + ((3) << 5)" in res.texto
         assert eval("0x00210000 + ((3) << 5)") == direccion_descriptor(3)
 
-    def test_gancho_condicional_incluir_matrices_con_modulo_2d(self, tmp_path):
-        mat_mock = tmp_path / "mat.asm"
-        mat_mock.write_text(
-            "#pragma once\n"
-            "        JMP MAT_MOCK_FIN\n"
-            "MAT_MOCK_RUTINA:\n"
-            "        RET\n"
-            "MAT_MOCK_FIN:\n",
-            encoding="utf-8",
-        )
+    def test_gancho_condicional_incluir_matrices_con_modulo_2d(self):
+        # El modulo 2D real (spl/include/mat.asm, Integrante 3) reemplaza al mock:
+        # un #include "..." busca primero junto a estructuras.inc.
         codigo = '#include "estructuras.inc"\nADDI R1, R0, 9\nHLT\n'
         res = cargar_y_ejecutar_estructuras(
             codigo,
             es_archivo=False,
-            dirs_inclusion=[str(tmp_path)],
             definiciones={"INCLUIR_MATRICES": "1"},
         )
-        assert "MAT_MOCK_RUTINA:" in res.texto_preprocesado
+        assert "\nMAT_ADDR:" in res.texto_preprocesado
         assert res.banco.leer_nombre("R1") == 9
 
 
