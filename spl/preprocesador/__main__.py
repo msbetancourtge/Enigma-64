@@ -1,11 +1,16 @@
 """
 Punto de entrada CLI para el Preprocesador del SPL de Enigma-64.
-Uso: python -m spl.preprocesador ENTRADA [-o SALIDA] [-I DIR] [-D NOMBRE=VALOR]
+Uso: python -m spl.preprocesador ENTRADA [-o SALIDA] [-I DIR] [-D NOMBRE=VALOR] [--emitir-pre]
 """
 
 import sys
 import argparse
-from spl.preprocesador.motor import preprocesar_archivo, PreprocesadorError
+from pathlib import Path
+from spl.preprocesador.motor import (
+    preprocesar_archivo,
+    exportar_archivo_pre,
+    PreprocesadorError,
+)
 
 
 def parse_args(argv=None):
@@ -17,6 +22,11 @@ def parse_args(argv=None):
     parser.add_argument(
         "-o", "--salida",
         help="Archivo donde se guardara el resultado (opcional, por defecto stdout)",
+    )
+    parser.add_argument(
+        "--emitir-pre",
+        action="store_true",
+        help="Exporta explícitamente el código precompilado <entrada>.pre en disco",
     )
     parser.add_argument(
         "-I", "--include",
@@ -47,6 +57,21 @@ def main(argv=None):
             definiciones[item.strip()] = "1"
 
     try:
+        if args.emitir_pre:
+            ruta_salida = args.salida
+            if not ruta_salida:
+                p_entrada = Path(args.entrada)
+                ruta_salida = str(p_entrada.with_suffix(".pre"))
+            
+            ruta_generada, res = exportar_archivo_pre(
+                args.entrada,
+                ruta_salida_pre=ruta_salida,
+                dirs_inclusion=args.dirs_inclusion,
+                definiciones=definiciones,
+            )
+            sys.stderr.write(f"[PREPROCESADOR] Archivo precompilado emitido: {ruta_generada}\n")
+            return 0
+
         resultado = preprocesar_archivo(
             args.entrada,
             dirs_inclusion=args.dirs_inclusion,

@@ -7,6 +7,7 @@ evalua directivas condicionales y construye el mapa de lineas de salida.
 from __future__ import annotations
 import os
 import re
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -36,6 +37,16 @@ class ResultadoPreprocesamiento:
     texto: str
     macros: dict[str, str] = field(default_factory=dict)
     mapa_lineas: list[tuple[str, int]] = field(default_factory=list)
+
+    @property
+    def texto_expandido(self) -> str:
+        """Alias compatible con la especificación."""
+        return self.texto
+
+    @property
+    def macros_activas(self) -> dict[str, str]:
+        """Alias compatible con la especificación."""
+        return self.macros
 
 
 @dataclass
@@ -93,8 +104,10 @@ class Preprocesador:
         dirs_inclusion: list[str] | None = None,
         definiciones: dict[str, Any] | None = None,
         limite_profundidad: int = 50,
+        usar_cabeceras_pre: bool = True,
     ):
         self.dirs_inclusion = list(dirs_inclusion or [])
+        self.usar_cabeceras_pre = usar_cabeceras_pre
         self.macros: dict[str, str] = {}
         if definiciones:
             for k, v in definiciones.items():
@@ -121,23 +134,32 @@ class Preprocesador:
         Resuelve la ruta absoluta de un archivo incluido.
         - Si es "...": busca primero en el directorio del archivo actual, luego en dirs_inclusion y spl/include/.
         - Si es <...>: busca en dirs_inclusion y en spl/include/.
+        - Si usar_cabeceras_pre es True y se busca .h, prioriza o resuelve la version .pre si existe.
         """
         candidatos = []
 
-        if not es_sistema:
-            if dir_archivo_actual and os.path.isdir(dir_archivo_actual):
-                candidatos.append(os.path.join(dir_archivo_actual, nombre_header))
-            candidatos.append(os.path.join(os.getcwd(), nombre_header))
+        # Si se habilita el uso de cabeceras pre-procesadas y el header es .h,
+        # se busca preferentemente la alternativa .pre en spl/include/
+        nombres_a_buscar = []
+        if self.usar_cabeceras_pre and nombre_header.endswith(".h"):
+            nombres_a_buscar.append(nombre_header[:-2] + ".pre")
+        nombres_a_buscar.append(nombre_header)
 
-        for d in self.dirs_inclusion:
-            candidatos.append(os.path.join(d, nombre_header))
+        for nom in nombres_a_buscar:
+            if not es_sistema:
+                if dir_archivo_actual and os.path.isdir(dir_archivo_actual):
+                    candidatos.append(os.path.join(dir_archivo_actual, nom))
+                candidatos.append(os.path.join(os.getcwd(), nom))
 
-        # Directorio de inclusion por defecto: spl/include/
-        motor_dir = os.path.dirname(os.path.abspath(__file__))
-        repo_root = os.path.dirname(os.path.dirname(motor_dir))
-        spl_inc = os.path.join(repo_root, "spl", "include")
-        candidatos.append(os.path.join(spl_inc, nombre_header))
-        candidatos.append(os.path.join("spl", "include", nombre_header))
+            for d in self.dirs_inclusion:
+                candidatos.append(os.path.join(d, nom))
+
+            # Directorio de inclusion por defecto: spl/include/
+            motor_dir = os.path.dirname(os.path.abspath(__file__))
+            repo_root = os.path.dirname(os.path.dirname(motor_dir))
+            spl_inc = os.path.join(repo_root, "spl", "include")
+            candidatos.append(os.path.join(spl_inc, nom))
+            candidatos.append(os.path.join("spl", "include", nom))
 
         for c in candidatos:
             if os.path.isfile(c):
@@ -737,15 +759,21 @@ class Preprocesador:
 
 
 def preprocesar_archivo(
-    ruta: str,
+    ruta: str | Path,
     dirs_inclusion: list[str] | None = None,
     definiciones: dict[str, Any] | None = None,
+    usar_cabeceras_pre: bool = True,
 ) -> ResultadoPreprocesamiento:
     """
     API principal para preprocesar un archivo en disco.
     """
-    pre = Preprocesador(dirs_inclusion=dirs_inclusion, definiciones=definiciones)
-    lineas, mapa = pre.procesar_archivo(ruta)
+    ruta_str = str(ruta)
+    pre = Preprocesador(
+        dirs_inclusion=dirs_inclusion,
+        definiciones=definiciones,
+        usar_cabeceras_pre=usar_cabeceras_pre,
+    )
+    lineas, mapa = pre.procesar_archivo(ruta_str)
 
     if pre.cond_stack:
         frame = pre.cond_stack[-1]
@@ -765,6 +793,7 @@ def preprocesar_texto(
     definiciones: dict[str, Any] | None = None,
     nombre_archivo: str = "<stdin>",
     dirs_inclusion: list[str] | None = None,
+    usar_cabeceras_pre: bool = True,
 ) -> ResultadoPreprocesamiento:
     """
     API principal para preprocesar codigo directamente desde una cadena de texto.
@@ -783,7 +812,11 @@ def preprocesar_texto(
         dirs = dirs_inclusion
         archivo = nombre_archivo
 
-    pre = Preprocesador(dirs_inclusion=dirs, definiciones=definiciones)
+    pre = Preprocesador(
+        dirs_inclusion=dirs,
+        definiciones=definiciones,
+        usar_cabeceras_pre=usar_cabeceras_pre,
+    )
     lineas, mapa = pre.procesar_fuente(texto, archivo=archivo)
 
     if pre.cond_stack:
@@ -796,3 +829,43 @@ def preprocesar_texto(
         macros=pre.macros,
         mapa_lineas=mapa,
     )
+
+
+def exportar_archivo_pre(
+    ruta_fuente: str | Path,
+    ruta_salida_pre: str | Path | None = None,
+    dirs_inclusion: list[str] | None = None,
+    definiciones: dict[str, Any] | None = None,
+    usar_cabeceras_pre: bool = True,
+) -> tuple[str, ResultadoPreprocesamiento]:
+    """
+    Preprocesa un archivo .spl y exporta explícitamente el archivo .pre resultante en disco.
+    Si ruta_salida_pre es None, genera <nombre_base>.pre en el mismo directorio del archivo fuente.
+    
+    Retorna:
+      (ruta_pre_absoluta, resultado_preprocesamiento)
+    """
+    p_fuente = Path(ruta_fuente).resolve()
+    if not p_fuente.is_file():
+        raise PreprocesadorError(str(ruta_fuente), 0, f"archivo fuente no encontrado: {ruta_fuente}")
+
+    if ruta_salida_pre is None:
+        p_salida = p_fuente.with_suffix(".pre")
+    else:
+        p_salida = Path(ruta_salida_pre).resolve()
+
+    res = preprocesar_archivo(
+        str(p_fuente),
+        dirs_inclusion=dirs_inclusion,
+        definiciones=definiciones,
+        usar_cabeceras_pre=usar_cabeceras_pre,
+    )
+
+    salida_texto = res.texto
+    if salida_texto and not salida_texto.endswith("\n"):
+        salida_texto += "\n"
+
+    p_salida.parent.mkdir(parents=True, exist_ok=True)
+    p_salida.write_text(salida_texto, encoding="utf-8")
+
+    return str(p_salida), res

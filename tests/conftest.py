@@ -20,6 +20,7 @@ if ROOT_DIR not in sys.path:
 # se resuelven a partir de la instalacion base de Python para asegurar la ejecucion
 # correcta de pruebas graficas (Tkinter).
 if sys.platform == "win32":
+    os.environ["PYTHON_COLORS"] = "0"
     base_tcl = os.path.join(sys.base_prefix, "tcl")
     if os.path.isdir(base_tcl):
         tcl_dir = os.path.join(base_tcl, "tcl8.6")

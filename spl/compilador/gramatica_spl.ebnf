@@ -1,0 +1,95 @@
+/* GRAMATICA E-BNF COMPLETA DEL COMPILADOR SPL PARA ENIGMA-64 (Bottlecaps RR-UI) */
+
+Programa ::= DeclaracionExterna*
+
+DeclaracionExterna ::= DefinicionTDA
+                     | DefinicionTypedef
+                     | DefinicionFuncion
+                     | DeclaracionVariable
+
+/* 1. Tipos Primitivos y Tipos de Datos Abstractos (TDA: struct / tda / typedef) */
+DefinicionTDA ::= ( 'struct' | 'tda' ) ID '{' CampoTDA+ '}' ';'
+CampoTDA ::= EspecificadorTipo ID DimensionesOpt ';'
+DefinicionTypedef ::= 'typedef' EspecificadorTipo ID DimensionesOpt ';'
+EspecificadorTipo ::= 'const'? TipoBase
+TipoBase ::= 'int' | 'float' | 'bool' | 'char' | 'void'
+           | ( 'struct' | 'tda' ) ID
+DimensionesOpt ::= ( '[' Expresion ']' )*
+
+/* 2. Declaracion de Variables Escalares, Arreglos 1D y Matrices 2D */
+DeclaracionVariable ::= EspecificadorTipo ID DimensionesOpt ( '=' Inicializador )? ';'
+Inicializador ::= Expresion
+                | '{' ListaInicializadores '}'
+ListaInicializadores ::= Inicializador ( ',' Inicializador )*
+
+/* 3. Definicion de Subrutinas y Funciones */
+DefinicionFuncion ::= 'function'? EspecificadorTipo ID '(' ListaParametrosOpt ')' Bloque
+ListaParametrosOpt ::= ( Parametro ( ',' Parametro )* )?
+Parametro ::= EspecificadorTipo ID DimensionesParamOpt
+DimensionesParamOpt ::= ( '[' Expresion? ']' )*
+
+/* 4. Bloques y Estructuras de Secuencia, Seleccion e Iteracion */
+Bloque ::= '{' ElementoBloque* '}'
+ElementoBloque ::= DeclaracionVariable
+                 | Sentencia
+
+Sentencia ::= Bloque
+            | SentenciaAsignacionOExpr
+            | SentenciaIf
+            | SentenciaSwitch
+            | SentenciaWhile
+            | SentenciaDoWhile
+            | SentenciaFor
+            | SentenciaReturn
+            | SentenciaBreak
+            | SentenciaContinue
+
+SentenciaAsignacionOExpr ::= Expresion ( '=' Expresion )? ';'
+SentenciaIf ::= 'if' '(' Expresion ')' 'then'? Sentencia ( 'else' Sentencia )?
+SentenciaSwitch ::= 'switch' '(' Expresion ')' '{' ClausulaCase* ClausulaDefaultOpt '}'
+ClausulaCase ::= 'case' LiteralConstante ':' ElementoBloque*
+ClausulaDefaultOpt ::= ( 'default' ':' ElementoBloque* )?
+SentenciaWhile ::= 'while' '(' Expresion ')' Sentencia
+SentenciaDoWhile ::= 'do' Sentencia 'while' '(' Expresion ')' ';'
+SentenciaFor ::= 'for' '(' ForInicial ';' Expresion? ';' AccionForOpt ')' Sentencia
+ForInicial ::= EspecificadorTipo ID ( '=' Expresion )?
+             | ( Expresion ( '=' Expresion )? )?
+AccionForOpt ::= ( Expresion ( '=' Expresion )? )?
+SentenciaReturn ::= 'return' Expresion? ';'
+SentenciaBreak ::= 'break' ';'
+SentenciaContinue ::= 'continue' ';'
+
+/* 5. Jerarquia Estratificada de Expresiones (9 niveles de precedencia, 0 ambiguedad) */
+Expresion ::= ExprOrLogico
+ExprOrLogico ::= ExprAndLogico ( '||' ExprAndLogico )*
+ExprAndLogico ::= ExprIgualdad ( '&&' ExprIgualdad )*
+ExprIgualdad ::= ExprRelacional ( ( '==' | '!=' ) ExprRelacional )*
+ExprRelacional ::= ExprAditiva ( ( '<' | '<=' | '>' | '>=' ) ExprAditiva )*
+ExprAditiva ::= ExprMultiplicativa ( ( '+' | '-' ) ExprMultiplicativa )*
+ExprMultiplicativa ::= ExprUnaria ( ( '*' | '/' | '%' ) ExprUnaria )*
+ExprUnaria ::= ( '+' | '-' | '!' ) ExprUnaria
+             | 'sizeof' '(' ( EspecificadorTipo | Expresion ) ')'
+             | ExprPostfija
+ExprPostfija ::= ExprPrimaria ( '[' Expresion ']'
+                              | '.' ID
+                              | '->' ID
+                              | '(' ListaArgumentosOpt ')' )*
+ListaArgumentosOpt ::= ( Expresion ( ',' Expresion )* )?
+ExprPrimaria ::= ID
+               | LiteralConstante
+               | '(' Expresion ')'
+LiteralConstante ::= ENTERO_DEC | ENTERO_HEX | ENTERO_BIN
+                  | FLOTANTE | STRING | CHAR_LITERAL
+                  | 'true' | 'false'
+
+<?TOKENS?>
+
+/* 6. Reglas Lexicas Formales (Diagramas Lexicos en Bottlecaps RR-UI) */
+ID ::= [a-zA-Z_] [a-zA-Z0-9_]*
+ENTERO_DEC ::= [0-9]+
+ENTERO_HEX ::= '0' [xX] [0-9a-fA-F]+
+ENTERO_BIN ::= '0' [bB] [01]+
+FLOTANTE ::= ( [0-9]+ '.' [0-9]* | '.' [0-9]+ ) ( [eE] [+-]? [0-9]+ )?
+           | [0-9]+ [eE] [+-]? [0-9]+
+STRING ::= '"' ( [^"\#x0A#x0D] | '\' [ntr0\"'] )* '"'
+CHAR_LITERAL ::= "'" ( [^'\#x0A#x0D] | '\' [ntr0\"'] ) "'"

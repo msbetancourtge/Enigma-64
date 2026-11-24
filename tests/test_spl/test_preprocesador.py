@@ -491,6 +491,7 @@ class TestCLI:
         proc = subprocess.run(
             [sys.executable, "-m", "spl.preprocesador", str(entrada)],
             capture_output=True,
+            stdin=subprocess.DEVNULL,
             text=True,
         )
         assert proc.returncode == 0
@@ -504,6 +505,7 @@ class TestCLI:
         proc = subprocess.run(
             [sys.executable, "-m", "spl.preprocesador", str(entrada), "-o", str(salida)],
             capture_output=True,
+            stdin=subprocess.DEVNULL,
             text=True,
         )
         assert proc.returncode == 0
@@ -531,6 +533,7 @@ class TestCLI:
                 "-D", "NIVEL=3",
             ],
             capture_output=True,
+            stdin=subprocess.DEVNULL,
             text=True,
         )
         assert proc.returncode == 0
@@ -555,6 +558,7 @@ class TestCLI:
                 "-D", "DEBUG",
             ],
             capture_output=True,
+            stdin=subprocess.DEVNULL,
             text=True,
         )
         assert proc.returncode == 0
@@ -567,6 +571,7 @@ class TestCLI:
         proc = subprocess.run(
             [sys.executable, "-m", "spl.preprocesador", str(entrada)],
             capture_output=True,
+            stdin=subprocess.DEVNULL,
             text=True,
         )
         assert proc.returncode != 0

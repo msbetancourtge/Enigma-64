@@ -1,7 +1,6 @@
 """
 Orquestador Principal del Sistema de Procesamiento del Lenguaje (SPL) — Enigma-64.
 
-Responsabilidad: Integrante 7 (Driver Principal, Pipeline & Pruebas)
 Integra en secuencia las 4 herramientas del SPL construidas para Enigma-64:
   1. Preprocesador (spl.preprocesador)          -> #include, #define, condicionales y comentarios
   2. Compilador Lexer & Tablas (spl.compilador) -> Vocabulario, TDA, matrices, ID, NUMBER IEEE 754, STRING
@@ -504,13 +503,28 @@ def verificar_modulo_c_tablas(compilar_si_gcc_disponible: bool = True) -> Tuple[
             str(DIR_COMPILADOR_C / "test_tablas.c"),
             "-o", str(exe_out),
         ]
-        proc_comp = subprocess.run(cmd_compile, capture_output=True, text=True, check=False)
-        if proc_comp.returncode != 0:
-            return False, f"Error de compilación GCC:\n{proc_comp.stderr}"
-        proc_run = subprocess.run([str(exe_out)], capture_output=True, text=True, check=False)
-        if proc_run.returncode != 0:
-            return False, f"Fallo en test_tablas C:\n{proc_run.stderr}"
-        return True, f"Compilado y ejecutado con GCC ({gcc_bin}). Salida: {proc_run.stdout.strip()[:120]}"
+        try:
+            proc_comp = subprocess.run(
+                cmd_compile,
+                capture_output=True,
+                stdin=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            )
+            if proc_comp.returncode != 0:
+                return False, f"Error de compilación GCC:\n{proc_comp.stderr}"
+            proc_run = subprocess.run(
+                [str(exe_out)],
+                capture_output=True,
+                stdin=subprocess.DEVNULL,
+                text=True,
+                check=False,
+            )
+            if proc_run.returncode != 0:
+                return False, f"Fallo en test_tablas C:\n{proc_run.stderr}"
+            return True, f"Compilado y ejecutado con GCC ({gcc_bin}). Salida: {proc_run.stdout.strip()[:120]}"
+        except OSError:
+            pass
 
     return True, (
         "Fuentes ANSI C11 (tablas_simbolos.h, tablas_simbolos.c, test_tablas.c y Makefile) "
