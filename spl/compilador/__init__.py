@@ -6,6 +6,7 @@ Exporta:
 - Tablas de símbolos, literales y des-escape determinista (Integrante 6).
 - Operadores aritméticos, lógicos y relacionales, y literales numéricos y
   de cadena (Integrante 5).
+- Taller 02: nodos del AST y analizador sintáctico LALR(1) (Integrante 2).
 """
 
 from spl.compilador.tablas import (
@@ -61,6 +62,9 @@ from spl.compilador.lexer import (
     ESCAPES_VALIDOS,
 )
 
+from spl.compilador.ast_nodos import NodoAST, ProgramaAST, VisitanteAST, formatear_ast
+from spl.compilador.parser import CompiladorParser, ErrorSintactico
+
 __all__ = [
     # Tablas de Símbolos & Literales (Integrante 6)
     "TipoNumero",
@@ -112,4 +116,11 @@ __all__ = [
     "ENTERO_DEC_MAXIMO",
     "ENTERO_PATRON_MAXIMO",
     "ESCAPES_VALIDOS",
+    # AST y Analizador Sintáctico (Taller 02 - Integrante 2)
+    "NodoAST",
+    "ProgramaAST",
+    "VisitanteAST",
+    "formatear_ast",
+    "CompiladorParser",
+    "ErrorSintactico",
 ]
