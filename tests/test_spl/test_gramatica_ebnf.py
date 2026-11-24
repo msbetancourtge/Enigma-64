@@ -90,27 +90,26 @@ def test_producciones_sintacticas_principales():
         "DefinicionTypedef",
         "EspecificadorTipo",
         "TipoBase",
-        "DimensionesOpt",
+        "Dimensiones",
+        "DimensionesAbiertas",
         "DeclaracionVariable",
+        "Declarador",
         "Inicializador",
-        "ListaInicializadores",
-        "DefinicionFuncion",
-        "ListaParametrosOpt",
+        "DeclaracionFuncion",
         "Parametro",
-        "DimensionesParamOpt",
         "Bloque",
         "ElementoBloque",
         "Sentencia",
-        "SentenciaAsignacionOExpr",
+        "SentenciaSimple",
+        "OpAsignacion",
         "SentenciaIf",
         "SentenciaSwitch",
         "ClausulaCase",
-        "ClausulaDefaultOpt",
+        "ConstanteCase",
         "SentenciaWhile",
         "SentenciaDoWhile",
         "SentenciaFor",
         "ForInicial",
-        "AccionForOpt",
         "SentenciaReturn",
         "SentenciaBreak",
         "SentenciaContinue",
@@ -120,29 +119,37 @@ def test_producciones_sintacticas_principales():
         assert prod in reglas_sint, f"Falta la producción sintáctica obligatoria: {prod}"
 
 
-def test_estratificacion_9_niveles_expresiones():
+def test_estratificacion_13_niveles_expresiones():
     """
     Verifica que la jerarquía estratificada de expresiones contenga exactamente
-    los 9 niveles de precedencia sin ambigüedad gramatical:
-    1. OrLogico
-    2. AndLogico
-    3. Igualdad (==, !=)
-    4. Relacional (<, <=, >, >=)
-    5. Aditiva (+, -)
-    6. Multiplicativa (*, /, %)
-    7. Unaria (+, -, !, sizeof)
-    8. Postfija ([], ., ->, ())
-    9. Primaria (ID, LiteralConstante, parentizada)
+    los 13 niveles de precedencia sin ambigüedad gramatical:
+    1. ExprOr (||)
+    2. ExprAnd (&&)
+    3. ExprBitOr (|)
+    4. ExprBitXor (^)
+    5. ExprBitAnd (&)
+    6. ExprIgualdad (==, !=)
+    7. ExprRelacional (<, <=, >, >=)
+    8. ExprShift (<<, >>)
+    9. ExprAditiva (+, -)
+    10. ExprMultiplicativa (*, /, %)
+    11. ExprUnaria (+, -, !, ~, sizeof)
+    12. ExprPostfija ([], ., ())
+    13. ExprPrimaria (ID, LiteralConstante, parentizada)
     """
     contenido = RUTA_EBNF.read_text(encoding="utf-8")
     reglas_sint, _ = parsear_reglas_ebnf(contenido)
 
     niveles = [
         "Expresion",
-        "ExprOrLogico",
-        "ExprAndLogico",
+        "ExprOr",
+        "ExprAnd",
+        "ExprBitOr",
+        "ExprBitXor",
+        "ExprBitAnd",
         "ExprIgualdad",
         "ExprRelacional",
+        "ExprShift",
         "ExprAditiva",
         "ExprMultiplicativa",
         "ExprUnaria",
@@ -156,9 +163,8 @@ def test_estratificacion_9_niveles_expresiones():
 
     # Verificar que sizeof esté presente en ExprUnaria
     assert "sizeof" in reglas_sint["ExprUnaria"]
-    # Verificar que '.' y '->' estén en ExprPostfija
+    # Verificar que '.' esté en ExprPostfija
     assert "'.' ID" in reglas_sint["ExprPostfija"]
-    assert "'->' ID" in reglas_sint["ExprPostfija"]
 
 
 def test_reglas_lexicas_obligatorias():
@@ -168,12 +174,16 @@ def test_reglas_lexicas_obligatorias():
 
     tokens_requeridos = [
         "ID",
+        "TIPO_ID",
         "ENTERO_DEC",
         "ENTERO_HEX",
         "ENTERO_BIN",
         "FLOTANTE",
         "STRING",
         "CHAR_LITERAL",
+        "ESPACIO",
+        "COMENTARIO_LINEA",
+        "COMENTARIO_BLOQUE",
     ]
 
     for tok in tokens_requeridos:
@@ -195,4 +205,4 @@ def test_soporte_then_y_function_opcionales():
     reglas_sint, _ = parsear_reglas_ebnf(contenido)
 
     assert "'then'?" in reglas_sint["SentenciaIf"], "then debe ser opcional ('then'?)"
-    assert "'function'?" in reglas_sint["DefinicionFuncion"], "function debe ser opcional ('function'?)"
+    assert "'function'?" in reglas_sint["DeclaracionFuncion"], "function debe ser opcional ('function'?)"
