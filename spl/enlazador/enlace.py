@@ -16,12 +16,17 @@ dos pasadas:
 El resultado es un BinarioEnigma absoluto que CargadorEnigma deposita en la RAM
 con sus validaciones de frontera de siempre (enlazar_y_cargar).
 
+El mapa de enlace dice respecto de que base se mide cada direccion (la base de
+carga para las secciones, la base de la seccion para los simbolos y los campos
+parchados, y el PC de la instruccion siguiente para REL16) y trae el mapa de
+direcciones reubicadas; formatear_binario_bits() da la imagen en 0 y 1.
+
 Autor: Integrante 3 Michael Stiven Betancourt Gelves - Enlazador-Cargador
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from enigma64.cargador import (
@@ -32,7 +37,10 @@ from enigma64.cargador import (
     DireccionInvalida,
 )
 from enigma64.registros import MASK64
+from .binario import FORMULA_REUBICACION, bits, formatear_enlace_bits
 from .objeto import (
+    ANCHO_REUBICACION,
+    NOMBRE_REUBICACION,
     PERM_EJECUCION,
     REUB_ABS32,
     REUB_ABS64,
@@ -139,6 +147,49 @@ class UbicacionSeccion:
     tipo: int
 
 
+@dataclass(frozen=True)
+class ReubicacionAplicada:
+    """
+    Una marca ya resuelta: que campo se parcho, contra que simbolo y con que
+    bytes. offset es relativo al inicio de la seccion que se parcha, cuya
+    direccion final es base_seccion; P = base_seccion + offset.
+    """
+
+    modulo: str
+    seccion: str
+    base_seccion: int
+    offset: int
+    tipo: int
+    simbolo: str
+    direccion_simbolo: int
+    sumando: int
+    valor: bytes
+
+    @property
+    def direccion_campo(self) -> int:
+        """P: direccion final del primer byte del campo parchado."""
+        return self.base_seccion + self.offset
+
+    @property
+    def ancho(self) -> int:
+        return ANCHO_REUBICACION[self.tipo]
+
+    @property
+    def nombre_tipo(self) -> str:
+        return NOMBRE_REUBICACION[self.tipo]
+
+    @property
+    def pc_siguiente(self) -> int:
+        """Base de un REL16: PC de la instruccion siguiente (P + 2 = inicio + 3)."""
+        return self.direccion_campo + 2
+
+    @property
+    def desplazamiento(self) -> int:
+        """Valor con signo escrito en un campo REL16."""
+        valor = int.from_bytes(self.valor, "big")
+        return valor - 0x10000 if valor & 0x8000 else valor
+
+
 @dataclass
 class ResultadoEnlace:
     """Ejecutable absoluto, mapa de secciones y tabla global de simbolos (ESTAB)."""
@@ -148,6 +199,10 @@ class ResultadoEnlace:
     simbolos: Dict[str, int]
     origen_simbolos: Dict[str, str]
     reubicaciones_aplicadas: int
+    # Mapa de direcciones reubicadas, en el orden en que se aplicaron
+    detalle_reubicaciones: List[ReubicacionAplicada] = field(default_factory=list)
+    # Seccion donde quedo cada simbolo de la ESTAB (None: constante absoluta)
+    ubicacion_simbolos: Dict[str, Optional[UbicacionSeccion]] = field(default_factory=dict)
 
     @property
     def direccion_base(self) -> int:
@@ -161,6 +216,13 @@ class ResultadoEnlace:
     def tamano_total(self) -> int:
         return self.binario.tamano_total
 
+    def _relativo_simbolo(self, nombre: str, direccion: int) -> str:
+        ubicacion = self.ubicacion_simbolos.get(nombre)
+        if ubicacion is None:
+            return "constante absoluta (no se reubica)" if nombre in self.ubicacion_simbolos else "-"
+        return (f"{ubicacion.seccion} de {ubicacion.modulo} (0x{ubicacion.direccion:08X}) "
+                f"+ 0x{direccion - ubicacion.direccion:04X}")
+
     def informe(self) -> str:
         """Mapa de enlace legible (al estilo de ld -Map)."""
         lineas = [
@@ -168,25 +230,47 @@ class ResultadoEnlace:
             f"entrada 0x{self.entry_point:08X}",
         ]
         lineas += _formatear_tabla(
-            ("Direccion", "Tamano", "Perm", "Seccion", "Modulo"),
+            ("Direccion", "Tamano", "Perm", "Seccion", "Modulo", "Relativa a la base de carga"),
             [
                 (f"0x{u.direccion:08X}", str(u.tamano), texto_permisos(u.permisos),
-                 u.seccion, u.modulo)
+                 u.seccion, u.modulo, f"0x{self.direccion_base:08X} + 0x{u.direccion - self.direccion_base:04X}")
                 for u in self.mapa
             ],
         )
         lineas += ["", f"Tabla global de simbolos (ESTAB): {len(self.simbolos)}"]
         lineas += _formatear_tabla(
-            ("Direccion", "Simbolo", "Modulo"),
+            ("Direccion", "Simbolo", "Modulo", "Relativa a la base de su seccion"),
             [
-                (f"0x{direccion:08X}", nombre, self.origen_simbolos[nombre])
+                (f"0x{direccion:08X}", nombre, self.origen_simbolos[nombre],
+                 self._relativo_simbolo(nombre, direccion))
                 for nombre, direccion in sorted(
                     self.simbolos.items(), key=lambda par: (par[1], par[0])
                 )
             ],
         )
         lineas += ["", f"Marcas de reubicacion aplicadas: {self.reubicaciones_aplicadas}"]
+        if self.detalle_reubicaciones:
+            lineas += ["", "Mapa de direcciones reubicadas (P = campo parchado, S = simbolo, A = sumando)"]
+            lineas += _formatear_tabla(
+                ("P", "Campo relativo a su seccion", "Tipo", "Simbolo", "S", "A", "Formula",
+                 "Escrito", "Base del valor"),
+                [
+                    (
+                        f"0x{a.direccion_campo:08X}",
+                        f"{a.seccion} de {a.modulo} (0x{a.base_seccion:08X}) + 0x{a.offset:04X}",
+                        a.nombre_tipo, a.simbolo, f"0x{a.direccion_simbolo:08X}", f"{a.sumando:+d}",
+                        FORMULA_REUBICACION[a.tipo], bits(a.valor),
+                        (f"{a.desplazamiento:+d} B desde el PC siguiente 0x{a.pc_siguiente:08X}"
+                         if a.tipo == REUB_REL16 else "absoluta"),
+                    )
+                    for a in self.detalle_reubicaciones
+                ],
+            )
         return "\n".join(lineas)
+
+    def formatear_binario_bits(self) -> str:
+        """Imagen enlazada en 0 y 1 por instruccion y por palabra (ver binario.py)."""
+        return formatear_enlace_bits(self)
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +333,7 @@ class EnlazadorEnigma:
             raise DireccionInvalida(
                 f"La imagen enlazada termina en 0x{fin - 1:X}, fuera de los 4 GiB fisicos"
             )
-        estab, origen = self._construir_estab(direcciones)
+        estab, origen, secciones_estab = self._construir_estab(direcciones)
         self._verificar_importaciones(estab)
 
         # Pasada 2: imagen de memoria y reubicacion
@@ -259,7 +343,7 @@ class EnlazadorEnigma:
             if seccion.tipo == SECCION_BITS:
                 inicio = direccion - direccion_base
                 imagen[inicio : inicio + seccion.tamano] = seccion.contenido
-        aplicadas = self._reubicar(imagen, direccion_base, direcciones, estab)
+        detalle = self._reubicar(imagen, direccion_base, direcciones, estab)
 
         entry_point = self._punto_de_entrada(entrada, estab, direcciones, mapa, direccion_base)
 
@@ -275,7 +359,15 @@ class EnlazadorEnigma:
             reubicable=False,
             tabla_simbolos=estab,
         )
-        return ResultadoEnlace(binario, mapa, estab, origen, aplicadas)
+        # _asignar_direcciones llena 'direcciones' y 'mapa' en el mismo orden
+        por_indice = dict(zip(direcciones, mapa))
+        ubicacion_simbolos = {
+            nombre: (None if indices is None else por_indice[indices])
+            for nombre, indices in secciones_estab.items()
+        }
+        return ResultadoEnlace(
+            binario, mapa, estab, origen, len(detalle), detalle, ubicacion_simbolos
+        )
 
     def enlazar_y_cargar(
         self,
@@ -338,9 +430,14 @@ class EnlazadorEnigma:
 
     def _construir_estab(
         self, direcciones: Dict[Tuple[int, int], int]
-    ) -> Tuple[Dict[str, int], Dict[str, str]]:
+    ) -> Tuple[Dict[str, int], Dict[str, str], Dict[str, Optional[Tuple[int, int]]]]:
+        """
+        ESTAB, modulo que exporta cada simbolo y la seccion que lo define como
+        (indice de modulo, indice de seccion); None para una constante absoluta.
+        """
         estab: Dict[str, int] = {}
         origen: Dict[str, str] = {}
+        secciones: Dict[str, Optional[Tuple[int, int]]] = {}
         for i, modulo in enumerate(self.modulos):
             for simbolo in modulo.exportaciones:
                 if simbolo.nombre in estab:
@@ -350,7 +447,8 @@ class EnlazadorEnigma:
                     )
                 estab[simbolo.nombre] = _direccion_definida(i, simbolo, direcciones)
                 origen[simbolo.nombre] = modulo.nombre
-        return estab, origen
+                secciones[simbolo.nombre] = None if simbolo.es_absoluto else (i, simbolo.seccion)
+        return estab, origen, secciones
 
     def _verificar_importaciones(self, estab: Dict[str, int]) -> None:
         faltantes: Dict[str, List[str]] = {}
@@ -373,8 +471,8 @@ class EnlazadorEnigma:
         direccion_base: int,
         direcciones: Dict[Tuple[int, int], int],
         estab: Dict[str, int],
-    ) -> int:
-        aplicadas = 0
+    ) -> List[ReubicacionAplicada]:
+        aplicadas: List[ReubicacionAplicada] = []
         for i, modulo in enumerate(self.modulos):
             for marca in modulo.reubicaciones:
                 simbolo = modulo.simbolos[marca.simbolo]
@@ -395,7 +493,17 @@ class EnlazadorEnigma:
                     ) from None
                 inicio = direccion_campo - direccion_base
                 imagen[inicio : inicio + marca.ancho] = parche
-                aplicadas += 1
+                aplicadas.append(ReubicacionAplicada(
+                    modulo=modulo.nombre,
+                    seccion=modulo.secciones[marca.seccion].nombre,
+                    base_seccion=direcciones[(i, marca.seccion)],
+                    offset=marca.offset,
+                    tipo=marca.tipo,
+                    simbolo=simbolo.nombre,
+                    direccion_simbolo=direccion_simbolo,
+                    sumando=marca.sumando,
+                    valor=parche,
+                ))
         return aplicadas
 
     def _punto_de_entrada(

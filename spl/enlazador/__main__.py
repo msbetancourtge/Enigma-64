@@ -1,16 +1,20 @@
 """
 Linea de comandos del Enlazador de Enigma-64.
 
-    python -m spl.enlazador modulo.obj [otro.tobj ...] [--tokens]
+    python -m spl.enlazador modulo.obj [otro.tobj ...] [--tokens] [--binario]
         Analiza cada modulo (.obj binario o .tobj en texto): cabecera,
         encabezados de seccion, tablas de exportacion e importacion, simbolos
         locales y marcas de reubicacion. Con --tokens imprime ademas la
-        secuencia de tokens que el lexer de lex.py reconoce en cada .tobj.
+        secuencia de tokens que el lexer de lex.py reconoce en cada .tobj, y con
+        --binario el contenido de cada modulo en 0 y 1 (offsets relativos al
+        inicio de cada seccion).
 
     python -m spl.enlazador a.obj b.obj -o programa.e64 [--base 0x00200000]
                                  [--entrada main] [--mapa] [--sin-informe]
         Ademas los enlaza y escribe un ejecutable .e64 absoluto, que el Cargador
-        (o la pestana Cargador de la interfaz) deposita en RAM.
+        (o la pestana Cargador de la interfaz) deposita en RAM. Con --binario
+        imprime tambien la imagen enlazada en 0 y 1 (direccion absoluta y offset
+        relativo a la base de su seccion).
 """
 
 from __future__ import annotations
@@ -77,6 +81,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--tokens", action="store_true",
         help="imprime los tokens que reconoce el lexer en cada modulo .tobj",
     )
+    parser.add_argument(
+        "--binario", action="store_true",
+        help="imprime el volcado en 0 y 1 de cada modulo y, si se enlaza, de la imagen",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -87,11 +95,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         modulos = [analizar_objeto(ruta) for ruta in args.objetos]
         if not args.sin_informe:
             print("\n\n".join(modulo.informe() for modulo in modulos))
+        if args.binario:
+            print("\n\n".join(modulo.formatear_binario_bits() for modulo in modulos))
 
         if args.salida or args.mapa:
             resultado = EnlazadorEnigma(modulos).enlazar(args.base, args.entrada)
             if args.mapa:
                 print("\n" + resultado.informe())
+            if args.binario:
+                print("\n" + resultado.formatear_binario_bits())
             if args.salida:
                 with open(args.salida, "wb") as f:
                     f.write(resultado.binario.serializar_e64())

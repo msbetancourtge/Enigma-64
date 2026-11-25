@@ -73,7 +73,7 @@ CLAUDE.md
 claude.md
 CLAUDE.md
 
-# Módulos de ejemplo del enlazador en .obj binario (spl.enlazador.ejemplos.exportar_ejemplos)
+# Módulos .obj de ejemplo exportados localmente por versiones anteriores del enlazador
 programas/objetos/
 
 # Binario de la batería C que compila la verificación del SPL (python -m spl --verificar-c)

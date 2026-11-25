@@ -11,6 +11,9 @@ Verifica:
   7. Enlace + carga + ejecucion en la CPU oficial en varias direcciones base.
   8. Integracion con CargadorEnigma.cargar_archivo y la linea de comandos.
 
+Los archivos .obj de entrada los arma tests/test_spl/objetos_prueba.py: el
+enlazador solo lee modulos objeto y no tiene escritor.
+
 Autor: Integrante 3 Michael Stiven Betancourt Gelves - Enlazador-Cargador
 """
 
@@ -94,6 +97,9 @@ from enigma64.fpu import (
     ieee64_a_float,
 )
 from enigma64.programas import BYTES_EUCLIDES
+
+# El enlazador solo lee modulos objeto: los .obj de prueba los arma objetos_prueba
+from .objetos_prueba import empaquetar_obj, guardar_obj
 
 # Mismo programa que CODIGO_PRINCIPAL escrito para el ensamblador oficial; los
 # operandos reubicables van en un valor que deja el campo en cero.
@@ -262,7 +268,7 @@ class TestCabeceraYSecciones(unittest.TestCase):
 
     def setUp(self) -> None:
         self.original = construir_modulo_principal()
-        self.datos = self.original.serializar()
+        self.datos = empaquetar_obj(self.original)
         self.modulo = ModuloObjeto.deserializar(self.datos)
 
     def test_cabecera_reconocida(self) -> None:
@@ -314,7 +320,7 @@ class TestTablasDeSimbolos(unittest.TestCase):
     """Extraccion de las tablas de exportacion e importacion."""
 
     def setUp(self) -> None:
-        self.modulo = ModuloObjeto.deserializar(construir_modulo_principal().serializar())
+        self.modulo = ModuloObjeto.deserializar(empaquetar_obj(construir_modulo_principal()))
 
     def test_tabla_de_exportaciones(self) -> None:
         exportaciones = [
@@ -357,7 +363,7 @@ class TestMarcasDeReubicacion(unittest.TestCase):
 
     def setUp(self) -> None:
         self.original = construir_modulo_principal()
-        self.modulo = ModuloObjeto.deserializar(self.original.serializar())
+        self.modulo = ModuloObjeto.deserializar(empaquetar_obj(self.original))
 
     def test_marcas_interpretadas(self) -> None:
         self.assertEqual(self.modulo.reubicaciones, self.original.reubicaciones)
@@ -398,17 +404,26 @@ class TestMarcasDeReubicacion(unittest.TestCase):
         self.assertEqual(MarcaReubicacion(0, 0, 0x77, 0).ancho, 0)
 
 
-class TestSerializacion(unittest.TestCase):
-    """Ida y vuelta del formato, archivos en disco e informe legible."""
+class TestLecturaDeArchivos(unittest.TestCase):
+    """Lectura del formato binario, archivos en disco e informe legible."""
 
-    def test_ida_y_vuelta(self) -> None:
+    def test_el_enlazador_no_escribe_modulos_objeto(self) -> None:
+        # Decision del Taller 02: el Enlazador-Cargador lee .obj/.tobj y solo escribe el .e64
+        import spl.enlazador.ejemplos as ejemplos
+        import spl.enlazador.texto as texto
+        for metodo in ("serializar", "guardar", "a_texto", "guardar_texto"):
+            self.assertFalse(hasattr(ModuloObjeto, metodo), metodo)
+        self.assertFalse(hasattr(ejemplos, "exportar_ejemplos"))
+        self.assertFalse(hasattr(texto, "escribir_objeto_texto"))
+
+    def test_lector_reconstruye_el_modulo(self) -> None:
         for construir in (construir_modulo_principal, construir_modulo_libmat, _modulo_duplicador):
             with self.subTest(modulo=construir.__name__):
                 original = construir()
-                datos = original.serializar()
+                datos = empaquetar_obj(original)
                 leido = ModuloObjeto.deserializar(datos)
                 self.assertEqual(leido, original)
-                self.assertEqual(leido.serializar(), datos)
+                self.assertEqual(empaquetar_obj(leido), datos)
 
     def test_nombres_utf8(self) -> None:
         modulo = ModuloObjeto(
@@ -416,7 +431,7 @@ class TestSerializacion(unittest.TestCase):
             [SeccionObjeto.texto(b"\x00")],
             [SimboloObjeto.exportado("cálculo", 0, 0)],
         )
-        leido = ModuloObjeto.deserializar(modulo.serializar())
+        leido = ModuloObjeto.deserializar(empaquetar_obj(modulo))
         self.assertEqual(leido.nombre, "módulo_ñ")
         self.assertEqual(leido.exportaciones[0].nombre, "cálculo")
 
@@ -424,17 +439,17 @@ class TestSerializacion(unittest.TestCase):
         modulo = ModuloObjeto("", [SeccionObjeto.texto(b"\x00")])
         with tempfile.TemporaryDirectory() as tmp:
             ruta = os.path.join(tmp, "anonimo.obj")
-            modulo.guardar(ruta)
+            guardar_obj(modulo, ruta)
             self.assertEqual(analizar_objeto(ruta).nombre, "anonimo")
 
     def test_analizar_objeto_acepta_modulo_bytes_y_ruta(self) -> None:
         modulo = construir_modulo_libmat()
         self.assertIs(analizar_objeto(modulo), modulo)
-        self.assertEqual(analizar_objeto(modulo.serializar()), modulo)
-        self.assertEqual(analizar_objeto(bytearray(modulo.serializar())), modulo)
+        self.assertEqual(analizar_objeto(empaquetar_obj(modulo)), modulo)
+        self.assertEqual(analizar_objeto(bytearray(empaquetar_obj(modulo))), modulo)
 
     def test_informe_textual(self) -> None:
-        informe = ModuloObjeto.deserializar(construir_modulo_principal().serializar()).informe()
+        informe = ModuloObjeto.deserializar(empaquetar_obj(construir_modulo_principal())).informe()
         for fragmento in (
             "Modulo objeto 'principal'", "Formato EOBJ v1", "Punto de entrada: .text+0x0000",
             "Encabezados de seccion", ".bss    VACIA  RESERVA", "Tabla de exportaciones (3)",
@@ -454,7 +469,7 @@ class TestObjetoInvalido(unittest.TestCase):
     """El analizador rechaza archivos corruptos con un mensaje que dice que fallo."""
 
     def setUp(self) -> None:
-        self.datos = construir_modulo_principal().serializar()
+        self.datos = empaquetar_obj(construir_modulo_principal())
         self.cab = ModuloObjeto.deserializar(self.datos).cabecera
 
     def _seccion(self, indice: int, campo: int) -> int:
@@ -520,7 +535,7 @@ class TestObjetoInvalido(unittest.TestCase):
                 with self.assertRaises(ObjetoInvalido):
                     ModuloObjeto.deserializar(corrupto)
 
-    def test_modelo_incoherente_no_se_serializa(self) -> None:
+    def test_modelo_incoherente_se_rechaza_antes_de_enlazar(self) -> None:
         texto = SeccionObjeto.texto(b"\x00\x00\x00\x00")
         casos = {
             "seccion sin nombre": ModuloObjeto("m", [SeccionObjeto("", b"\x00")]),
@@ -537,7 +552,9 @@ class TestObjetoInvalido(unittest.TestCase):
         for descripcion, modulo in casos.items():
             with self.subTest(caso=descripcion):
                 with self.assertRaises(ObjetoInvalido):
-                    modulo.serializar()
+                    analizar_objeto(modulo)
+                with self.assertRaises(ObjetoInvalido):
+                    EnlazadorEnigma([modulo])
 
 
 class TestCalculoDeParches(unittest.TestCase):
@@ -651,10 +668,10 @@ class TestEnlazador(unittest.TestCase):
         self.assertEqual(binario.entry_point, 0x00200000)
 
     def test_enlazar_no_modifica_los_modulos(self) -> None:
-        antes = (self.principal.serializar(), self.libmat.serializar())
+        antes = (empaquetar_obj(self.principal), empaquetar_obj(self.libmat))
         enlazador = EnlazadorEnigma([self.principal, self.libmat])
         otro = enlazador.enlazar(0x00400000)
-        self.assertEqual((self.principal.serializar(), self.libmat.serializar()), antes)
+        self.assertEqual((empaquetar_obj(self.principal), empaquetar_obj(self.libmat)), antes)
         self.assertEqual(otro.simbolos["sumar"], 0x00400039)
         self.assertEqual(enlazador.enlazar(BASE).binario.bytes_completos(), self.imagen)
 
@@ -783,7 +800,7 @@ class TestEnlaceCargaEjecucion(unittest.TestCase):
         cargador = CargadorEnigma(ram=ram, banco=banco)
         with tempfile.TemporaryDirectory() as tmp:
             ruta = os.path.join(tmp, "duplicador.obj")
-            _modulo_duplicador().guardar(ruta)
+            guardar_obj(_modulo_duplicador(), ruta)
             meta = cargador.cargar_archivo(ruta, direccion_destino=0x00250000)
         self.assertEqual(meta["direccion_base"], 0x00250000)
         self.assertEqual(banco.pc, 0x00250000)
@@ -795,7 +812,7 @@ class TestEnlaceCargaEjecucion(unittest.TestCase):
         cargador = CargadorEnigma(ram=RAMMemory(), banco=BancoRegistros())
         with tempfile.TemporaryDirectory() as tmp:
             ruta = os.path.join(tmp, "principal.obj")
-            construir_modulo_principal().guardar(ruta)
+            guardar_obj(construir_modulo_principal(), ruta)
             with self.assertRaises(SimboloNoDefinido):
                 cargador.cargar_archivo(ruta)
 
@@ -842,7 +859,7 @@ class TestEnlaceConCodigoDelEquipo(unittest.TestCase):
                 self.assertEqual(mcd, 6 if reubicar else 0)
 
     def test_biblioteca_fpu_como_modulo_objeto(self) -> None:
-        leido = ModuloObjeto.deserializar(self.fpu.serializar())
+        leido = ModuloObjeto.deserializar(empaquetar_obj(self.fpu))
         self.assertEqual(leido, self.fpu)
         self.assertEqual(
             [s.nombre for s in leido.exportaciones], list(self.EXPORTACIONES_FPU)
@@ -890,8 +907,8 @@ class TestLineaDeComandos(unittest.TestCase):
         self.dir = self._tmp.name
         self.principal = os.path.join(self.dir, "principal.obj")
         self.libmat = os.path.join(self.dir, "libmat.obj")
-        construir_modulo_principal().guardar(self.principal)
-        construir_modulo_libmat().guardar(self.libmat)
+        guardar_obj(construir_modulo_principal(), self.principal)
+        guardar_obj(construir_modulo_libmat(), self.libmat)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()

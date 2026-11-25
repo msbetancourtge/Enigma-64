@@ -114,6 +114,9 @@ python -m spl.enlazador spl/enlazador/objetos/principal.tobj spl/enlazador/objet
 # Enlazar módulos objeto y generar un ejecutable .e64
 python -m spl.enlazador spl/enlazador/objetos/principal.tobj spl/enlazador/objetos/libmat.tobj -o programa.e64 --mapa
 
+# Volcado en 0 y 1 de cada módulo y de la imagen enlazada, con la base de cada dirección relativa
+python -m spl.enlazador spl/enlazador/objetos/principal.tobj spl/enlazador/objetos/libmat.tobj --binario --mapa --sin-informe
+
 # Ejecutar el pipeline completo del compilador SPL
 python -m spl --escenario 1
 
@@ -201,9 +204,10 @@ La CPU implementa 41 instrucciones divididas en 6 grupos funcionales:
   - Admite binarios planos (`.bin`), binarios estructurados (`.e64`) y módulos objeto (`.obj` y `.tobj`), que enlaza antes de cargar.
   - Protege áreas reservadas del sistema (vectores en `0x00000000`, firmware en `0x00001000`) y restringe la carga de programas de usuario a `>= 0x00200000`.
 - **Enlazador (`EnlazadorEnigma`)**:
-  - Procesa módulos objeto reubicables en dos representaciones equivalentes: binaria Big-Endian (`.obj`, firma `EOBJ`) y de texto (`.tobj`). La de texto se analiza con un lexer de `lex.py` (PLY) con un estado exclusivo para el contenido de las secciones; ambas se convierten una en otra sin pérdidas.
+  - Procesa módulos objeto reubicables en dos representaciones equivalentes: binaria Big-Endian (`.obj`, firma `EOBJ`) y de texto (`.tobj`). La de texto se analiza con un lexer de `lex.py` (PLY) con un estado exclusivo para el contenido de las secciones; ambas se leen como el mismo módulo. El enlazador solo lee módulos objeto y escribe el ejecutable `.e64`.
   - Resuelve referencias externas contra la tabla global de símbolos (ESTAB) y genera la sección `.bss` inicializada en cero.
   - Aplica las 5 marcas de reubicación: `ABS64`, `ABS32`, `REL16`, `HI16` (con ajuste `+0x8000` por extensión de signo de `ADDI`) y `LO16`.
+  - Muestra módulos e imagen en 0 y 1 por instrucción y por palabra (`--binario`), con los campos de cada instrucción, y un mapa de direcciones reubicadas que dice respecto de qué base se mide cada dirección (sección, base de carga o PC siguiente en `REL16`).
 
 ### Unidad de Punto Flotante (FPU)
 - Operaciones en formato IEEE 754 binary64 (doble precisión) con redondeo al par más cercano (*roundTiesToEven*), tratamiento de subnormales y casos especiales (NaN, $\pm\infty$, $\pm 0$):

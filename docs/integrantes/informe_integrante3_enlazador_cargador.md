@@ -193,7 +193,7 @@ modulo.marcas_de_seccion(".text") # marcas de una sección, ordenadas por offset
 print(modulo.informe())           # volcado legible, al estilo de objdump
 ```
 
-Para construir módulos en memoria, que es lo que hará el backend del ensamblador, están `SeccionObjeto.texto/datos/reserva`, `SimboloObjeto.local/exportado/importado`, `MarcaReubicacion` y `ModuloObjeto.serializar()` / `guardar()`.
+Para construir módulos en memoria están `SeccionObjeto.texto/datos/reserva`, `SimboloObjeto.local/exportado/importado` y `MarcaReubicacion`. Desde el Taller 02 el Enlazador-Cargador solo lee módulos objeto (`.obj` o `.tobj`) y escribe el ejecutable `.e64`: ya no tiene `serializar()` / `guardar()`.
 
 ### 5.1 Módulo objeto en texto (`.tobj`) y su analizador léxico
 
@@ -214,7 +214,7 @@ sumar    IMPORTADO  FUNCION
 ```
 
 - `lexer.py` (`ObjetoLexer`): 17 categorías (`ENCABEZADO`, `TIPO_SECCION`, `PERMISOS`, `ATRIBUTO`, `LIGADURA`, `TIPO_SIMBOLO`, `TIPO_REUBICACION`, `SECCION_ABSOLUTA`, `NOMBRE`, `ENTERO_HEX`, `ENTERO_DEC`, `BYTE`, `MAS`, `MENOS`, `LLAVE_IZQ`, `LLAVE_DER`, `FIN_LINEA`). Las palabras reservadas salen de las mismas tablas del formato binario. Los bytes entre `{` y `}` se reconocen en el estado exclusivo `contenido` (el `%x` de FLEX) y un `{` sin cerrar se detecta con la regla de fin de archivo del estado (el `<<EOF>>`). Errores: carácter no válido, número mal formado o de más de 32 bits, encabezado desconocido, escape no válido, cadena sin cerrar, byte mal formado y bloque sin cerrar.
-- `texto.py`: recorre los tokens línea por línea y arma el `ModuloObjeto`; los nombres de sección y de símbolo se resuelven al final, así el orden de los bloques es libre. Los errores léxicos, de estructura y de nombres no declarados salen todos juntos en un `ObjetoInvalido`, y la coherencia la comprueba `validar()`, igual que en el binario. `escribir_objeto_texto` hace el camino inverso.
+- `texto.py`: recorre los tokens línea por línea y arma el `ModuloObjeto`; los nombres de sección y de símbolo se resuelven al final, así el orden de los bloques es libre. Los errores léxicos, de estructura y de nombres no declarados salen todos juntos en un `ObjetoInvalido`, y la coherencia la comprueba `validar()`, igual que en el binario. Desde el Taller 02 no hay escritura de `.tobj` (se retiró `escribir_objeto_texto`).
 - `ModuloObjeto.desde_archivo`, `analizar_objeto`, `EnlazadorEnigma` y `CargadorEnigma.cargar_archivo` aceptan `.tobj`; los módulos de ejemplo están escritos así (`spl/enlazador/objetos/`), de modo que la etapa 4 del orquestador del SPL pasa por el lexer.
 
 ## 6. Enlace y carga (`enlace.py`)
@@ -360,11 +360,11 @@ Al revisar la interfaz apareció un fallo que ya estaba en `main` y no depende d
 Desde la raíz del repositorio:
 
 ```bash
-# Escribir los módulos de ejemplo como .obj binarios en programas/objetos/ (carpeta ignorada por git)
-python -c "from spl.enlazador.ejemplos import exportar_ejemplos; exportar_ejemplos('programas/objetos')"
-
 # Analizar un módulo: cabecera, secciones, exportaciones, importaciones y marcas
-python -m spl.enlazador programas/objetos/principal.obj
+python -m spl.enlazador spl/enlazador/objetos/principal.tobj
+
+# Taller 02: contenido en 0 y 1 con offsets relativos a cada sección (y de la imagen si se enlaza)
+python -m spl.enlazador spl/enlazador/objetos/principal.tobj spl/enlazador/objetos/libmat.tobj --binario --mapa
 
 # Lo mismo con los módulos en texto; --tokens imprime los tokens del lexer
 python -m spl.enlazador spl/enlazador/objetos/principal.tobj spl/enlazador/objetos/libmat.tobj --tokens --mapa

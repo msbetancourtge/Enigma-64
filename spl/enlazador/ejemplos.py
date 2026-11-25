@@ -39,7 +39,6 @@ from __future__ import annotations
 
 import os
 import struct
-from typing import List
 
 from .objeto import ModuloObjeto, analizar_objeto
 
@@ -111,14 +110,3 @@ def construir_modulo_principal() -> ModuloObjeto:
 def construir_modulo_libmat() -> ModuloObjeto:
     """Biblioteca sin dependencias que exporta sumar y error."""
     return analizar_objeto(RUTA_LIBMAT)
-
-
-def exportar_ejemplos(directorio: str) -> List[str]:
-    """Escribe principal.obj y libmat.obj en el directorio y devuelve las rutas."""
-    os.makedirs(directorio, exist_ok=True)
-    rutas = []
-    for modulo in (construir_modulo_principal(), construir_modulo_libmat()):
-        ruta = os.path.join(directorio, f"{modulo.nombre}.obj")
-        modulo.guardar(ruta)
-        rutas.append(ruta)
-    return rutas

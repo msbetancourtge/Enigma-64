@@ -1,11 +1,10 @@
 """
-Lectura y escritura del modulo objeto en texto (.tobj) - Enigma-64 (Noctua Systems).
+Lectura del modulo objeto en texto (.tobj) - Enigma-64 (Noctua Systems).
 
 leer_objeto_texto recorre los tokens de ObjetoLexer (lexer.py) linea por linea,
 como el motor del preprocesador recorre los de su lexer, y arma el mismo
-ModuloObjeto que produce la lectura de un .obj binario. escribir_objeto_texto
-hace el camino inverso, de modo que ambas representaciones se convierten una
-en la otra sin perder informacion.
+ModuloObjeto que produce la lectura de un .obj binario. El enlazador solo lee
+modulos objeto: no hay escritura de .tobj (ni de .obj).
 
 Gramatica de cada linea (los nombres de seccion y de simbolo se resuelven al
 final, asi el orden de los bloques es libre):
@@ -29,11 +28,10 @@ Autor: Integrante 3 Michael Stiven Betancourt Gelves - Enlazador-Cargador
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-from .lexer import ESCAPES, NOMBRE, PALABRAS_RESERVADAS, PERMISOS, ErrorLexico, ObjetoLexer
+from .lexer import ErrorLexico, ObjetoLexer
 from .objeto import (
     NOMBRE_LIGADURA,
     NOMBRE_REUBICACION,
@@ -43,15 +41,12 @@ from .objeto import (
     PERM_ESCRITURA,
     PERM_LECTURA,
     SECCION_ABSOLUTA,
-    SECCION_BITS,
-    SECCION_INDEFINIDA,
     SECCION_VACIA,
     MarcaReubicacion,
     ModuloObjeto,
     ObjetoInvalido,
     SeccionObjeto,
     SimboloObjeto,
-    texto_permisos,
 )
 
 _ENTEROS = ('ENTERO_HEX', 'ENTERO_DEC')
@@ -61,9 +56,6 @@ _TIPO_SECCION = {nombre: codigo for codigo, nombre in NOMBRE_TIPO_SECCION.items(
 _LIGADURA = {nombre: codigo for codigo, nombre in NOMBRE_LIGADURA.items()}
 _TIPO_SIMBOLO = {nombre: codigo for codigo, nombre in NOMBRE_TIPO_SIMBOLO.items()}
 _TIPO_REUBICACION = {nombre: codigo for codigo, nombre in NOMBRE_REUBICACION.items()}
-
-# Ningun caracter de control fuera de los escapes cabe en un nombre de texto
-_ESCAPE_DE = {caracter: '\\' + letra for letra, caracter in ESCAPES.items()}
 
 
 @dataclass(frozen=True)
@@ -132,6 +124,14 @@ class _Fila:
     def terminar(self) -> None:
         if self.pos < len(self.tokens):
             self._fallar(self.tokens[self.pos], 'sobra texto al final de la linea')
+
+
+def _permisos(texto: str) -> int:
+    return (
+        (PERM_LECTURA if texto[0] == 'R' else 0)
+        | (PERM_ESCRITURA if texto[1] == 'W' else 0)
+        | (PERM_EJECUCION if texto[2] == 'X' else 0)
+    )
 
 
 def _filas(tokens: Sequence) -> List[_Fila]:
@@ -338,95 +338,3 @@ def leer_objeto_texto(texto: str) -> ModuloObjeto:
         raise exc
     modulo.validar()
     return modulo
-
-
-# ---------------------------------------------------------------------------
-# Escritura
-# ---------------------------------------------------------------------------
-
-
-def _permisos(texto: str) -> int:
-    return (
-        (PERM_LECTURA if texto[0] == 'R' else 0)
-        | (PERM_ESCRITURA if texto[1] == 'W' else 0)
-        | (PERM_EJECUCION if texto[2] == 'X' else 0)
-    )
-
-
-def _nombre(texto: str) -> str:
-    """El nombre tal cual si el lexer lo leeria como NOMBRE; si no, entre comillas."""
-    if (re.fullmatch(NOMBRE, texto) and texto not in PALABRAS_RESERVADAS
-            and not re.fullmatch(PERMISOS, texto)):
-        return texto
-    partes = []
-    for caracter in texto:
-        if caracter in _ESCAPE_DE:
-            partes.append(_ESCAPE_DE[caracter])
-        elif ord(caracter) < 0x20 or ord(caracter) == 0x7F:
-            raise ObjetoInvalido(
-                f"El nombre {texto!r} tiene un caracter de control que el formato de "
-                f"texto no representa"
-            )
-        else:
-            partes.append(caracter)
-    return '"' + ''.join(partes) + '"'
-
-
-def _columnas(filas: Sequence[Sequence[str]], sangria: str = '') -> List[str]:
-    if not filas:
-        return []
-    anchos = [max(len(fila[i]) for fila in filas if i < len(fila))
-              for i in range(max(len(fila) for fila in filas))]
-    return [
-        (sangria + '  '.join(celda.ljust(anchos[i]) for i, celda in enumerate(fila))).rstrip()
-        for fila in filas
-    ]
-
-
-def escribir_objeto_texto(modulo: ModuloObjeto, bytes_por_linea: int = 16) -> str:
-    """Escribe el modulo en formato de texto .tobj (valida antes de escribir)."""
-    modulo.validar()
-    lineas = [
-        '; Modulo objeto reubicable de Enigma-64 en formato de texto (.tobj)',
-        f'[MODULO] {_nombre(modulo.nombre)}',
-    ]
-    if modulo.entrada is not None:
-        indice, offset = modulo.entrada
-        lineas.append(f'[ENTRADA] {_nombre(modulo.secciones[indice].nombre)} + 0x{offset:04X}')
-
-    for sec in modulo.secciones:
-        cabecera = (f'[SECCION] {_nombre(sec.nombre)} {NOMBRE_TIPO_SECCION[sec.tipo]} '
-                    f'{texto_permisos(sec.permisos)} ALIN {sec.alineacion}')
-        lineas.append('')
-        if sec.tipo == SECCION_BITS:
-            lineas.append(cabecera + ' {')
-            for inicio in range(0, len(sec.contenido), bytes_por_linea):
-                fragmento = sec.contenido[inicio:inicio + bytes_por_linea]
-                lineas.append('    ' + ' '.join(f'{b:02X}' for b in fragmento))
-            lineas.append('}')
-        else:
-            lineas.append(cabecera + f' TAM {sec.tamano}')
-
-    lineas += ['', '[SIMBOLOS]']
-    filas = [('; nombre', 'ligadura', 'tipo', 'seccion', 'valor')]
-    for sim in modulo.simbolos:
-        tipo = NOMBRE_TIPO_SIMBOLO[sim.tipo]
-        if sim.seccion == SECCION_INDEFINIDA:
-            filas.append((_nombre(sim.nombre), 'IMPORTADO', tipo))
-        else:
-            seccion = ('*ABS*' if sim.seccion == SECCION_ABSOLUTA
-                       else _nombre(modulo.secciones[sim.seccion].nombre))
-            filas.append((_nombre(sim.nombre), NOMBRE_LIGADURA[sim.ligadura], tipo,
-                          seccion, f'0x{sim.valor:04X}'))
-    lineas += _columnas(filas)
-
-    lineas += ['', '[REUBICACIONES]']
-    filas = [('; seccion', 'offset', 'tipo', 'simbolo', 'sumando')]
-    for marca in modulo.reubicaciones:
-        filas.append((
-            _nombre(modulo.secciones[marca.seccion].nombre), f'0x{marca.offset:04X}',
-            NOMBRE_REUBICACION[marca.tipo], _nombre(modulo.simbolos[marca.simbolo].nombre),
-            f'{marca.sumando:+d}',
-        ))
-    lineas += _columnas(filas)
-    return '\n'.join(lineas) + '\n'

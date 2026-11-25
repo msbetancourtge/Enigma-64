@@ -15,11 +15,14 @@ que produce un ensamblado por separado. Este modulo se encarga de esa lectura:
      en memoria, con que formula y contra que simbolo.
   4. Valida cada campo y rechaza con ObjetoInvalido cualquier indice,
      desplazamiento, tamano o nombre incoherente antes de que llegue a la RAM.
-  5. Serializa modulos construidos en memoria: es el formato que debe emitir
-     el backend del ensamblador SPL.
-  6. Lee y escribe el mismo modulo en formato de texto (.tobj): lexer.py lo
-     tokeniza con lex.py (PLY) y texto.py arma el ModuloObjeto; desde_archivo
-     elige la representacion por la extension.
+  5. Lee el mismo modulo en formato de texto (.tobj): lexer.py lo tokeniza con
+     lex.py (PLY) y texto.py arma el ModuloObjeto; desde_archivo elige la
+     representacion por la extension.
+  6. Muestra el contenido bit a bit (formatear_binario_bits, ver binario.py)
+     con cada offset relativo al inicio de su seccion.
+
+El Enlazador-Cargador solo lee modulos objeto: los recibe ya escritos (.obj o
+.tobj) y entrega el ejecutable binario .e64; no escribe modulos objeto.
 
 Disposicion del archivo (Big-Endian, igual que la maquina y el formato .e64):
 
@@ -390,8 +393,8 @@ class ModuloObjeto:
     def validar(self) -> None:
         """
         Comprueba la coherencia interna del modulo. La usan el analizador (tras
-        leer el archivo) y el serializador (antes de escribirlo), asi ningun
-        modulo incoherente entra ni sale del enlazador.
+        leer el archivo) y el enlazador (antes de enlazar un modulo construido
+        en memoria), asi ningun modulo incoherente llega a la imagen.
 
         :raises ObjetoInvalido: Con el primer problema encontrado.
         """
@@ -529,115 +532,7 @@ class ModuloObjeto:
                 f"({seccion.tamano} bytes)"
             )
 
-    # -- serializacion ------------------------------------------------------
-
-    def serializar(self) -> bytes:
-        """Escribe el modulo en formato .obj (valida antes de escribir)."""
-        self.validar()
-
-        cadenas = _TablaCadenas()
-        nombre_modulo = cadenas.agregar(self.nombre)
-
-        off_secciones = TAM_CABECERA_OBJ
-        off_contenido = off_secciones + len(self.secciones) * TAM_SECCION
-        encabezados = bytearray()
-        contenidos = bytearray()
-        for sec in self.secciones:
-            if sec.tipo == SECCION_BITS:
-                offset = off_contenido + len(contenidos)
-                contenidos.extend(sec.contenido)
-            else:
-                offset = 0
-            encabezados.extend(
-                struct.pack(
-                    FORMATO_SECCION,
-                    cadenas.agregar(sec.nombre),
-                    sec.tipo,
-                    sec.permisos,
-                    sec.alineacion,
-                    sec.tamano,
-                    offset,
-                )
-            )
-
-        off_simbolos = off_contenido + len(contenidos)
-        tabla_simbolos = b"".join(
-            struct.pack(
-                FORMATO_SIMBOLO,
-                cadenas.agregar(sim.nombre),
-                sim.seccion,
-                sim.ligadura,
-                sim.tipo,
-                sim.valor,
-            )
-            for sim in self.simbolos
-        )
-
-        off_reubicaciones = off_simbolos + len(tabla_simbolos)
-        tabla_reubicaciones = b"".join(
-            struct.pack(
-                FORMATO_REUBICACION,
-                marca.seccion,
-                marca.tipo,
-                0,
-                marca.offset,
-                marca.simbolo,
-                marca.sumando,
-            )
-            for marca in self.reubicaciones
-        )
-
-        off_cadenas = off_reubicaciones + len(tabla_reubicaciones)
-        if self.entrada is not None:
-            banderas = FLAG_OBJ_ENTRADA
-            seccion_entrada, offset_entrada = self.entrada
-        else:
-            banderas, seccion_entrada, offset_entrada = 0, SECCION_INDEFINIDA, 0
-
-        cabecera = struct.pack(
-            FORMATO_CABECERA_OBJ,
-            MAGIC_OBJETO,
-            VERSION_OBJETO,
-            MAQUINA_ENIGMA64,
-            banderas,
-            seccion_entrada,
-            offset_entrada,
-            nombre_modulo,
-            len(self.secciones),
-            off_secciones,
-            len(self.simbolos),
-            off_simbolos,
-            len(self.reubicaciones),
-            off_reubicaciones,
-            len(cadenas.datos),
-            off_cadenas,
-        )
-        return (
-            cabecera
-            + bytes(encabezados)
-            + bytes(contenidos)
-            + tabla_simbolos
-            + tabla_reubicaciones
-            + bytes(cadenas.datos)
-        )
-
-    def guardar(self, ruta: Union[str, os.PathLike]) -> None:
-        """Escribe el modulo en disco como archivo .obj."""
-        with open(ruta, "wb") as f:
-            f.write(self.serializar())
-
-    def a_texto(self) -> str:
-        """Escribe el modulo en formato de texto .tobj (valida antes de escribir)."""
-        # Importacion diferida: texto.py depende de este modulo
-        from .texto import escribir_objeto_texto
-
-        return escribir_objeto_texto(self)
-
-    def guardar_texto(self, ruta: Union[str, os.PathLike]) -> None:
-        """Escribe el modulo en disco como archivo de texto .tobj."""
-        texto = self.a_texto()
-        with open(ruta, "w", encoding="utf-8") as f:
-            f.write(texto)
+    # -- lectura --------------------------------------------------------------
 
     @classmethod
     def desde_texto(cls, texto: str) -> ModuloObjeto:
@@ -822,7 +717,7 @@ class ModuloObjeto:
                 f"  Punto de entrada: {self.secciones[indice].nombre}+0x{offset:04X}"
             )
 
-        lineas += ["", "Encabezados de seccion"]
+        lineas += ["", "Encabezados de seccion (Offset: inicio del contenido relativo al inicio del archivo .obj)"]
         lineas += _formatear_tabla(
             ("Idx", "Nombre", "Tipo", "Clase", "Perm", "Alin", "Tamano", "Offset"),
             [
@@ -835,7 +730,8 @@ class ModuloObjeto:
             ],
         )
 
-        lineas += ["", f"Tabla de exportaciones ({len(self.exportaciones)})"]
+        lineas += ["", f"Tabla de exportaciones ({len(self.exportaciones)}): "
+                       f"Valor = offset relativo al inicio de su seccion"]
         lineas += _formatear_tabla(
             ("Simbolo", "Seccion", "Valor", "Tipo"),
             [
@@ -845,7 +741,8 @@ class ModuloObjeto:
             ],
         )
 
-        lineas += ["", f"Tabla de importaciones ({len(self.importaciones)})"]
+        lineas += ["", f"Tabla de importaciones ({len(self.importaciones)}): "
+                       f"referencias como seccion+offset relativo al inicio de la seccion"]
         lineas += _formatear_tabla(
             ("Simbolo", "Tipo", "Referencias"),
             [
@@ -860,7 +757,8 @@ class ModuloObjeto:
             ],
         )
 
-        lineas += ["", f"Simbolos locales ({len(self.locales)})"]
+        lineas += ["", f"Simbolos locales ({len(self.locales)}): "
+                       f"Valor = offset relativo al inicio de su seccion"]
         lineas += _formatear_tabla(
             ("Simbolo", "Seccion", "Valor", "Tipo"),
             [
@@ -870,7 +768,8 @@ class ModuloObjeto:
             ],
         )
 
-        lineas += ["", f"Marcas de reubicacion ({len(self.reubicaciones)})"]
+        lineas += ["", f"Marcas de reubicacion ({len(self.reubicaciones)}): "
+                       f"Offset relativo al inicio de la seccion que se parcha"]
         lineas += _formatear_tabla(
             ("Seccion", "Offset", "Tipo", "Ancho", "Simbolo", "Origen", "Sumando"),
             [
@@ -883,6 +782,16 @@ class ModuloObjeto:
             ],
         )
         return "\n".join(lineas)
+
+    def formatear_binario_bits(self) -> str:
+        """
+        Contenido del modulo en 0 y 1: cada instruccion con sus campos, cada
+        palabra de datos y la tabla de reubicacion, con offsets relativos al
+        inicio de cada seccion (ver binario.py).
+        """
+        from .binario import formatear_modulo_bits  # binario.py importa este modulo
+
+        return formatear_modulo_bits(self)
 
 
 FuenteObjeto = Union[ModuloObjeto, bytes, bytearray, str, os.PathLike]
@@ -905,20 +814,6 @@ def analizar_objeto(fuente: FuenteObjeto) -> ModuloObjeto:
 # ---------------------------------------------------------------------------
 # 2. Utilidades internas del analizador
 # ---------------------------------------------------------------------------
-
-
-class _TablaCadenas:
-    """Tabla de cadenas UTF-8 terminadas en NUL; el offset 0 es la cadena vacia."""
-
-    def __init__(self) -> None:
-        self.datos = bytearray(b"\x00")
-        self._offsets: Dict[str, int] = {"": 0}
-
-    def agregar(self, texto: str) -> int:
-        if texto not in self._offsets:
-            self._offsets[texto] = len(self.datos)
-            self.datos.extend(texto.encode("utf-8") + b"\x00")
-        return self._offsets[texto]
 
 
 def _exigir_nombre(nombre: str, contexto: str, permitir_vacio: bool = False) -> None:

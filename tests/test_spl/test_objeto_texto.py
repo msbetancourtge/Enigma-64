@@ -8,7 +8,8 @@ Verifica:
   3. Errores lexicos con linea y columna, y recuperacion tras cada uno.
   4. Lectura: los .tobj de ejemplo equivalen a los modulos armados en memoria.
   5. Errores de estructura y de nombres no declarados, todos en una ejecucion.
-  6. Escritura: texto -> modulo -> binario -> modulo -> texto sin perdidas.
+  6. Texto y binario describen el mismo modulo (el enlazador solo lee: no hay
+     escritor de .tobj ni de .obj; los .obj de prueba los arma objetos_prueba).
   7. Integracion con el enlazador, el cargador, la linea de comandos y el SPL.
   8. Cifras del escenario complementario 6 del informe del Taller 01.
 
@@ -71,11 +72,12 @@ from spl.enlazador.objeto import (
 from spl.enlazador.texto import (
     ErrorSintactico,
     analizar_texto,
-    escribir_objeto_texto,
     leer_objeto_texto,
 )
 from enigma64.ensamblador import ensamblar
 from enigma64.fpu import CODIGO_FPU_ASM
+
+from .objetos_prueba import empaquetar_obj, guardar_obj
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -166,6 +168,42 @@ doble   GLOBAL  DATO     .data  0x0008
 [REUBICACIONES]
 .text  0x0002  HI16  dato
 .text  0x000A  LO16  dato
+"""
+
+
+# _modulo_variado() escrito a mano en el formato .tobj
+TOBJ_VARIADO = r"""; Modulo objeto reubicable de Enigma-64 en formato de texto (.tobj)
+[MODULO] "mod variado"
+[ENTRADA] "DATO" + 0x0027
+
+[SECCION] "DATO" BITS R-X ALIN 1 {
+    00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
+    10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F
+    20 21 22 23 24 25 26 27
+}
+
+[SECCION] vacia BITS R-X ALIN 1 {
+}
+
+[SECCION] .rodata.tabla BITS RW- ALIN 16 {
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+}
+
+[SECCION] .bss VACIA RW- ALIN 4096 TAM 4096
+
+[SIMBOLOS]
+; nombre                 ligadura   tipo      seccion        valor
+"RWX"                    GLOBAL     FUNCION   "DATO"         0x0010
+LIMITE                   GLOBAL     SIN_TIPO  *ABS*          0xFFFFFFFF
+"con \"comillas\" y \\"  LOCAL      DATO      .rodata.tabla  0x0008
+"1empieza_con_digito"    LOCAL      SIN_TIPO  "DATO"         0x0000
+"tab\tnueva\nlinea"      IMPORTADO  SIN_TIPO
+
+[REUBICACIONES]
+; seccion      offset  tipo   simbolo                  sumando
+"DATO"         0x0000  ABS32  "tab\tnueva\nlinea"      -8
+"DATO"         0x0004  REL16  "RWX"                    +2147483647
+.rodata.tabla  0x0000  ABS64  "con \"comillas\" y \\"  -2147483648
 """
 
 
@@ -388,9 +426,9 @@ class TestLecturaDelTexto(unittest.TestCase):
     def test_ejemplos_equivalen_a_los_modulos_en_memoria(self) -> None:
         self.assertEqual(construir_modulo_principal(), _principal_en_memoria())
         self.assertEqual(construir_modulo_libmat(), _libmat_en_memoria())
-        self.assertEqual(construir_modulo_principal().serializar(),
-                         _principal_en_memoria().serializar())
-        self.assertEqual(construir_modulo_libmat().serializar(), _libmat_en_memoria().serializar())
+        self.assertEqual(empaquetar_obj(construir_modulo_principal()),
+                         empaquetar_obj(_principal_en_memoria()))
+        self.assertEqual(empaquetar_obj(construir_modulo_libmat()), empaquetar_obj(_libmat_en_memoria()))
 
     def test_bytes_de_los_ejemplos(self) -> None:
         principal = construir_modulo_principal()
@@ -548,12 +586,12 @@ class TestErroresDeEstructura(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 6. Escritura y conversion entre representaciones
+# 6. Texto y binario describen el mismo modulo
 # ---------------------------------------------------------------------------
 
 
-class TestEscritura(unittest.TestCase):
-    """Texto y binario se convierten uno en otro sin perder informacion."""
+class TestTextoYBinario(unittest.TestCase):
+    """El .tobj y el .obj de un modulo se leen como el mismo ModuloObjeto."""
 
     def _modulos(self):
         fpu = ensamblar(CODIGO_FPU_ASM, direccion_base=0)
@@ -566,56 +604,41 @@ class TestEscritura(unittest.TestCase):
                          [SimboloObjeto.exportado("inicio", 0, 0, SIMBOLO_FUNCION)]),
         ]
 
-    def test_ida_y_vuelta(self) -> None:
+    def test_el_binario_se_lee_como_el_modulo_que_describe(self) -> None:
         for modulo in self._modulos():
             with self.subTest(modulo=modulo.nombre):
-                texto = escribir_objeto_texto(modulo)
-                leido = leer_objeto_texto(texto)
-                self.assertEqual(leido, modulo)
-                desde_binario = ModuloObjeto.deserializar(modulo.serializar())
-                self.assertEqual(desde_binario.a_texto(), texto)
-                self.assertEqual(leido.serializar(), modulo.serializar())
+                self.assertEqual(ModuloObjeto.deserializar(empaquetar_obj(modulo)), modulo)
 
-    def test_nombres_que_necesitan_comillas(self) -> None:
-        texto = _modulo_variado().a_texto()
-        for fragmento in ('[MODULO] "mod variado"', '[SECCION] "DATO" BITS', '"RWX"',
-                          '"con \\"comillas\\" y \\\\"', '"1empieza_con_digito"',
-                          '"tab\\tnueva\\nlinea"', "*ABS*", "-8", "-2147483648",
-                          "[ENTRADA] \"DATO\" + 0x0027", "TAM 4096"):
-            with self.subTest(fragmento=fragmento):
-                self.assertIn(fragmento, texto)
-        self.assertIn('[MODULO] ""', ModuloObjeto("", [SeccionObjeto.texto(b"\x00")]).a_texto())
+    def test_texto_y_binario_dan_el_mismo_modulo(self) -> None:
+        textos = {
+            "principal": open(RUTA_PRINCIPAL, encoding="utf-8").read(),
+            "libmat": open(RUTA_LIBMAT, encoding="utf-8").read(),
+            "duplicador": TOBJ_DUPLICADOR,
+            "mod variado": TOBJ_VARIADO,
+        }
+        for modulo in self._modulos()[:4]:
+            with self.subTest(modulo=modulo.nombre):
+                desde_texto = leer_objeto_texto(textos[modulo.nombre])
+                desde_binario = ModuloObjeto.deserializar(empaquetar_obj(modulo))
+                self.assertEqual(desde_texto, desde_binario)
 
-    def test_formato_de_salida(self) -> None:
-        self.assertEqual(
-            construir_modulo_libmat().a_texto(),
-            "; Modulo objeto reubicable de Enigma-64 en formato de texto (.tobj)\n"
-            "[MODULO] libmat\n"
-            "\n"
-            "[SECCION] .text BITS R-X ALIN 1 {\n"
-            "    10 52 30 4C 14 50 00 EE 31 51 00 10 00\n"
-            "}\n"
-            "\n"
-            "[SIMBOLOS]\n"
-            "; nombre  ligadura  tipo     seccion  valor\n"
-            "sumar     GLOBAL    FUNCION  .text    0x0000\n"
-            "error     GLOBAL    FUNCION  .text    0x0004\n"
-            "\n"
-            "[REUBICACIONES]\n"
-            "; seccion  offset  tipo  simbolo  sumando\n",
-        )
+    def test_nombres_entre_comillas_escapes_y_sumandos_con_signo(self) -> None:
+        modulo = leer_objeto_texto(TOBJ_VARIADO)
+        self.assertEqual(modulo, _modulo_variado())
+        self.assertEqual(modulo.nombre, "mod variado")
+        self.assertEqual([s.nombre for s in modulo.secciones], ["DATO", "vacia", ".rodata.tabla", ".bss"])
+        self.assertEqual(modulo.simbolos[2].nombre, 'con "comillas" y \\')
+        self.assertEqual(modulo.simbolos[4].nombre, "tab\tnueva\nlinea")
+        self.assertEqual(modulo.simbolos[1], SimboloObjeto.exportado("LIMITE", SECCION_ABSOLUTA, 0xFFFFFFFF))
+        self.assertEqual([m.sumando for m in modulo.reubicaciones], [-8, 0x7FFFFFFF, -(1 << 31)])
+        self.assertEqual(modulo.entrada, (0, 0x27))
+        self.assertEqual(leer_objeto_texto('[MODULO] ""\n[SECCION] .t BITS R-X ALIN 1 { 00 }\n').nombre, "")
 
-    def test_lo_que_no_se_puede_escribir(self) -> None:
-        texto = SeccionObjeto.texto(b"\x00")
-        with self.assertRaises(ObjetoInvalido):
-            ModuloObjeto("m", [texto], [SimboloObjeto.local("a\x01b", 0, 0)]).a_texto()
-        with self.assertRaises(ObjetoInvalido):
-            ModuloObjeto("m", [texto, SeccionObjeto.texto(b"\x00")]).a_texto()
-
-    def test_guardar_texto_y_leer_archivo(self) -> None:
+    def test_extension_tobj_sin_distinguir_mayusculas(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             ruta = os.path.join(tmp, "variado.TOBJ")
-            _modulo_variado().guardar_texto(ruta)
+            with open(ruta, "w", encoding="utf-8") as f:
+                f.write(TOBJ_VARIADO)
             self.assertEqual(analizar_objeto(ruta), _modulo_variado())
 
 
@@ -647,7 +670,7 @@ class TestIntegracion(unittest.TestCase):
 
     def test_enlace_mixto_de_texto_y_binario(self) -> None:
         libmat_obj = os.path.join(self.dir, "libmat.obj")
-        construir_modulo_libmat().guardar(libmat_obj)
+        guardar_obj(construir_modulo_libmat(), libmat_obj)
         ram, banco = RAMMemory(), BancoRegistros()
         meta = EnlazadorEnigma([RUTA_PRINCIPAL, libmat_obj]).enlazar_y_cargar(
             CargadorEnigma(ram=ram, banco=banco), 0x00300000
@@ -698,7 +721,7 @@ class TestIntegracion(unittest.TestCase):
 
     def test_cli_tokens_ignora_los_obj_binarios(self) -> None:
         libmat_obj = os.path.join(self.dir, "libmat.obj")
-        construir_modulo_libmat().guardar(libmat_obj)
+        guardar_obj(construir_modulo_libmat(), libmat_obj)
         codigo, salida, _ = self._cli(libmat_obj, "--tokens")
         self.assertEqual(codigo, 0)
         self.assertNotIn("Tokens de", salida)

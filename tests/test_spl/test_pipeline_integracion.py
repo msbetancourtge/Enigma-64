@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from spl.enlazador.ejemplos import exportar_ejemplos
+from spl.enlazador.ejemplos import RUTA_LIBMAT, RUTA_PRINCIPAL
 from spl import (
     EtapaCompiladorResult,
     EtapaEnlazadorCargadorResult,
@@ -204,7 +204,7 @@ class TestCLIOrquestadorYCompilacionCruzada:
 
     def test_cli_con_archivos_spl_asm_y_obj_exportados(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            rutas_obj = exportar_ejemplos(tmp)
+            rutas_obj = [RUTA_PRINCIPAL, RUTA_LIBMAT]
             ruta_spl = str(DIR_EJEMPLOS_PIPELINE / "escenario1_aritmetica_tda.spl")
             ruta_asm = str(DIR_EJEMPLOS_PIPELINE / "escenario1_modulo.asm")
             buf = io.StringIO()

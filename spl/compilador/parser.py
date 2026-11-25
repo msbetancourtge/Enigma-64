@@ -16,11 +16,11 @@ Organización por responsables:
   (struct/tda), DefinicionTypedef, EspecificadorTipo, DeclaracionVariable
   (escalares, 1D y 2D con inicializadores) y DeclaracionFuncion
   (definiciones y prototipos).
-- Parte 2, Integrante 3 (_ProduccionesSentenciasExpresiones): Bloque, sentencias,
-  control de flujo, niveles de expresión y p_error. Esta parte contiene por
-  ahora una base mínima (bloques, asignación, return y expresiones con los
-  operadores que reconoce el lexer) para que la Parte 1 se pueda construir y
-  probar; el Integrante 3 la completa.
+- Parte 2, Integrante 3 (_ProduccionesSentenciasExpresiones): Bloque,
+  sentencias simples (asignación simple y compuesta, ++ y --), control de flujo
+  (if/then/else, switch/case/default, while, do-while, for, return, break y
+  continue), los 13 niveles de expresión de la gramática E-BNF, recuperación de
+  errores por sentencia y por bloque, y p_error con los tokens esperados.
 
 Nombres de tipo declarados con typedef (token TIPO_ID): la gramática distingue
 TIPO_ID de ID para que 'Alias x;' (declaración) y 'x = 1;' (sentencia) no
@@ -72,6 +72,21 @@ from spl.compilador.ast_nodos import (
 from spl.compilador.lexer import CompiladorLexer, ErrorLexico
 from spl.compilador.tablas import GestorTablasSimbolos, desescapar_cadena
 
+# Nodos que construye la Parte 2 (Integrante 3)
+from spl.compilador.ast_nodos import (
+    ClausulaCase,
+    ClausulaDefault,
+    IncrementoDecremento,
+    SentenciaBreak,
+    SentenciaContinue,
+    SentenciaDoWhile,
+    SentenciaFor,
+    SentenciaIf,
+    SentenciaSwitch,
+    SentenciaWhile,
+)
+from spl.compilador.lexer import OPERADORES, PALABRAS_RESERVADAS
+
 
 # ---------------------------------------------------------------------------
 # 1. Errores sintácticos
@@ -97,6 +112,33 @@ class ErrorSintactico:
 # TRUE_LIT y FALSE_LIT los agrega el ajuste léxico del Literal b; TIPO_ID lo
 # produce el propio parser al reclasificar los alias de typedef.
 TOKENS_ADICIONALES = ("TRUE_LIT", "FALSE_LIT", "TIPO_ID")
+
+# Parte 2 (Integrante 3): operadores de la gramática E-BNF que el lexer de la
+# Fase 1 todavía no emite (niveles de bits, asignación compuesta, ++ y --).
+# Lexema -> nombre del token: es el contrato con lexer.py. Cuando el lexer los
+# emita con estos nombres el parser los acepta sin cambios; mientras tanto,
+# CompiladorParser.tokens los declara para que la tabla LALR(1) los incluya.
+OPERADORES_ADICIONALES = {
+    "&": "AND_BIT",
+    "|": "OR_BIT",
+    "^": "XOR_BIT",
+    "~": "NOT_BIT",
+    "<<": "DESPLAZAR_IZQ",
+    ">>": "DESPLAZAR_DER",
+    "++": "INCREMENTO",
+    "--": "DECREMENTO",
+    "+=": "MAS_ASIGNAR",
+    "-=": "MENOS_ASIGNAR",
+    "*=": "POR_ASIGNAR",
+    "/=": "DIV_ASIGNAR",
+    "%=": "MOD_ASIGNAR",
+    "&=": "AND_ASIGNAR",
+    "|=": "OR_ASIGNAR",
+    "^=": "XOR_ASIGNAR",
+    "<<=": "DESPLAZAR_IZQ_ASIGNAR",
+    ">>=": "DESPLAZAR_DER_ASIGNAR",
+}
+TOKENS_ADICIONALES += tuple(OPERADORES_ADICIONALES.values())
 
 TIPOS_PRIMITIVOS_TOKEN = {
     "INT_TYPE": "int",
@@ -418,18 +460,63 @@ class _ProduccionesDeclaraciones:
 
 
 # ---------------------------------------------------------------------------
-# 4. Parte 2 (Integrante 3): bloques, sentencias y expresiones
-#    BASE MÍNIMA PROVISIONAL: el Integrante 3 agrega el control de flujo
-#    (if/switch/while/do/for/break/continue), los niveles de bits, la
-#    asignación compuesta y la recuperación de errores por sentencia.
+# 4. Parte 2 (Integrante 3): bloques, sentencias, control de flujo, los 13
+#    niveles de expresión y p_error
 # ---------------------------------------------------------------------------
 
-class _ProduccionesSentenciasExpresiones:
+# Texto con que p_error nombra cada token en "se esperaba ..."
+_DELIMITADORES = {
+    "CORCHETE_IZQ": "[", "CORCHETE_DER": "]", "LLAVE_IZQ": "{", "LLAVE_DER": "}",
+    "PARENTESIS_IZQ": "(", "PARENTESIS_DER": ")", "PUNTO_Y_COMA": ";", "COMA": ",",
+    "DOS_PUNTOS": ":", "PUNTO": ".", "FLECHA": "->", "ASIGNAR": "=",
+}
+_NOMBRE_TOKEN = {
+    **{token: f"'{lexema}'" for lexema, token in PALABRAS_RESERVADAS.items()},
+    **{token: f"'{lexema}'" for lexema, token in OPERADORES.items()},
+    **{token: f"'{lexema}'" for lexema, token in OPERADORES_ADICIONALES.items()},
+    **{token: f"'{lexema}'" for token, lexema in _DELIMITADORES.items()},
+    "TRUE_LIT": "'true'", "FALSE_LIT": "'false'",
+    "ID": "identificador", "TIPO_ID": "nombre de tipo",
+    "ENTERO_DEC": "entero", "ENTERO_HEX": "entero", "ENTERO_BIN": "entero",
+    "FLOTANTE": "flotante", "STRING": "cadena", "CHAR_LITERAL": "caracter",
+    "$end": "fin de archivo",
+}
 
-    # --- Bloques y sentencias -------------------------------------------------
+# Con más alternativas que esta el mensaje no lista los tokens esperados
+MAX_TOKENS_ESPERADOS = 6
+
+
+class _ProduccionesSentenciasExpresiones:
+    """
+    Producciones de bloques, sentencias y expresiones (Parte 2).
+
+    Else colgante: 'if (a) if (b) x; else y;' admite dos árboles. La tabla de
+    precedencia da a ELSE más prioridad que a la regla del if sin else
+    (%prec SIN_ELSE), así que ante ELSE el autómata desplaza y el else queda
+    con el if más cercano, como en C. PLY resuelve ese único conflicto con la
+    tabla y no lo cuenta (0 shift/reduce, 0 reduce/reduce).
+
+    Los niveles de expresión no usan la tabla: la gramática está estratificada
+    (un no terminal por nivel, recursión por la izquierda), así que la
+    precedencia y la asociatividad izquierda salen de la forma de las reglas.
+    """
+
+    precedence = (
+        ("nonassoc", "SIN_ELSE"),
+        ("nonassoc", "ELSE"),
+    )
+
+    # --- Bloques ----------------------------------------------------------------
 
     def p_bloque(self, p):
         """bloque : LLAVE_IZQ elementos_bloque LLAVE_DER"""
+        p[0] = Bloque(elementos=p[2], **_pos(p, 1))
+
+    def p_bloque_error(self, p):
+        """bloque : LLAVE_IZQ elementos_bloque error LLAVE_DER"""
+        # Recuperación por bloque: la última sentencia quedó incompleta (por
+        # ejemplo, falta el ';' antes de '}'). Se descartan sus tokens y el
+        # bloque conserva los elementos ya reconocidos.
         p[0] = Bloque(elementos=p[2], **_pos(p, 1))
 
     def p_elementos_bloque(self, p):
@@ -438,40 +525,196 @@ class _ProduccionesSentenciasExpresiones:
         if len(p) == 2:
             p[0] = []
         else:
-            p[0] = p[1] + [p[2]]
+            p[0] = p[1]
+            if p[2] is not None:  # None = sentencia descartada tras un error
+                p[0].append(p[2])
 
     def p_elemento_bloque(self, p):
         """elemento_bloque : declaracion_variable
                            | sentencia"""
         p[0] = p[1]
 
-    def p_sentencia_bloque(self, p):
-        """sentencia : bloque"""
+    # --- Sentencias -------------------------------------------------------------
+
+    def p_sentencia(self, p):
+        """sentencia : bloque
+                     | sentencia_if
+                     | sentencia_switch
+                     | sentencia_while
+                     | sentencia_do_while
+                     | sentencia_for
+                     | sentencia_return
+                     | sentencia_break
+                     | sentencia_continue"""
         p[0] = p[1]
 
     def p_sentencia_vacia(self, p):
         """sentencia : PUNTO_Y_COMA"""
         p[0] = SentenciaVacia(**_pos(p, 1))
 
-    def p_sentencia_simple(self, p):
+    def p_sentencia_simple_terminada(self, p):
         """sentencia : sentencia_simple PUNTO_Y_COMA"""
         p[0] = p[1]
+
+    def p_sentencia_error(self, p):
+        """sentencia : error PUNTO_Y_COMA"""
+        # Recuperación en modo pánico por sentencia: se descartan los tokens
+        # hasta el ';' que la cierra y el análisis sigue con la siguiente.
+        p[0] = None
+
+    @staticmethod
+    def _cuerpo(nodo):
+        """Cuerpo de if/while/do/for; una sentencia descartada queda como ';'."""
+        return nodo if nodo is not None else SentenciaVacia()
+
+    # --- Sentencias simples: expresión, asignación, ++ y -- ----------------------
 
     def p_sentencia_simple_expresion(self, p):
         """sentencia_simple : expresion"""
         p[0] = SentenciaExpresion(expresion=p[1], **_pos_nodo(p[1]))
 
     def p_sentencia_simple_asignacion(self, p):
-        """sentencia_simple : expresion ASIGNAR expresion"""
-        p[0] = Asignacion(destino=p[1], operador="=", valor=p[3], **_pos_nodo(p[1]))
+        """sentencia_simple : expresion operador_asignacion expresion"""
+        p[0] = Asignacion(destino=p[1], operador=p[2], valor=p[3], **_pos_nodo(p[1]))
+
+    def p_operador_asignacion(self, p):
+        """operador_asignacion : ASIGNAR
+                               | MAS_ASIGNAR
+                               | MENOS_ASIGNAR
+                               | POR_ASIGNAR
+                               | DIV_ASIGNAR
+                               | MOD_ASIGNAR
+                               | AND_ASIGNAR
+                               | OR_ASIGNAR
+                               | XOR_ASIGNAR
+                               | DESPLAZAR_IZQ_ASIGNAR
+                               | DESPLAZAR_DER_ASIGNAR"""
+        p[0] = p[1]
+
+    def p_sentencia_simple_incremento(self, p):
+        """sentencia_simple : expresion INCREMENTO
+                            | expresion DECREMENTO"""
+        p[0] = IncrementoDecremento(destino=p[1], operador=p[2], **_pos_nodo(p[1]))
+
+    # --- Selección: if / then / else ---------------------------------------------
+
+    def p_sentencia_if(self, p):
+        """sentencia_if : IF PARENTESIS_IZQ expresion PARENTESIS_DER then_opt sentencia %prec SIN_ELSE
+                        | IF PARENTESIS_IZQ expresion PARENTESIS_DER then_opt sentencia ELSE sentencia"""
+        sino = self._cuerpo(p[8]) if len(p) == 9 else None
+        p[0] = SentenciaIf(
+            condicion=p[3], entonces=self._cuerpo(p[6]), sino=sino, con_then=p[5], **_pos(p, 1)
+        )
+
+    def p_then_opt(self, p):
+        """then_opt : THEN
+                    | vacio"""
+        p[0] = p[1] is not None  # True si se escribió 'then'
+
+    # --- Selección múltiple: switch / case / default ----------------------------
+
+    def p_sentencia_switch(self, p):
+        """sentencia_switch : SWITCH PARENTESIS_IZQ expresion PARENTESIS_DER LLAVE_IZQ clausulas_case clausula_default LLAVE_DER"""
+        p[0] = SentenciaSwitch(expresion=p[3], casos=p[6], defecto=p[7], **_pos(p, 1))
+
+    def p_clausulas_case(self, p):
+        """clausulas_case : clausulas_case clausula_case
+                          | vacio"""
+        if len(p) == 2:
+            p[0] = []
+        else:
+            p[0] = p[1]
+            p[0].append(p[2])
+
+    def p_clausula_case(self, p):
+        """clausula_case : CASE constante_case DOS_PUNTOS elementos_bloque"""
+        p[0] = ClausulaCase(valor=p[2], cuerpo=p[4], **_pos(p, 1))
+
+    def p_clausula_default(self, p):
+        """clausula_default : DEFAULT DOS_PUNTOS elementos_bloque
+                            | vacio"""
+        p[0] = ClausulaDefault(cuerpo=p[3], **_pos(p, 1)) if len(p) == 4 else None
+
+    def p_constante_case(self, p):
+        """constante_case : ENTERO_DEC
+                          | ENTERO_HEX
+                          | ENTERO_BIN
+                          | CHAR_LITERAL
+                          | TRUE_LIT
+                          | FALSE_LIT"""
+        p[0] = self._literal_de_token(p.slice[1])
+
+    def p_constante_case_negativa(self, p):
+        """constante_case : MENOS ENTERO_DEC
+                          | MENOS ENTERO_HEX
+                          | MENOS ENTERO_BIN"""
+        # El parser no evalúa: '-5' queda como ExpresionUnaria('-', 5) y el
+        # analizador semántico la reduce a la constante del case.
+        p[0] = ExpresionUnaria(operador="-", operando=self._literal_de_token(p.slice[2]), **_pos(p, 1))
+
+    # --- Iteración: while, do-while y for ----------------------------------------
+
+    def p_sentencia_while(self, p):
+        """sentencia_while : WHILE PARENTESIS_IZQ expresion PARENTESIS_DER sentencia"""
+        p[0] = SentenciaWhile(condicion=p[3], cuerpo=self._cuerpo(p[5]), **_pos(p, 1))
+
+    def p_sentencia_do_while(self, p):
+        """sentencia_do_while : DO sentencia WHILE PARENTESIS_IZQ expresion PARENTESIS_DER PUNTO_Y_COMA"""
+        p[0] = SentenciaDoWhile(cuerpo=self._cuerpo(p[2]), condicion=p[5], **_pos(p, 1))
+
+    def p_sentencia_for(self, p):
+        """sentencia_for : FOR PARENTESIS_IZQ for_inicial PUNTO_Y_COMA expresion_opt PUNTO_Y_COMA for_paso PARENTESIS_DER sentencia"""
+        p[0] = SentenciaFor(
+            inicial=p[3], condicion=p[5], paso=p[7], cuerpo=self._cuerpo(p[9]), **_pos(p, 1)
+        )
+
+    def p_for_inicial_declaracion(self, p):
+        """for_inicial : especificador_tipo ID
+                       | especificador_tipo ID ASIGNAR expresion"""
+        # 'int i = 0' declara la variable del bucle: mismo nodo que una
+        # DeclaracionVariable de un solo declarador escalar.
+        inicializador = p[4] if len(p) == 5 else None
+        declarador = Declarador(nombre=p[2], dimensiones=[], inicializador=inicializador, **_pos(p, 2))
+        p[0] = DeclaracionVariable(tipo=p[1], declaradores=[declarador], **_pos_nodo(p[1]))
+
+    def p_for_inicial_simple(self, p):
+        """for_inicial : sentencia_simple
+                       | vacio"""
+        p[0] = p[1]
+
+    def p_expresion_opt(self, p):
+        """expresion_opt : expresion
+                         | vacio"""
+        p[0] = p[1]
+
+    def p_for_paso(self, p):
+        """for_paso : sentencia_simple
+                    | vacio"""
+        p[0] = p[1]
+
+    # --- Saltos: return, break y continue -----------------------------------------
 
     def p_sentencia_return(self, p):
-        """sentencia : RETURN PUNTO_Y_COMA
-                     | RETURN expresion PUNTO_Y_COMA"""
+        """sentencia_return : RETURN PUNTO_Y_COMA
+                            | RETURN expresion PUNTO_Y_COMA"""
         valor = p[2] if len(p) == 4 else None
         p[0] = SentenciaReturn(valor=valor, **_pos(p, 1))
 
-    # --- Expresiones (estratificadas, asociatividad izquierda) ----------------
+    def p_sentencia_break(self, p):
+        """sentencia_break : BREAK PUNTO_Y_COMA"""
+        p[0] = SentenciaBreak(**_pos(p, 1))
+
+    def p_sentencia_continue(self, p):
+        """sentencia_continue : CONTINUE PUNTO_Y_COMA"""
+        p[0] = SentenciaContinue(**_pos(p, 1))
+
+    # --- Expresiones: 13 niveles, asociatividad izquierda -------------------------
+    #
+    #   1 expr_or (||)            6 expr_igualdad (== !=)          11 expr_unaria (+ - ! ~ sizeof)
+    #   2 expr_and (&&)           7 expr_relacional (< <= > >=)    12 expr_postfija ([] . -> ())
+    #   3 expr_bit_or (|)         8 expr_shift (<< >>)             13 expr_primaria
+    #   4 expr_bit_xor (^)        9 expr_aditiva (+ -)
+    #   5 expr_bit_and (&)       10 expr_multiplicativa (* / %)
 
     def p_expresion(self, p):
         """expresion : expr_or"""
@@ -479,13 +722,18 @@ class _ProduccionesSentenciasExpresiones:
 
     def p_expr_binaria(self, p):
         """expr_or : expr_or OR_LOGICO expr_and
-           expr_and : expr_and AND_LOGICO expr_igualdad
+           expr_and : expr_and AND_LOGICO expr_bit_or
+           expr_bit_or : expr_bit_or OR_BIT expr_bit_xor
+           expr_bit_xor : expr_bit_xor XOR_BIT expr_bit_and
+           expr_bit_and : expr_bit_and AND_BIT expr_igualdad
            expr_igualdad : expr_igualdad IGUAL expr_relacional
                          | expr_igualdad DISTINTO expr_relacional
-           expr_relacional : expr_relacional MENOR expr_aditiva
-                           | expr_relacional MENOR_IGUAL expr_aditiva
-                           | expr_relacional MAYOR expr_aditiva
-                           | expr_relacional MAYOR_IGUAL expr_aditiva
+           expr_relacional : expr_relacional MENOR expr_shift
+                           | expr_relacional MENOR_IGUAL expr_shift
+                           | expr_relacional MAYOR expr_shift
+                           | expr_relacional MAYOR_IGUAL expr_shift
+           expr_shift : expr_shift DESPLAZAR_IZQ expr_aditiva
+                      | expr_shift DESPLAZAR_DER expr_aditiva
            expr_aditiva : expr_aditiva MAS expr_multiplicativa
                         | expr_aditiva MENOS expr_multiplicativa
            expr_multiplicativa : expr_multiplicativa POR expr_unaria
@@ -495,9 +743,13 @@ class _ProduccionesSentenciasExpresiones:
 
     def p_expr_nivel(self, p):
         """expr_or : expr_and
-           expr_and : expr_igualdad
+           expr_and : expr_bit_or
+           expr_bit_or : expr_bit_xor
+           expr_bit_xor : expr_bit_and
+           expr_bit_and : expr_igualdad
            expr_igualdad : expr_relacional
-           expr_relacional : expr_aditiva
+           expr_relacional : expr_shift
+           expr_shift : expr_aditiva
            expr_aditiva : expr_multiplicativa
            expr_multiplicativa : expr_unaria
            expr_unaria : expr_postfija
@@ -507,7 +759,8 @@ class _ProduccionesSentenciasExpresiones:
     def p_expr_unaria(self, p):
         """expr_unaria : MAS expr_unaria
                        | MENOS expr_unaria
-                       | NOT_LOGICO expr_unaria"""
+                       | NOT_LOGICO expr_unaria
+                       | NOT_BIT expr_unaria"""
         p[0] = ExpresionUnaria(operador=p[1], operando=p[2], **_pos(p, 1))
 
     def p_expr_sizeof(self, p):
@@ -555,63 +808,105 @@ class _ProduccionesSentenciasExpresiones:
 
     # --- Literales -----------------------------------------------------------
 
-    def p_literal_entero(self, p):
+    def p_literal(self, p):
         """literal : ENTERO_DEC
                    | ENTERO_HEX
-                   | ENTERO_BIN"""
-        tok = p.slice[1]
-        lexema = tok.value
-        if tok.type == "ENTERO_HEX":
-            valor = _a_int64(int(lexema, 16))
-        elif tok.type == "ENTERO_BIN":
-            valor = _a_int64(int(lexema[2:], 2))
-        else:
-            valor = int(lexema)
-        p[0] = LiteralEntero(valor=valor, lexema=lexema, simbolo_idx=tok.simbolo_idx, **_pos(p, 1))
-
-    def p_literal_flotante(self, p):
-        """literal : FLOTANTE"""
-        tok = p.slice[1]
-        p[0] = LiteralFlotante(valor=float(tok.value), lexema=tok.value,
-                               simbolo_idx=tok.simbolo_idx, **_pos(p, 1))
-
-    def p_literal_cadena(self, p):
-        """literal : STRING"""
-        tok = p.slice[1]
-        p[0] = LiteralCadena(valor=desescapar_cadena(tok.value), lexema=tok.value,
-                             simbolo_idx=tok.simbolo_idx, **_pos(p, 1))
-
-    def p_literal_caracter(self, p):
-        """literal : CHAR_LITERAL"""
-        lexema = p[1]
-        valor = desescapar_cadena('"' + lexema[1:-1] + '"')
-        p[0] = LiteralCaracter(valor=valor, lexema=lexema, **_pos(p, 1))
-
-    def p_literal_booleano(self, p):
-        """literal : TRUE_LIT
+                   | ENTERO_BIN
+                   | FLOTANTE
+                   | STRING
+                   | CHAR_LITERAL
+                   | TRUE_LIT
                    | FALSE_LIT"""
-        p[0] = LiteralBooleano(valor=p.slice[1].type == "TRUE_LIT", **_pos(p, 1))
+        p[0] = self._literal_de_token(p.slice[1])
+
+    @staticmethod
+    def _literal_de_token(tok):
+        """Nodo literal de un token (lo comparten las expresiones y los case)."""
+        pos = {"linea": getattr(tok, "lineno", 0), "columna": getattr(tok, "columna", 0)}
+        lexema = tok.value
+        if tok.type in ("ENTERO_DEC", "ENTERO_HEX", "ENTERO_BIN"):
+            if tok.type == "ENTERO_HEX":
+                valor = _a_int64(int(lexema, 16))
+            elif tok.type == "ENTERO_BIN":
+                valor = _a_int64(int(lexema[2:], 2))
+            else:
+                valor = int(lexema)
+            return LiteralEntero(valor=valor, lexema=lexema, simbolo_idx=tok.simbolo_idx, **pos)
+        if tok.type == "FLOTANTE":
+            return LiteralFlotante(valor=float(lexema), lexema=lexema,
+                                   simbolo_idx=tok.simbolo_idx, **pos)
+        if tok.type == "STRING":
+            return LiteralCadena(valor=desescapar_cadena(lexema), lexema=lexema,
+                                 simbolo_idx=tok.simbolo_idx, **pos)
+        if tok.type == "CHAR_LITERAL":
+            valor = desescapar_cadena('"' + lexema[1:-1] + '"')
+            return LiteralCaracter(valor=valor, lexema=lexema, **pos)
+        return LiteralBooleano(valor=tok.type == "TRUE_LIT", **pos)
 
     # --- Errores ---------------------------------------------------------------
 
     def p_error(self, tok):
+        """
+        Registra el error con los tokens que el autómata aceptaba en ese punto.
+        La sincronización la hacen las producciones con 'error' (por
+        declaración externa, por campo de TDA, por sentencia y por bloque).
+        """
         if tok is None:
-            error = ErrorSintactico(
-                linea=self._flujo.ultima_linea,
-                columna=0,
-                lexema="<EOF>",
-                mensaje="fin de archivo inesperado (falta cerrar una declaracion o un bloque)",
-            )
+            linea, columna, lexema = self._flujo.ultima_linea, 0, "<EOF>"
+            mensaje = "fin de archivo inesperado (falta cerrar una declaracion o un bloque)"
         else:
-            error = ErrorSintactico(
-                linea=tok.lineno,
-                columna=getattr(tok, "columna", 0),
-                lexema=str(tok.value),
-                mensaje=f"token inesperado {tok.type}",
-            )
+            linea, columna, lexema = tok.lineno, getattr(tok, "columna", 0), str(tok.value)
+            mensaje = f"token inesperado {tok.type}"
+        esperados = self._tokens_esperados()
+        if esperados:
+            mensaje += f"; se esperaba {esperados}"
+        error = ErrorSintactico(linea=linea, columna=columna, lexema=lexema, mensaje=mensaje)
         self.errores.append(error)
         if self.al_error:
             self.al_error(error)
+
+    def _tokens_esperados(self) -> str:
+        """
+        Tokens que el autómata habría aceptado donde se detectó el error, en
+        texto legible. Vacío si son más de MAX_TOKENS_ESPERADOS.
+
+        La tabla LALR(1) fusiona estados con el mismo núcleo LR(0), así que la
+        fila del estado puede traer búsquedas anticipadas de otro contexto (por
+        ejemplo ')' del paso de un for dentro de una sentencia común). Por eso
+        cada candidato se confirma simulando sus reducciones sobre una copia de
+        la pila hasta que se desplaza (aceptado) o no tiene acción (descartado).
+        """
+        pila = getattr(self._parser, "statestack", None)
+        if not pila:
+            return ""
+        candidatos = self._parser.action.get(pila[-1], {})
+        validos = [t for t in candidatos if t != "error" and self._acepta_token(pila, t)]
+        nombres = sorted({_NOMBRE_TOKEN.get(t, t) for t in validos})
+        if not nombres or len(nombres) > MAX_TOKENS_ESPERADOS:
+            return ""
+        if len(nombres) == 1:
+            return nombres[0]
+        return ", ".join(nombres[:-1]) + " o " + nombres[-1]
+
+    def _acepta_token(self, pila: List[int], token: str) -> bool:
+        """Simula las reducciones con 'token' de búsqueda anticipada sin tocar la pila real."""
+        acciones, ir_a = self._parser.action, self._parser.goto
+        producciones = self._parser.productions
+        estados = list(pila)
+        for _ in range(10_000):  # cota de seguridad: la gramática no tiene ciclos de reducción
+            accion = acciones.get(estados[-1], {}).get(token)
+            if accion is None:
+                return False
+            if accion >= 0:  # desplazar (> 0) o aceptar (0)
+                return True
+            regla = producciones[-accion]
+            if regla.len:
+                del estados[-regla.len:]
+            destino = ir_a.get(estados[-1], {}).get(regla.name)
+            if destino is None:
+                return False
+            estados.append(destino)
+        return False
 
 
 # ---------------------------------------------------------------------------

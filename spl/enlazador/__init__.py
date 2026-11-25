@@ -7,22 +7,38 @@ Enlazador del modulo Enlazador-Cargador de Enigma-64 (Noctua Systems).
     importaciones y aplicacion de las marcas sobre la imagen de memoria.
   * lexer y texto: el mismo modulo objeto en formato de texto (.tobj), que se
     tokeniza con lex.py (PLY).
+  * binario: volcado en 0 y 1 por instruccion y por palabra, con cada direccion
+    relativa a la base de su seccion (o al PC siguiente en los saltos REL16).
+
+El enlazador solo lee modulos objeto (.obj o .tobj) y escribe el ejecutable .e64.
 
     from spl.enlazador import EnlazadorEnigma, analizar_objeto
 
     modulo = analizar_objeto("principal.tobj")      # o "principal.obj"
     print(modulo.informe())
+    print(modulo.formatear_binario_bits())
 
     resultado = EnlazadorEnigma(["principal.tobj", "libmat.tobj"]).enlazar(0x00200000)
+    print(resultado.informe())                  # mapa + direcciones reubicadas
+    print(resultado.formatear_binario_bits())
     cargador.cargar_binario(resultado.binario)
 
-Linea de comandos:  python -m spl.enlazador modulo.tobj [...] [-o salida.e64] [--tokens]
+Linea de comandos:  python -m spl.enlazador modulo.tobj [...] [-o salida.e64] [--tokens] [--binario]
 """
 
+from .binario import (
+    FORMULA_REUBICACION,
+    InstruccionDecodificada,
+    bits,
+    decodificar,
+    formatear_enlace_bits,
+    formatear_modulo_bits,
+)
 from .enlace import (
     LIMITE_HI16,
     DesbordamientoReubicacion,
     EnlazadorEnigma,
+    ReubicacionAplicada,
     ResultadoEnlace,
     SimboloDuplicado,
     SimboloNoDefinido,
@@ -83,9 +99,17 @@ __all__ = [
     # Enlace
     "EnlazadorEnigma",
     "ResultadoEnlace",
+    "ReubicacionAplicada",
     "UbicacionSeccion",
     "calcular_parche",
     "LIMITE_HI16",
+    # Vista binaria (0 y 1)
+    "InstruccionDecodificada",
+    "decodificar",
+    "bits",
+    "formatear_modulo_bits",
+    "formatear_enlace_bits",
+    "FORMULA_REUBICACION",
     # Excepciones
     "ErrorEnlazador",
     "ObjetoInvalido",
