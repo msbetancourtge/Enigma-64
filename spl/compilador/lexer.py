@@ -44,11 +44,14 @@ CAT_TIPO_PRIMITIVO: int = 110        # TYPE (int, float, char, void, bool)
 CAT_TIPO_ABSTRACTO: int = 120        # TDA / STRUCT (struct, tda, typedef, sizeof)
 CAT_IDENTIFICADOR: int = 150         # ID (variables, funciones, tipos)
 CAT_CONSTANTE_NUMERICA: int = 160    # NUMBER (enteros 64-bit y flotantes IEEE 754)
+CAT_CONSTANTE_BOOLEANA: int = 165    # BOOL_LIT (true, false - Taller 02 Literal b)
 CAT_CADENA_LITERAL: int = 170        # STRING ("...")
 CAT_OPERADOR_RELACIONAL: int = 200   # RELOP (==, !=, <, <=, >, >=)
 CAT_OPERADOR_ARITMETICO: int = 210   # ARITH (+, -, *, /, %)
 CAT_OPERADOR_LOGICO: int = 220       # LOGOP (&&, ||, !)
-CAT_OPERADOR_ASIGNACION: int = 230   # ASSIGN (=)
+CAT_OPERADOR_BIT: int = 225          # BITOP (&, |, ^, ~, <<, >> - Taller 02 Literal b)
+CAT_OPERADOR_ASIGNACION: int = 230   # ASSIGN (=, +=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=)
+CAT_OPERADOR_INC_DEC: int = 235      # INCDEC (++, -- - Taller 02 Literal b)
 CAT_DELIMITADOR: int = 240           # DELIM ([, ], {, }, (, ), ;, ,, :, ., ->)
 
 # Diccionario unificado de palabras reservadas del lenguaje de alto nivel
@@ -90,11 +93,18 @@ PALABRAS_RESERVADAS_TDA: Dict[str, str] = {
     "sizeof": "SIZEOF",       # Tamaño en bytes del tipo o variable
 }
 
+PALABRAS_RESERVADAS_BOOLEANAS: Dict[str, str] = {
+    # Literales booleanos (Taller 02 - Literal b)
+    "true": "TRUE_LIT",
+    "false": "FALSE_LIT",
+}
+
 # Diccionario maestro de palabras reservadas
 PALABRAS_RESERVADAS: Dict[str, str] = {
     **PALABRAS_RESERVADAS_CONTROL,
     **PALABRAS_RESERVADAS_TIPOS,
     **PALABRAS_RESERVADAS_TDA,
+    **PALABRAS_RESERVADAS_BOOLEANAS,
 }
 
 # Subcódigos ordinales para representación canónica en yylval
@@ -113,7 +123,11 @@ SUBCODIGOS_TDA: Dict[str, int] = {
     "STRUCT": 1, "TDA": 2, "TYPEDEF": 3, "SIZEOF": 4,
 }
 
-# Operadores (Integrante 5): lexema exacto -> nombre canónico del token
+SUBCODIGOS_BOOLEANOS: Dict[str, int] = {
+    "TRUE_LIT": 1, "FALSE_LIT": 2,
+}
+
+# Operadores (Integrante 5 + extensión Taller 02 Literal b): lexema -> token
 OPERADORES_RELACIONALES: Dict[str, str] = {
     "==": "IGUAL", "!=": "DISTINTO",
     "<": "MENOR", "<=": "MENOR_IGUAL",
@@ -128,10 +142,33 @@ OPERADORES_LOGICOS: Dict[str, str] = {
     "&&": "AND_LOGICO", "||": "OR_LOGICO", "!": "NOT_LOGICO",
 }
 
+OPERADORES_BIT: Dict[str, str] = {
+    "&": "AND_BIT", "|": "OR_BIT", "^": "XOR_BIT", "~": "NOT_BIT",
+    "<<": "DESPLAZAR_IZQ", ">>": "DESPLAZAR_DER",
+}
+
+OPERADORES_INC_DEC: Dict[str, str] = {
+    "++": "INCREMENTO", "--": "DECREMENTO",
+}
+
+OPERADORES_ASIGNACION_COMPUESTA: Dict[str, str] = {
+    "+=": "MAS_ASIGNAR", "-=": "MENOS_ASIGNAR", "*=": "POR_ASIGNAR",
+    "/=": "DIV_ASIGNAR", "%=": "MOD_ASIGNAR", "&=": "AND_ASIGNAR",
+    "|=": "OR_ASIGNAR", "^=": "XOR_ASIGNAR",
+    "<<=": "DESPLAZAR_IZQ_ASIGNAR", ">>=": "DESPLAZAR_DER_ASIGNAR",
+}
+
 OPERADORES: Dict[str, str] = {
     **OPERADORES_RELACIONALES,
     **OPERADORES_ARITMETICOS,
     **OPERADORES_LOGICOS,
+}
+
+OPERADORES_EXTENDIDOS: Dict[str, str] = {
+    **OPERADORES,
+    **OPERADORES_BIT,
+    **OPERADORES_INC_DEC,
+    **OPERADORES_ASIGNACION_COMPUESTA,
 }
 
 # Subcódigos de operadores (atributo del token, al estilo RELOP de FLEX)
@@ -146,6 +183,22 @@ SUBCODIGOS_ARITMETICOS: Dict[str, int] = {
 
 SUBCODIGOS_LOGICOS: Dict[str, int] = {
     "AND_LOGICO": 1, "OR_LOGICO": 2, "NOT_LOGICO": 3,
+}
+
+SUBCODIGOS_BIT: Dict[str, int] = {
+    "AND_BIT": 1, "OR_BIT": 2, "XOR_BIT": 3, "NOT_BIT": 4,
+    "DESPLAZAR_IZQ": 5, "DESPLAZAR_DER": 6,
+}
+
+SUBCODIGOS_INC_DEC: Dict[str, int] = {
+    "INCREMENTO": 1, "DECREMENTO": 2,
+}
+
+SUBCODIGOS_ASIGNACION_COMPUESTA: Dict[str, int] = {
+    "MAS_ASIGNAR": 2, "MENOS_ASIGNAR": 3, "POR_ASIGNAR": 4,
+    "DIV_ASIGNAR": 5, "MOD_ASIGNAR": 6, "AND_ASIGNAR": 7,
+    "OR_ASIGNAR": 8, "XOR_ASIGNAR": 9,
+    "DESPLAZAR_IZQ_ASIGNAR": 10, "DESPLAZAR_DER_ASIGNAR": 11,
 }
 
 # Subcódigos de literales numéricos (alineados con TipoNumero de tablas.py)
@@ -175,6 +228,8 @@ def obtener_categoria_y_subcodigo(tipo_token: str) -> Tuple[int, int]:
         return CAT_TIPO_PRIMITIVO, SUBCODIGOS_TIPOS[tipo_token]
     if tipo_token in SUBCODIGOS_TDA:
         return CAT_TIPO_ABSTRACTO, SUBCODIGOS_TDA[tipo_token]
+    if tipo_token in SUBCODIGOS_BOOLEANOS:
+        return CAT_CONSTANTE_BOOLEANA, SUBCODIGOS_BOOLEANOS[tipo_token]
     if tipo_token == "ID":
         return CAT_IDENTIFICADOR, 1
     if tipo_token == "ENTERO_DEC":
@@ -197,8 +252,14 @@ def obtener_categoria_y_subcodigo(tipo_token: str) -> Tuple[int, int]:
         return CAT_OPERADOR_ARITMETICO, SUBCODIGOS_ARITMETICOS[tipo_token]
     if tipo_token in SUBCODIGOS_LOGICOS:
         return CAT_OPERADOR_LOGICO, SUBCODIGOS_LOGICOS[tipo_token]
+    if tipo_token in SUBCODIGOS_BIT:
+        return CAT_OPERADOR_BIT, SUBCODIGOS_BIT[tipo_token]
+    if tipo_token in SUBCODIGOS_INC_DEC:
+        return CAT_OPERADOR_INC_DEC, SUBCODIGOS_INC_DEC[tipo_token]
     if tipo_token == "ASIGNAR":
         return CAT_OPERADOR_ASIGNACION, 1
+    if tipo_token in SUBCODIGOS_ASIGNACION_COMPUESTA:
+        return CAT_OPERADOR_ASIGNACION, SUBCODIGOS_ASIGNACION_COMPUESTA[tipo_token]
     return CAT_DELIMITADOR, 1
 
 
@@ -342,6 +403,30 @@ class CompiladorLexer:
         "AND_LOGICO",       # &&
         "OR_LOGICO",        # ||
         "NOT_LOGICO",       # !
+        # Literales booleanos (Taller 02 - Literal b)
+        "TRUE_LIT",
+        "FALSE_LIT",
+        # Operadores bit a bit y desplazamientos (Taller 02 - Literal b)
+        "AND_BIT",          # &
+        "OR_BIT",           # |
+        "XOR_BIT",          # ^
+        "NOT_BIT",          # ~
+        "DESPLAZAR_IZQ",    # <<
+        "DESPLAZAR_DER",    # >>
+        # Incremento y decremento (Taller 02 - Literal b)
+        "INCREMENTO",       # ++
+        "DECREMENTO",       # --
+        # Asignación compuesta (Taller 02 - Literal b)
+        "MAS_ASIGNAR",      # +=
+        "MENOS_ASIGNAR",    # -=
+        "POR_ASIGNAR",      # *=
+        "DIV_ASIGNAR",      # /=
+        "MOD_ASIGNAR",      # %=
+        "AND_ASIGNAR",      # &=
+        "OR_ASIGNAR",       # |=
+        "XOR_ASIGNAR",      # ^=
+        "DESPLAZAR_IZQ_ASIGNAR",  # <<=
+        "DESPLAZAR_DER_ASIGNAR",  # >>=
         # Literales
         "ENTERO_HEX",
         "ENTERO_BIN",
@@ -376,9 +461,14 @@ class CompiladorLexer:
 
     # -----------------------------------------------------------------------
     # Operadores Multicarácter y Delimitadores Compuestos
-    # (Deben preceder a los operadores simples de 1 carácter)
+    # (PLY prioriza por longitud de regex: 3 chars > 2 chars > 1 char)
     # -----------------------------------------------------------------------
 
+    # 3 caracteres (asignación compuesta de desplazamiento)
+    t_DESPLAZAR_IZQ_ASIGNAR = r"<<="
+    t_DESPLAZAR_DER_ASIGNAR = r">>="
+
+    # 2 caracteres
     t_FLECHA = r"->"
     t_IGUAL = r"=="
     t_DISTINTO = r"!="
@@ -386,6 +476,18 @@ class CompiladorLexer:
     t_MAYOR_IGUAL = r">="
     t_AND_LOGICO = r"&&"
     t_OR_LOGICO = r"\|\|"
+    t_DESPLAZAR_IZQ = r"<<"
+    t_DESPLAZAR_DER = r">>"
+    t_INCREMENTO = r"\+\+"
+    t_DECREMENTO = r"--"
+    t_MAS_ASIGNAR = r"\+="
+    t_MENOS_ASIGNAR = r"-="
+    t_POR_ASIGNAR = r"\*="
+    t_DIV_ASIGNAR = r"/="
+    t_MOD_ASIGNAR = r"%="
+    t_AND_ASIGNAR = r"&="
+    t_OR_ASIGNAR = r"\|="
+    t_XOR_ASIGNAR = r"\^="
 
     # -----------------------------------------------------------------------
     # Delimitadores Estructurales (Arreglos, Matrices, Bloques y Puntuación)
@@ -403,7 +505,7 @@ class CompiladorLexer:
     t_PUNTO = r"\."
     t_ASIGNAR = r"="
 
-    # Operadores simples
+    # Operadores simples (1 carácter)
     t_MAS = r"\+"
     t_MENOS = r"-"
     t_POR = r"\*"
@@ -412,6 +514,10 @@ class CompiladorLexer:
     t_MENOR = r"<"
     t_MAYOR = r">"
     t_NOT_LOGICO = r"!"
+    t_AND_BIT = r"&"
+    t_OR_BIT = r"\|"
+    t_XOR_BIT = r"\^"
+    t_NOT_BIT = r"~"
 
     # -----------------------------------------------------------------------
     # Literales Numéricos y Cadenas (Integración con GestorTablasSimbolos)
@@ -517,10 +623,6 @@ class CompiladorLexer:
             else:
                 t.simbolo_idx = None
         return t
-
-    @TOKEN(PATRON_OPERADOR_INCOMPLETO)
-    def t_OPERADOR_INCOMPLETO(self, t):
-        self._reportar(t, "operador logico incompleto (se esperaba '&&' o '||')")
 
     # -----------------------------------------------------------------------
     # Manejo de Errores Léxicos

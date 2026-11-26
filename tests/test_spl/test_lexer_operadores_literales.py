@@ -130,13 +130,23 @@ def test_resta_y_flecha(lexer):
     assert _tipos(tokens) == ["ID", "MENOS", "ID", "ID", "FLECHA", "ID", "ID", "MENOS", "MENOS", "ENTERO_DEC"]
 
 
-@pytest.mark.parametrize("codigo,lexema", [("a & b", "&"), ("a | b", "|"), ("a &&& b", "&")])
-def test_operador_logico_incompleto(lexer, codigo, lexema):
+@pytest.mark.parametrize("codigo,esperados", [
+    ("a & b", ["ID", "AND_BIT", "ID"]),
+    ("a | b", ["ID", "OR_BIT", "ID"]),
+    ("a &&& b", ["ID", "AND_LOGICO", "AND_BIT", "ID"]),
+    ("a<<=b>>=c<<d>>e", ["ID", "DESPLAZAR_IZQ_ASIGNAR", "ID", "DESPLAZAR_DER_ASIGNAR", "ID", "DESPLAZAR_IZQ", "ID", "DESPLAZAR_DER", "ID"]),
+    ("a++ b-- ~c ^ d", ["ID", "INCREMENTO", "ID", "DECREMENTO", "NOT_BIT", "ID", "XOR_BIT", "ID"]),
+    ("a+=b-=c*=d/=e%=f&=g|=h^=i", [
+        "ID", "MAS_ASIGNAR", "ID", "MENOS_ASIGNAR", "ID", "POR_ASIGNAR",
+        "ID", "DIV_ASIGNAR", "ID", "MOD_ASIGNAR", "ID", "AND_ASIGNAR",
+        "ID", "OR_ASIGNAR", "ID", "XOR_ASIGNAR", "ID",
+    ]),
+])
+def test_operadores_extendidos_taller02_maximal_munch(lexer, codigo, esperados):
+    """Verifica operadores de bits, desplazamientos, ++/-- y asignación compuesta (Literal b)."""
     tokens, errores = lexer.tokenizar(codigo)
-    assert len(errores) == 1
-    assert errores[0].lexema == lexema
-    assert "operador logico incompleto" in errores[0].mensaje
-    assert _tipos(tokens)[0] == "ID" and _tipos(tokens)[-1] == "ID"
+    assert not errores
+    assert _tipos(tokens) == esperados
 
 
 # ===========================================================================
@@ -402,8 +412,10 @@ def test_escenario_4_operadores_literales(lexer):
 def test_escenario_5_errores_literales(lexer):
     texto = (EJEMPLOS / "escenario5_errores_literales.spl").read_text(encoding="utf-8")
     tokens, errores = lexer.tokenizar(texto)
-    assert len(errores) == 9
-    assert [e.linea for e in errores] == [9, 10, 13, 14, 17, 20, 23, 23, 26]
+    # En Taller 02 Literal b, '&' y '|' son operadores bit a bit válidos (AND_BIT / OR_BIT),
+    # por lo que se reportan los 7 errores reales de literales y cadenas.
+    assert len(errores) == 7
+    assert [e.linea for e in errores] == [9, 10, 13, 14, 17, 20, 26]
     assert "fin_de_literales" in [t.value for t in tokens if t.type == "ID"]
 
 
@@ -425,4 +437,4 @@ def test_cli_escenario_errores_literales():
         capture_output=True, text=True, cwd=str(RAIZ),
     )
     assert res.returncode == 1
-    assert res.stdout.count("ERROR LEXICO") == 9
+    assert res.stdout.count("ERROR LEXICO") == 7

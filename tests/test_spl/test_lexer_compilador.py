@@ -307,7 +307,36 @@ def test_escenario_2_ejemplo_control_funciones(lexer):
     tokens, errores = lexer.tokenizar(texto)
     assert not errores
     assert len(tokens) > 150
-    assert lexer.tablas.tabla_id.total == 16
+    # true y false se clasifican como TRUE_LIT / FALSE_LIT (Taller 02 Literal b), no como ID
+    assert lexer.tablas.tabla_id.total == 14
+    tipos = [t.type for t in tokens]
+    assert "TRUE_LIT" in tipos
+    assert "FALSE_LIT" in tipos
+
+
+def test_literales_booleanos_y_operadores_taller02(lexer):
+    """Verifica el ajuste léxico del Literal b: true, false y operadores extendidos."""
+    codigo = (
+        "bool ok = true; bool no = false; "
+        "x++; y--; a += 1; b -= 2; c *= 3; d /= 4; e %= 5; "
+        "f &= 6; g |= 7; h ^= 8; i <<= 1; j >>= 2; "
+        "k = (a & b) | (c ^ ~d) | (e << 1) | (f >> 1);"
+    )
+    tokens, errores = lexer.tokenizar(codigo)
+    assert not errores
+    tipos = [t.type for t in tokens]
+    for esperado in (
+        "TRUE_LIT", "FALSE_LIT",
+        "INCREMENTO", "DECREMENTO",
+        "MAS_ASIGNAR", "MENOS_ASIGNAR", "POR_ASIGNAR", "DIV_ASIGNAR", "MOD_ASIGNAR",
+        "AND_ASIGNAR", "OR_ASIGNAR", "XOR_ASIGNAR",
+        "DESPLAZAR_IZQ_ASIGNAR", "DESPLAZAR_DER_ASIGNAR",
+        "AND_BIT", "OR_BIT", "XOR_BIT", "NOT_BIT",
+        "DESPLAZAR_IZQ", "DESPLAZAR_DER",
+    ):
+        assert esperado in tipos
+    assert lexer.tablas.tabla_id.buscar("true") is None
+    assert lexer.tablas.tabla_id.buscar("false") is None
 
 
 def test_escenario_3_ejemplo_errores_recuperacion(lexer):
